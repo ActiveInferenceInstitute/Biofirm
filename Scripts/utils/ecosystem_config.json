@@ -1,0 +1,148 @@
+{
+    "simulation": {
+        "target_ranges": {
+            "forest_health": 75,
+            "carbon_sequestration": 65,
+            "riparian_buffer_width": 62.5
+        },
+        "control_factors": {
+            "adjustment_rate": 0.1,
+            "random_noise": {
+                "normal_std": 5,
+                "uniform_range": [-5, 5]
+            }
+        }
+    },
+    "variables": {
+        "forest_health": {
+            "initial_value": 40.0,
+            "description": "Forest health index (0-100). Measures overall forest ecosystem health.",
+            "constraints": {
+                "lower": 50,
+                "upper": 100
+            },
+            "controllable": true,
+            "unit": "index"
+        },
+        "carbon_sequestration": {
+            "initial_value": 10.0,
+            "description": "Amount of carbon captured by forest.",
+            "constraints": {
+                "lower": 30,
+                "upper": 100
+            },
+            "controllable": true,
+            "unit": "tons/acre"
+        },
+        "wildlife_habitat_quality": {
+            "initial_value": 30.0,
+            "description": "Suitability for wildlife.",
+            "constraints": {
+                "lower": 50,
+                "upper": 100
+            },
+            "controllable": false,
+            "unit": "index"
+        },
+        "water_quality": {
+            "initial_value": 60.0,
+            "description": "Water cleanliness and health.",
+            "constraints": {
+                "lower": 70,
+                "upper": 100
+            },
+            "controllable": false,
+            "unit": "index"
+        },
+        "soil_health": {
+            "initial_value": 40.0,
+            "description": "Soil quality and sustainability.",
+            "constraints": {
+                "lower": 60,
+                "upper": 100
+            },
+            "controllable": false,
+            "unit": "index"
+        },
+        "invasive_species_count": {
+            "initial_value": 100,
+            "description": "Number of unwanted species.",
+            "constraints": {
+                "lower": 0,
+                "upper": 50
+            },
+            "controllable": false,
+            "unit": "count"
+        },
+        "riparian_buffer_width": {
+            "initial_value": 10.0,
+            "description": "Width of waterway protection zone.",
+            "constraints": {
+                "lower": 25,
+                "upper": 100
+            },
+            "controllable": true,
+            "unit": "feet"
+        },
+        "biodiversity_index": {
+            "initial_value": 50.0,
+            "description": "Species variety measure.",
+            "constraints": {
+                "lower": 60,
+                "upper": 100
+            },
+            "controllable": false,
+            "unit": "index"
+        },
+        "hazard_trees_count": {
+            "initial_value": 20,
+            "description": "Number of risk-posing trees.",
+            "constraints": {
+                "lower": 0,
+                "upper": 15
+            },
+            "controllable": false,
+            "unit": "count"
+        },
+        "recreational_access_score": {
+            "initial_value": 20.0,
+            "description": "Recreational accessibility.",
+            "constraints": {
+                "lower": 30,
+                "upper": 100
+            },
+            "controllable": false,
+            "unit": "index"
+        }
+    },
+    "variable_relationships": {
+        "wildlife_habitat_quality": {
+            "depends_on": ["forest_health"],
+            "formula": "0.5 * forest_health + normal(0, 5)"
+        },
+        "water_quality": {
+            "depends_on": ["riparian_buffer_width"],
+            "formula": "1.5 * riparian_buffer_width + normal(0, 5)"
+        },
+        "soil_health": {
+            "depends_on": ["forest_health"],
+            "formula": "0.6 * forest_health + normal(0, 5)"
+        },
+        "invasive_species_count": {
+            "depends_on": ["riparian_buffer_width"],
+            "formula": "current - riparian_buffer_width/10 + randint(-5, 5)"
+        },
+        "biodiversity_index": {
+            "depends_on": ["wildlife_habitat_quality"],
+            "formula": "0.4 * wildlife_habitat_quality + normal(0, 5)"
+        },
+        "hazard_trees_count": {
+            "depends_on": [],
+            "formula": "current + randint(-2, 3)"
+        },
+        "recreational_access_score": {
+            "depends_on": [],
+            "formula": "current + randint(-3, 3)"
+        }
+    }
+} 
