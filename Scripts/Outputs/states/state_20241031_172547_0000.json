@@ -1,17 +1,17 @@
 {
-  "timestamp": "2024-10-31T15:58:15.995327",
-  "timestep": 399,
+  "timestamp": "2024-10-31T17:26:03.607765",
+  "timestep": 500,
   "variables": {
-    "forest_health": 58.934307096047526,
-    "carbon_sequestration": 39.62184943460991,
-    "wildlife_habitat_quality": 31.354467724290135,
-    "water_quality": 100.0,
-    "soil_health": 35.82733025833444,
+    "forest_health": 23.48908575176847,
+    "carbon_sequestration": 70.3610146895068,
+    "wildlife_habitat_quality": 10.316070286181287,
+    "water_quality": 68.06968288700068,
+    "soil_health": 6.99367335367684,
     "invasive_species_count": 0.0,
-    "riparian_buffer_width": 100.0,
-    "biodiversity_index": 2.9738991600675817,
-    "hazard_trees_count": 47.0,
-    "recreational_access_score": 0.0
+    "riparian_buffer_width": 50.40465037294754,
+    "biodiversity_index": 11.138081124831903,
+    "hazard_trees_count": 45.0,
+    "recreational_access_score": 1.0
   },
   "constraints": {
     "forest_health": {
@@ -56,10 +56,10 @@
     }
   },
   "constraint_verification": [
-    1,
-    1,
     0,
     1,
+    0,
+    0,
     0,
     1,
     1,
@@ -73,12 +73,12 @@
     "riparian_buffer_width"
   ],
   "metadata": {
-    "step_duration": 0.075737,
-    "simulation_id": "20241031_155759",
-    "step_number": 199,
+    "step_duration": 0.078729,
+    "simulation_id": "20241031_172547",
+    "step_number": 0,
     "control_strategy": "active_inference"
   },
-  "satisfied_constraints": 7,
+  "satisfied_constraints": 5,
   "total_constraints": 10,
-  "satisfaction_rate": 0.7
+  "satisfaction_rate": 0.5
 }

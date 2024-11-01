@@ -22,10 +22,10 @@ from Scripts.Biofirm_Agent import BiofirmAgent
 
 # Simulation Parameters
 SIMULATION_PARAMS = {
-    'num_timesteps': 200,
+    'num_timesteps': 500,
     'control_modes': ['random', 'active_inference'],
     'default_control_strategy': 'active_inference',
-    'output_interval': 50,
+    'output_interval': 100,
     'control_bounds': {
         'min_adjustment': -5.0,
         'max_adjustment': 5.0

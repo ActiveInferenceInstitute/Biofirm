@@ -835,6 +835,231 @@ def plot_system_stability_analysis(random_data: pd.DataFrame,
         print(f"Error in plot_system_stability_analysis: {e}")
         plt.close('all')
 
+def plot_decision_comparison(random_data: pd.DataFrame,
+                           active_data: pd.DataFrame,
+                           controllable_vars: List[str],
+                           output_dir: Path):
+    """
+    Plot side-by-side comparison of decisions/actions taken by each control strategy
+    
+    Args:
+        random_data: DataFrame from random control simulation
+        active_data: DataFrame from active inference simulation
+        controllable_vars: List of controllable variable names
+        output_dir: Directory to save visualization
+    """
+    plt.ioff()
+    
+    try:
+        # Calculate decisions (changes between timesteps)
+        def get_decisions(data: pd.DataFrame) -> Dict[str, np.ndarray]:
+            decisions = {}
+            for var in controllable_vars:
+                # Calculate changes between timesteps
+                changes = np.diff(data[var].values)
+                # Categorize decisions: -1 (decrease), 0 (maintain), 1 (increase)
+                decisions[var] = np.sign(changes)
+            return decisions
+        
+        random_decisions = get_decisions(random_data)
+        active_decisions = get_decisions(active_data)
+        
+        # Create visualization
+        fig, axes = plt.subplots(len(controllable_vars), 2, 
+                                figsize=(15, 5*len(controllable_vars)),
+                                sharex='col', sharey='row')
+        fig.suptitle('Control Strategy Decision Comparison', fontsize=16, y=1.02)
+        
+        # Color mapping for decisions
+        colors = {-1: '#ff9999', 0: '#99ff99', 1: '#9999ff'}
+        labels = {-1: 'Decrease', 0: 'Maintain', 1: 'Increase'}
+        
+        for idx, var in enumerate(controllable_vars):
+            # Plot random control decisions
+            ax_random = axes[idx, 0]
+            decisions = random_decisions[var]
+            
+            # Create colored bars for decisions
+            for decision in [-1, 0, 1]:
+                mask = decisions == decision
+                if np.any(mask):
+                    ax_random.bar(np.where(mask)[0], 
+                                np.ones_like(np.where(mask)[0]),
+                                color=colors[decision],
+                                label=labels[decision])
+            
+            ax_random.set_title(f'{var.replace("_", " ").title()}\nRandom Control')
+            if idx == 0:
+                ax_random.legend(title='Decisions', bbox_to_anchor=(1.05, 1))
+            
+            # Plot active inference decisions
+            ax_active = axes[idx, 1]
+            decisions = active_decisions[var]
+            
+            for decision in [-1, 0, 1]:
+                mask = decisions == decision
+                if np.any(mask):
+                    ax_active.bar(np.where(mask)[0],
+                                np.ones_like(np.where(mask)[0]),
+                                color=colors[decision],
+                                label=labels[decision])
+            
+            ax_active.set_title(f'{var.replace("_", " ").title()}\nActive Inference')
+            if idx == 0:
+                ax_active.legend(title='Decisions', bbox_to_anchor=(1.05, 1))
+            
+            # Add decision statistics
+            for ax, decisions in [(ax_random, random_decisions[var]), 
+                                (ax_active, active_decisions[var])]:
+                stats_text = (
+                    f'Decision Stats:\n'
+                    f'Decrease: {np.sum(decisions == -1)}\n'
+                    f'Maintain: {np.sum(decisions == 0)}\n'
+                    f'Increase: {np.sum(decisions == 1)}'
+                )
+                ax.text(1.15, 0.5, stats_text,
+                       transform=ax.transAxes,
+                       bbox=dict(facecolor='white', alpha=0.8, edgecolor='none'))
+            
+            # Customize axes
+            for ax in [ax_random, ax_active]:
+                ax.set_xlabel('Timestep')
+                ax.set_ylabel('Decision')
+                ax.set_yticks([])
+                ax.grid(True, alpha=0.3)
+                
+                # Add colored background for better visibility
+                ax.set_facecolor('#f8f8f8')
+        
+        plt.tight_layout()
+        
+        if output_dir:
+            plt.savefig(output_dir / 'decision_comparison.png',
+                       bbox_inches='tight', dpi=300)
+        plt.close(fig)
+        
+        # Create additional analysis plot
+        fig, axes = plt.subplots(2, 2, figsize=(15, 12))
+        fig.suptitle('Decision-Making Pattern Analysis', fontsize=16)
+        
+        # Plot 1: Decision Distribution Comparison
+        ax = axes[0, 0]
+        width = 0.35
+        x = np.arange(3)
+        
+        for var_idx, var in enumerate(controllable_vars):
+            random_dist = [
+                np.sum(random_decisions[var] == -1),
+                np.sum(random_decisions[var] == 0),
+                np.sum(random_decisions[var] == 1)
+            ]
+            active_dist = [
+                np.sum(active_decisions[var] == -1),
+                np.sum(active_decisions[var] == 0),
+                np.sum(active_decisions[var] == 1)
+            ]
+            
+            ax.bar(x - width/2 + var_idx*width/len(controllable_vars), 
+                  random_dist, width/len(controllable_vars), 
+                  label=f'Random-{var}', alpha=0.7)
+            ax.bar(x + width/2 + var_idx*width/len(controllable_vars),
+                  active_dist, width/len(controllable_vars),
+                  label=f'Active-{var}', alpha=0.7)
+        
+        ax.set_title('Decision Distribution')
+        ax.set_xticks(x)
+        ax.set_xticklabels(['Decrease', 'Maintain', 'Increase'])
+        ax.legend(bbox_to_anchor=(1.05, 1))
+        ax.grid(True, alpha=0.3)
+        
+        # Plot 2: Decision Transition Patterns
+        ax = axes[0, 1]
+        for var_idx, var in enumerate(controllable_vars):
+            # Calculate transition probabilities
+            transitions_random = np.zeros((3, 3))
+            transitions_active = np.zeros((3, 3))
+            
+            for decisions, trans_mat in [(random_decisions[var], transitions_random),
+                                       (active_decisions[var], transitions_active)]:
+                for i in range(len(decisions)-1):
+                    current = int(decisions[i]) + 1  # Shift to 0,1,2
+                    next_dec = int(decisions[i+1]) + 1
+                    trans_mat[current, next_dec] += 1
+            
+            # Plot transition probabilities
+            ax.plot(transitions_random.flatten(), 
+                   label=f'Random-{var}', marker='o', alpha=0.7)
+            ax.plot(transitions_active.flatten(),
+                   label=f'Active-{var}', marker='s', alpha=0.7)
+        
+        ax.set_title('Decision Transition Patterns')
+        ax.set_xlabel('Transition Type')
+        ax.set_ylabel('Frequency')
+        ax.legend(bbox_to_anchor=(1.05, 1))
+        ax.grid(True, alpha=0.3)
+        
+        # Plot 3: Decision Autocorrelation
+        ax = axes[1, 0]
+        max_lag = 20
+        
+        for var in controllable_vars:
+            # Calculate autocorrelation for both strategies
+            random_acf = [1.0] + [np.corrcoef(random_decisions[var][:-i],
+                                            random_decisions[var][i:])[0,1]
+                                for i in range(1, max_lag)]
+            active_acf = [1.0] + [np.corrcoef(active_decisions[var][:-i],
+                                           active_decisions[var][i:])[0,1]
+                               for i in range(1, max_lag)]
+            
+            ax.plot(range(len(random_acf)), random_acf,
+                   label=f'Random-{var}', linestyle='--', alpha=0.7)
+            ax.plot(range(len(active_acf)), active_acf,
+                   label=f'Active-{var}', alpha=0.7)
+        
+        ax.set_title('Decision Autocorrelation')
+        ax.set_xlabel('Lag')
+        ax.set_ylabel('Correlation')
+        ax.legend(bbox_to_anchor=(1.05, 1))
+        ax.grid(True, alpha=0.3)
+        
+        # Plot 4: Decision Entropy Over Time
+        ax = axes[1, 1]
+        window_size = 20
+        
+        def calculate_entropy(decisions: np.ndarray, window: int) -> List[float]:
+            entropy = []
+            for i in range(len(decisions) - window + 1):
+                window_data = decisions[i:i+window]
+                _, counts = np.unique(window_data, return_counts=True)
+                probs = counts / window
+                entropy.append(-np.sum(probs * np.log2(probs)))
+            return entropy
+        
+        for var in controllable_vars:
+            random_entropy = calculate_entropy(random_decisions[var], window_size)
+            active_entropy = calculate_entropy(active_decisions[var], window_size)
+            
+            ax.plot(random_entropy, label=f'Random-{var}',
+                   linestyle='--', alpha=0.7)
+            ax.plot(active_entropy, label=f'Active-{var}', alpha=0.7)
+        
+        ax.set_title('Decision Entropy Over Time')
+        ax.set_xlabel('Window Position')
+        ax.set_ylabel('Entropy (bits)')
+        ax.legend(bbox_to_anchor=(1.05, 1))
+        ax.grid(True, alpha=0.3)
+        
+        plt.tight_layout()
+        
+        if output_dir:
+            plt.savefig(output_dir / 'decision_analysis.png',
+                       bbox_inches='tight', dpi=300)
+        plt.close(fig)
+        
+    except Exception as e:
+        print(f"Error in plot_decision_comparison: {e}")
+        plt.close('all')
+
 def generate_all_visualizations(random_data: pd.DataFrame,
                               active_data: pd.DataFrame,
                               constraints: pd.DataFrame,
@@ -877,7 +1102,10 @@ def generate_all_visualizations(random_data: pd.DataFrame,
             )),
             ("system stability", lambda: plot_system_stability_analysis(
                 random_data, active_data, constraints, vis_dir
-            ))
+            )),
+            ("decision comparison", lambda: plot_decision_comparison(
+                random_data, active_data, controllable_vars, vis_dir
+            )),
         ]
 
         # Generate each visualization with error handling

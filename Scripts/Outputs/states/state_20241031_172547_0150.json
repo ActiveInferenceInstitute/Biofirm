@@ -1,0 +1,84 @@
+{
+  "timestamp": "2024-10-31T17:26:16.886825",
+  "timestep": 650,
+  "variables": {
+    "forest_health": 50.48908575176847,
+    "carbon_sequestration": 70.3610146895068,
+    "wildlife_habitat_quality": 24.719872753291266,
+    "water_quality": 100.0,
+    "soil_health": 23.59612619608843,
+    "invasive_species_count": 0.0,
+    "riparian_buffer_width": 100.0,
+    "biodiversity_index": 9.227858233157427,
+    "hazard_trees_count": 30.0,
+    "recreational_access_score": 1.0
+  },
+  "constraints": {
+    "forest_health": {
+      "lower": 50.0,
+      "upper": 100.0
+    },
+    "carbon_sequestration": {
+      "lower": 30.0,
+      "upper": 100.0
+    },
+    "wildlife_habitat_quality": {
+      "lower": 50.0,
+      "upper": 100.0
+    },
+    "water_quality": {
+      "lower": 70.0,
+      "upper": 100.0
+    },
+    "soil_health": {
+      "lower": 60.0,
+      "upper": 100.0
+    },
+    "invasive_species_count": {
+      "lower": 0.0,
+      "upper": 50.0
+    },
+    "riparian_buffer_width": {
+      "lower": 25.0,
+      "upper": 100.0
+    },
+    "biodiversity_index": {
+      "lower": 60.0,
+      "upper": 100.0
+    },
+    "hazard_trees_count": {
+      "lower": 0.0,
+      "upper": 15.0
+    },
+    "recreational_access_score": {
+      "lower": 30.0,
+      "upper": 100.0
+    }
+  },
+  "constraint_verification": [
+    1,
+    1,
+    0,
+    1,
+    0,
+    1,
+    1,
+    0,
+    2,
+    0
+  ],
+  "controllable_variables": [
+    "forest_health",
+    "carbon_sequestration",
+    "riparian_buffer_width"
+  ],
+  "metadata": {
+    "step_duration": 0.088576,
+    "simulation_id": "20241031_172547",
+    "step_number": 150,
+    "control_strategy": "active_inference"
+  },
+  "satisfied_constraints": 7,
+  "total_constraints": 10,
+  "satisfaction_rate": 0.7
+}
