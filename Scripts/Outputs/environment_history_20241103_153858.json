@@ -1,6 +1,6 @@
 [
   {
-    "timestamp": "2024-11-03T15:27:56.451362",
+    "timestamp": "2024-11-03T15:38:58.278186",
     "timestep": 0,
     "variables": {
       "soil_organic_matter_N0.8_C2.5": 50.0,
@@ -99,7 +99,7 @@
     },
     "metadata": {
       "control_strategy": "unknown",
-      "simulation_id": "20241103_152756",
+      "simulation_id": "20241103_153858",
       "random_seed": 115
     }
   }

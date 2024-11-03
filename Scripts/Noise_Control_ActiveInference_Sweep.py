@@ -16,18 +16,48 @@ import seaborn as sns
 import matplotlib
 import concurrent.futures
 from concurrent.futures import ThreadPoolExecutor
+import sys
+from pathlib import Path
+
+# Add project root to Python path
+project_root = Path(__file__).parent.parent
+sys.path.append(str(project_root))
+
 matplotlib.use('Agg')  # Use non-interactive backend
 sns.set_style("whitegrid")  # Set consistent style
 
-from Biofirm_Agent import BiofirmAgent
-from utils.logging_utils import get_component_logger
+# Use absolute imports
+from Scripts.Biofirm_Agent import BiofirmAgent
+from Scripts.utils.logging_utils import get_component_logger
 
 # Configuration Parameters
-NUM_CPUS = 14  # Number of parallel threads
-NOISE_RANGE = np.logspace(-2, 1, 10)  # 0.01 to 10
-CONTROL_RANGE = np.logspace(-2, 1, 10)  # 0.01 to 10
-TIMESTEPS = 200  # Steps per simulation
+NUM_CPUS = 8  # Number of parallel threads
+NOISE_RANGE = np.linspace(0.1, 2.0, 10)  # Range of noise levels
+CONTROL_RANGE = np.linspace(0.5, 3.0, 10)  # Range of control strengths
+TIMESTEPS = 100  # Shorter runs for sweep
 NUM_REPEATS = 3  # Repeats per parameter combination
+
+POMDP_CONFIG = {
+    'observation_confidence': 0.90,
+    'homeostatic_preference': 4.0
+}
+
+def create_sweep_config(noise_std: float, control_strength: float) -> Dict:
+    """Create configuration for sweep simulation"""
+    return {
+        "variables": {
+            "sweep_var": {
+                "initial_value": 50.0,
+                "control_strength": control_strength,
+                "noise_std": noise_std,
+                "trend": 0.0,
+                "constraints": {
+                    "lower": 45,  # Match current constraints
+                    "upper": 55
+                }
+            }
+        }
+    }
 
 class NoiseControlSweepAnalysis:
     def __init__(self):
@@ -175,42 +205,26 @@ class NoiseControlSweepAnalysis:
                 'observations': [],
                 'controls': [],
                 'satisfaction': [],
-                'beliefs': []
+                'beliefs': [],
+                'free_energy': []
             }
             
-            # Initialize POMDP matrices for the agent
-            from POMDP_ABCD import POMDPMatrices
-            
-            # Create minimal config for single variable
-            config = {
-                "variables": {
-                    "sweep_var": {
-                        "initial_value": 50.0,
-                        "constraints": {"lower": 40, "upper": 60},
-                        "controllable": True,
-                        "control_strength": control_strength,
-                        "noise_std": noise_std,
-                        "unit": "index"
-                    }
-                }
-            }
-            
-            # Initialize matrices and agent
-            matrices = POMDPMatrices(config["variables"]["sweep_var"], self.logger)
+            # Create config and initialize agent
+            config = create_sweep_config(noise_std, control_strength)
             agent = BiofirmAgent(config, self.logger)
             
             start_time = time.time()
             
             # Run active inference loop
-            self.logger.info(f"\nStarting Active Inference Loop - N={noise_std:.3f}, C={control_strength:.3f}, Repeat {repeat + 1}")
+            self.logger.info(
+                f"\nStarting Active Inference Loop - "
+                f"N={noise_std:.3f}, C={control_strength:.3f}, "
+                f"Repeat {repeat + 1}"
+            )
             
             for step in range(self.n_timesteps):
-                if step % 10 == 0:
-                    self.logger.info(f"Step {step}/{self.n_timesteps}")
-                    self.logger.info(f"Current state: {state:.2f}")
-                
-                # Get observation from current state
-                obs_state = 0 if state < 40 else (2 if state > 60 else 1)
+                # Get discrete observation from current state
+                obs_state = 0 if state < 45 else (2 if state > 55 else 1)
                 observation = {"sweep_var": obs_state}
                 
                 # Get action from agent
@@ -218,63 +232,64 @@ class NoiseControlSweepAnalysis:
                 
                 # Process action and control
                 if action_dict and "sweep_var" in action_dict:
-                    action = action_dict["sweep_var"]
-                    control = float(action) * control_strength
+                    control = action_dict["sweep_var"]  # Already scaled by control_strength
                 else:
-                    control = np.random.choice([-1.0, 0.0, 1.0]) * control_strength
+                    control = 0.0  # Default to MAINTAIN
                 
                 # Add noise and update state
                 noise = np.random.normal(0, noise_std)
                 state = np.clip(state + control + noise, 0.0, 100.0)
                 
+                # Get agent data for analysis
+                agent_data = agent.get_agent_data("sweep_var")
+                
                 # Update history
                 history['timesteps'].append(step)
                 history['states'].append(float(state))
-                history['actions'].append(str(action if action_dict else 'RANDOM'))
                 history['observations'].append(int(obs_state))
                 history['controls'].append(float(control))
-                history['satisfaction'].append(bool(40.0 <= state <= 60.0))
+                history['satisfaction'].append(bool(45.0 <= state <= 55.0))
                 
-                # Get agent beliefs
-                if hasattr(agent, 'agents') and "sweep_var" in agent.agents:
-                    beliefs = agent.agents["sweep_var"].get('beliefs', [1/3, 1/3, 1/3])
-                    history['beliefs'].append([float(b) for b in beliefs])
-                else:
-                    history['beliefs'].append([1/3, 1/3, 1/3])
+                # Store agent internal states
+                if agent_data:
+                    history['beliefs'].append(
+                        agent_data.get('state_beliefs', [[1/3, 1/3, 1/3]])[0]
+                    )
+                    history['free_energy'].append(
+                        agent_data.get('expected_free_energy', [0.0])[0]
+                    )
                 
                 # Log detailed state every 10 steps
                 if step % 10 == 0:
                     self.logger.info(
-                        f"State: {state:.2f}, Obs: {obs_state}, "
-                        f"Action: {action if action_dict else 'RANDOM'}, "
-                        f"Control: {control:+.2f}"
+                        f"Step {step}: State={state:.2f}, Obs={obs_state}, "
+                        f"Control={control:+.2f}"
                     )
             
             # Calculate metrics
             runtime = time.time() - start_time
             satisfaction_rate = float(np.mean(history['satisfaction']))
-            control_effectiveness = float(1.0 / (np.std(history['states']) + 1e-6))
-            
-            # Save simulation history and plots
-            self.save_simulation_history(history, output_dir, repeat)
-            self.create_simulation_plots(history, output_dir, repeat)
+            control_effort = float(np.mean(np.abs(history['controls'])))
+            belief_entropy = float(np.mean([
+                -np.sum(b * np.log(b + 1e-10)) for b in history['beliefs']
+            ]))
             
             metrics = {
+                'noise_std': noise_std,
+                'control_strength': control_strength,
                 'runtime': runtime,
                 'satisfaction_rate': satisfaction_rate,
-                'control_effectiveness': control_effectiveness,
+                'control_effort': control_effort,
+                'belief_entropy': belief_entropy,
+                'mean_free_energy': float(np.mean(history['free_energy'])),
                 'final_state': history['states'][-1],
-                'mean_state': np.mean(history['states']),
-                'state_std': np.std(history['states'])
+                'mean_state': float(np.mean(history['states'])),
+                'state_std': float(np.std(history['states']))
             }
             
-            self.logger.info(
-                f"\nSimulation Complete:"
-                f"\n  Runtime: {runtime:.2f}s"
-                f"\n  Satisfaction Rate: {satisfaction_rate:.2f}"
-                f"\n  Control Effectiveness: {control_effectiveness:.2f}"
-                f"\n  Final State: {state:.2f}"
-            )
+            # Save detailed results
+            self.save_simulation_history(history, output_dir, repeat)
+            self.create_simulation_plots(history, output_dir, repeat)
             
             return metrics
             

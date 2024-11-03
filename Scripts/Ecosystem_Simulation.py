@@ -35,7 +35,7 @@ from utils.ecosystem_utils import (
 
 # Simulation Parameters
 SIMULATION_PARAMS = {
-    'num_timesteps': 1000,          # Number of simulation steps
+    'num_timesteps': 9000,          # Number of simulation steps
     'progress_interval': 100,       # How often to print progress updates
     'random_seed': 115,            # random seed
     'output_dir': "Outputs",      # Default output directory

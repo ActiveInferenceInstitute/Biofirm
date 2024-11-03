@@ -9,6 +9,7 @@ import pandas as pd
 import logging
 import json
 from datetime import datetime
+import traceback
 
 def setup_logging(output_dir: Path) -> logging.Logger:
     """Setup logging for free energy analysis"""
@@ -72,115 +73,412 @@ def generate_modality_analysis(data: Dict, var_name: str, output_dir: Path,
                              logger: logging.Logger):
     """Generate detailed analysis visualizations for a modality"""
     try:
-        # 1. Belief Evolution Plot
-        plt.figure(figsize=(10, 6))
-        beliefs = data.get('state_beliefs', [])
-        if beliefs:
-            belief_array = np.array(beliefs)
-            if len(belief_array.shape) > 2:
-                belief_array = belief_array.reshape(-1, 3)
-            for i, state in enumerate(['LOW', 'HOMEO', 'HIGH']):
-                plt.plot(belief_array[:, i], label=state)
-        plt.title(f'Belief Evolution - {var_name}')
-        plt.xlabel('Time Step')
-        plt.ylabel('Belief Probability')
-        plt.legend()
-        plt.grid(True)
-        plt.savefig(output_dir / 'belief_evolution.png')
-        plt.close()
+        # Create visualization subdirectories
+        viz_dirs = {
+            'beliefs': output_dir / 'beliefs',
+            'controls': output_dir / 'controls',
+            'actions': output_dir / 'actions',
+            'performance': output_dir / 'performance',
+            'distributions': output_dir / 'distributions'
+        }
         
-        # 2. Control Actions Plot
-        plt.figure(figsize=(10, 6))
-        actions = data.get('selected_actions', [])
-        if actions:
-            action_array = np.array(actions)
-            plt.plot(action_array, marker='o', linestyle='-', alpha=0.6)
-            plt.yticks([0, 1, 2], ['DECREASE', 'MAINTAIN', 'INCREASE'])
-        plt.title(f'Control Actions - {var_name}')
-        plt.xlabel('Time Step')
-        plt.ylabel('Action')
-        plt.grid(True)
-        plt.savefig(output_dir / 'control_actions.png')
-        plt.close()
+        for dir_path in viz_dirs.values():
+            dir_path.mkdir(exist_ok=True)
+            
+        # Safely extract and convert data
+        def safe_convert_array(data_list, default_shape=(1,)):
+            """Safely convert potentially nested lists/arrays to numpy array"""
+            try:
+                if not data_list:
+                    return np.zeros(default_shape)
+                    
+                # First try direct conversion
+                arr = np.array(data_list)
+                
+                # If we got object dtype, need to handle nested structure
+                if arr.dtype == object:
+                    # Flatten nested structure
+                    flat_data = []
+                    for item in arr:
+                        if isinstance(item, (list, np.ndarray)):
+                            # Take first element if nested
+                            flat_data.append(item[0] if len(item) > 0 else 0.0)
+                        else:
+                            flat_data.append(item)
+                    arr = np.array(flat_data, dtype=float)
+                    
+                return arr
+                
+            except Exception as e:
+                logger = logging.getLogger('free_energy_analysis')
+                logger.warning(f"Error converting array: {e}")
+                return np.zeros(default_shape)
+
+        # Extract data with safe conversions
+        beliefs = safe_convert_array(data.get('state_beliefs', []), (1, 3))
+        actions = safe_convert_array(data.get('selected_actions', []), (1,))
+        controls = safe_convert_array(data.get('control_signals', []), (1,))
+        preferences = safe_convert_array(data.get('policy_preferences', []), (1, 3))
+        free_energy = safe_convert_array(data.get('expected_free_energy', []), (1,))
         
-        # 3. Control Effort Plot
-        plt.figure(figsize=(10, 6))
-        controls = data.get('control_signals', [])
-        if controls:
-            control_array = np.array(controls)
-            plt.plot(control_array, color='purple', alpha=0.7)
-            plt.axhline(y=0, color='k', linestyle='--', alpha=0.3)
-        plt.title(f'Control Effort - {var_name}')
-        plt.xlabel('Time Step')
-        plt.ylabel('Control Signal')
-        plt.grid(True)
-        plt.savefig(output_dir / 'control_effort.png')
-        plt.close()
+        # Generate each visualization type safely
+        visualizations = [
+            ('belief_evolution', generate_belief_plots),
+            ('control_analysis', generate_control_plots),
+            ('action_analysis', generate_action_plots),
+            ('performance_metrics', generate_performance_plots),
+            ('distributions', generate_distribution_plots)
+        ]
         
-        # 4. Policy Preferences Plot
-        plt.figure(figsize=(10, 6))
-        prefs = data.get('policy_preferences', [])
-        if prefs:
-            pref_array = np.array(prefs)
-            if len(pref_array.shape) > 2:
-                pref_array = pref_array.reshape(-1, 3)
-            for i, action in enumerate(['DECREASE', 'MAINTAIN', 'INCREASE']):
-                plt.plot(pref_array[:, i], label=action)
-        plt.title(f'Policy Preferences - {var_name}')
-        plt.xlabel('Time Step')
-        plt.ylabel('Preference Probability')
-        plt.legend()
-        plt.grid(True)
-        plt.savefig(output_dir / 'policy_preferences.png')
-        plt.close()
+        for viz_name, viz_func in visualizations:
+            try:
+                viz_func(
+                    beliefs=beliefs,
+                    actions=actions,
+                    controls=controls,
+                    preferences=preferences,
+                    free_energy=free_energy,
+                    var_name=var_name,
+                    output_dir=viz_dirs[viz_name.split('_')[0]],
+                    logger=logger
+                )
+                logger.info(f"Generated {viz_name} for {var_name}")
+            except Exception as e:
+                logger.error(f"Failed to generate {viz_name} for {var_name}: {e}")
+                continue
         
-        # 5. Generate detailed report
-        with open(output_dir / 'analysis_report.txt', 'w') as f:
-            f.write(f"=== Detailed Analysis: {var_name} ===\n\n")
-            
-            # Control characteristics
-            f.write("Control Characteristics:\n")
-            f.write(f"  • Control Strength: {data.get('control_strength', 0.0):.2f}\n")
-            
-            # Action statistics
-            if actions:
-                action_counts = np.bincount(actions, minlength=3)
-                total = len(actions)
-                f.write("\nAction Distribution:\n")
-                f.write(f"  • DECREASE: {action_counts[0]/total:.1%}\n")
-                f.write(f"  • MAINTAIN: {action_counts[1]/total:.1%}\n")
-                f.write(f"  • INCREASE: {action_counts[2]/total:.1%}\n")
-            
-            # Control effort statistics
-            if controls:
-                controls = np.array(controls)
-                f.write("\nControl Effort:\n")
-                f.write(f"  • Mean: {np.mean(np.abs(controls)):.2f}\n")
-                f.write(f"  • Max:  {np.max(np.abs(controls)):.2f}\n")
-                f.write(f"  • Std:  {np.std(controls):.2f}\n")
-            
-            # Belief statistics
-            if beliefs:
-                belief_array = np.array(beliefs)
-                if len(belief_array.shape) > 2:
-                    belief_array = belief_array.reshape(-1, 3)
-                entropy = -np.sum(belief_array * np.log(belief_array + 1e-10), axis=1)
-                f.write("\nBelief Statistics:\n")
-                f.write(f"  • Mean Entropy: {np.mean(entropy):.2f}\n")
-                f.write(f"  • Entropy Std:  {np.std(entropy):.2f}\n")
-            
-            # Expected free energy
-            efe = data.get('expected_free_energy', [])
-            if efe:
-                efe_array = np.array(efe)
-                f.write("\nExpected Free Energy:\n")
-                f.write(f"  • Mean: {np.mean(efe_array):.2f}\n")
-                f.write(f"  • Std:  {np.std(efe_array):.2f}\n")
-        
-        logger.info(f"Generated detailed analysis for {var_name}")
+        # Save numerical analysis
+        save_numerical_analysis(
+            data=data,
+            var_name=var_name,
+            output_dir=output_dir,
+            logger=logger
+        )
         
     except Exception as e:
-        logger.error(f"Error generating analysis for {var_name}: {str(e)}")
+        logger.error(f"Error in modality analysis for {var_name}: {e}")
+        logger.debug(traceback.format_exc())
+
+def generate_belief_plots(beliefs: np.ndarray, **kwargs):
+    """Generate belief-related visualizations"""
+    var_name = kwargs['var_name']
+    output_dir = kwargs['output_dir']
+    logger = kwargs.get('logger')
+    
+    try:
+        # Ensure beliefs has correct shape (n_timesteps, 3)
+        if len(beliefs.shape) == 1:
+            beliefs = np.tile(beliefs, (1, 3))
+        elif len(beliefs.shape) > 2:
+            beliefs = beliefs.reshape(-1, 3)
+            
+        if beliefs.shape[1] != 3:
+            beliefs = np.zeros((len(beliefs), 3))
+            beliefs[:, 1] = 1.0  # Default to HOMEO state
+        
+        # 1. Belief Evolution
+        plt.figure(figsize=(12, 6))
+        states = ['LOW', 'HOMEO', 'HIGH']
+        for i, state in enumerate(states):
+            plt.plot(beliefs[:, i], label=state, linewidth=2)
+            
+        plt.title(f'Belief Evolution - {var_name}', fontsize=14)
+        plt.xlabel('Time Step', fontsize=12)
+        plt.ylabel('Belief Probability', fontsize=12)
+        plt.legend(fontsize=10)
+        plt.grid(True, alpha=0.3)
+        plt.savefig(output_dir / 'belief_evolution.png', dpi=300, bbox_inches='tight')
+        plt.close()
+        
+        # 2. Belief Entropy
+        plt.figure(figsize=(12, 6))
+        # Add small epsilon to avoid log(0)
+        entropy = -np.sum(beliefs * np.log(beliefs + 1e-10), axis=1)
+        plt.plot(entropy, color='purple', linewidth=2)
+        plt.title(f'Belief Entropy - {var_name}', fontsize=14)
+        plt.xlabel('Time Step', fontsize=12)
+        plt.ylabel('Entropy', fontsize=12)
+        plt.grid(True, alpha=0.3)
+        plt.savefig(output_dir / 'belief_entropy.png', dpi=300, bbox_inches='tight')
+        plt.close()
+        
+        # 3. Belief State Transitions
+        plt.figure(figsize=(10, 8))
+        dominant_states = np.argmax(beliefs, axis=1)
+        transitions = np.zeros((3, 3))
+        for i, j in zip(dominant_states[:-1], dominant_states[1:]):
+            transitions[i, j] += 1
+            
+        # Normalize transitions
+        row_sums = transitions.sum(axis=1, keepdims=True)
+        transitions = np.divide(transitions, row_sums, 
+                              out=np.zeros_like(transitions), where=row_sums!=0)
+        
+        sns.heatmap(transitions, annot=True, fmt='.2f',
+                    xticklabels=states,
+                    yticklabels=states)
+        plt.title(f'Belief State Transitions - {var_name}', fontsize=14)
+        plt.xlabel('To State', fontsize=12)
+        plt.ylabel('From State', fontsize=12)
+        plt.savefig(output_dir / 'belief_transitions.png', dpi=300, bbox_inches='tight')
+        plt.close()
+        
+    except Exception as e:
+        if logger:
+            logger.error(f"Failed to generate belief plots: {str(e)}")
+        plt.close('all')  # Clean up any open figures
+
+def generate_control_plots(controls: np.ndarray, **kwargs):
+    """Generate control-related visualizations"""
+    var_name = kwargs['var_name']
+    output_dir = kwargs['output_dir']
+    logger = kwargs.get('logger')
+    
+    try:
+        # Ensure controls is 1D array
+        controls = controls.ravel()
+        if len(controls) == 0:
+            controls = np.zeros(1)
+        
+        # 1. Control Signal Timeline
+        plt.figure(figsize=(12, 6))
+        plt.plot(controls, color='blue', linewidth=2)
+        plt.axhline(y=0, color='k', linestyle='--', alpha=0.3)
+        plt.title(f'Control Signal Timeline - {var_name}', fontsize=14)
+        plt.xlabel('Time Step', fontsize=12)
+        plt.ylabel('Control Signal', fontsize=12)
+        plt.grid(True, alpha=0.3)
+        plt.savefig(output_dir / 'control_timeline.png', dpi=300, bbox_inches='tight')
+        plt.close()
+        
+        # 2. Control Effort Analysis
+        plt.figure(figsize=(12, 8))
+        
+        plt.subplot(2, 1, 1)
+        plt.plot(np.abs(controls), color='red', linewidth=2)
+        plt.title(f'Control Effort - {var_name}', fontsize=14)
+        plt.xlabel('Time Step', fontsize=12)
+        plt.ylabel('Absolute Control', fontsize=12)
+        
+        plt.subplot(2, 1, 2)
+        plt.hist(controls, bins=min(30, len(np.unique(controls))), 
+                color='blue', alpha=0.7, density=True)
+        plt.title('Control Distribution', fontsize=14)
+        plt.xlabel('Control Value', fontsize=12)
+        plt.ylabel('Density', fontsize=12)
+        
+        plt.tight_layout()
+        plt.savefig(output_dir / 'control_analysis.png', dpi=300, bbox_inches='tight')
+        plt.close()
+        
+    except Exception as e:
+        if logger:
+            logger.error(f"Failed to generate control plots: {str(e)}")
+        plt.close('all')
+
+def generate_action_plots(actions: np.ndarray, preferences: np.ndarray, **kwargs):
+    """Generate action-related visualizations"""
+    var_name = kwargs['var_name']
+    output_dir = kwargs['output_dir']
+    
+    # 1. Action Sequence
+    plt.figure(figsize=(12, 6))
+    plt.plot(actions, 'o-', color='green', alpha=0.7)
+    plt.yticks([0, 1, 2], ['DECREASE', 'MAINTAIN', 'INCREASE'])
+    plt.title(f'Action Sequence - {var_name}', fontsize=14)
+    plt.xlabel('Time Step', fontsize=12)
+    plt.ylabel('Action', fontsize=12)
+    plt.grid(True, alpha=0.3)
+    plt.savefig(output_dir / 'action_sequence.png', dpi=300, bbox_inches='tight')
+    plt.close()
+    
+    # 2. Action Preferences
+    plt.figure(figsize=(12, 8))
+    for i, action in enumerate(['DECREASE', 'MAINTAIN', 'INCREASE']):
+        plt.plot(preferences[:, i], label=action, linewidth=2)
+    plt.title(f'Action Preferences - {var_name}', fontsize=14)
+    plt.xlabel('Time Step', fontsize=12)
+    plt.ylabel('Preference', fontsize=12)
+    plt.legend(fontsize=10)
+    plt.grid(True, alpha=0.3)
+    plt.savefig(output_dir / 'action_preferences.png', dpi=300, bbox_inches='tight')
+    plt.close()
+
+def generate_performance_plots(beliefs: np.ndarray, controls: np.ndarray, 
+                             free_energy: np.ndarray, **kwargs):
+    """Generate performance metric visualizations"""
+    var_name = kwargs['var_name']
+    output_dir = kwargs['output_dir']
+    
+    # Create performance dashboard
+    fig = plt.figure(figsize=(15, 12))
+    gs = plt.GridSpec(3, 2, figure=fig)
+    
+    # 1. Homeostasis Score
+    ax1 = fig.add_subplot(gs[0, :])
+    homeo_score = beliefs[:, 1]  # HOMEO state probability
+    plt.plot(homeo_score, color='green', linewidth=2)
+    plt.title('Homeostasis Score', fontsize=12)
+    plt.xlabel('Time Step')
+    plt.ylabel('HOMEO Probability')
+    plt.grid(True, alpha=0.3)
+    
+    # 2. Control Efficiency
+    ax2 = fig.add_subplot(gs[1, 0])
+    efficiency = np.abs(controls) / (np.std(beliefs, axis=1) + 1e-6)
+    plt.plot(efficiency, color='blue', linewidth=2)
+    plt.title('Control Efficiency', fontsize=12)
+    plt.xlabel('Time Step')
+    plt.ylabel('Efficiency')
+    plt.grid(True, alpha=0.3)
+    
+    # 3. Free Energy
+    ax3 = fig.add_subplot(gs[1, 1])
+    plt.plot(free_energy, color='red', linewidth=2)
+    plt.title('Expected Free Energy', fontsize=12)
+    plt.xlabel('Time Step')
+    plt.ylabel('EFE')
+    plt.grid(True, alpha=0.3)
+    
+    # 4. Cumulative Performance
+    ax4 = fig.add_subplot(gs[2, :])
+    cumulative_score = np.cumsum(homeo_score) / np.arange(1, len(homeo_score) + 1)
+    plt.plot(cumulative_score, color='purple', linewidth=2)
+    plt.title('Cumulative Performance', fontsize=12)
+    plt.xlabel('Time Step')
+    plt.ylabel('Average Score')
+    plt.grid(True, alpha=0.3)
+    
+    plt.suptitle(f'Performance Dashboard - {var_name}', fontsize=16)
+    plt.tight_layout()
+    plt.savefig(output_dir / 'performance_dashboard.png', dpi=300, bbox_inches='tight')
+    plt.close()
+
+def generate_distribution_plots(beliefs: np.ndarray, controls: np.ndarray, 
+                              actions: np.ndarray, **kwargs):
+    """Generate distribution analysis visualizations"""
+    var_name = kwargs['var_name']
+    output_dir = kwargs['output_dir']
+    logger = kwargs.get('logger')
+    
+    try:
+        # Ensure proper shapes
+        if len(beliefs.shape) == 1:
+            beliefs = np.tile(beliefs, (1, 3))
+        if len(beliefs.shape) > 2:
+            beliefs = beliefs.reshape(-1, 3)
+            
+        controls = controls.ravel()
+        actions = actions.ravel()
+        
+        # Create distribution dashboard
+        fig = plt.figure(figsize=(15, 12))
+        gs = plt.GridSpec(2, 2, figure=fig)
+        
+        # 1. Belief State Distribution
+        ax1 = fig.add_subplot(gs[0, 0])
+        states = ['LOW', 'HOMEO', 'HIGH']
+        for i, state in enumerate(states):
+            if len(beliefs) > 0 and len(np.unique(beliefs[:, i])) > 1:
+                sns.kdeplot(beliefs[:, i], label=state)
+            else:
+                plt.axvline(x=np.mean(beliefs[:, i]), label=state, 
+                          color=f'C{i}')
+                
+        plt.title('Belief Distribution', fontsize=12)
+        plt.xlabel('Probability')
+        plt.ylabel('Density')
+        plt.legend()
+        
+        # 2. Control Distribution
+        ax2 = fig.add_subplot(gs[0, 1])
+        if len(controls) > 0:
+            sns.histplot(controls, kde=True, stat='density')
+        plt.title('Control Distribution', fontsize=12)
+        plt.xlabel('Control Value')
+        plt.ylabel('Density')
+        
+        # 3. Action Distribution
+        ax3 = fig.add_subplot(gs[1, 0])
+        action_counts = np.bincount(actions.astype(int), minlength=3)
+        plt.bar(['DECREASE', 'MAINTAIN', 'INCREASE'], 
+                action_counts / max(len(actions), 1))
+        plt.title('Action Distribution', fontsize=12)
+        plt.ylabel('Frequency')
+        
+        # 4. Joint Distribution
+        ax4 = fig.add_subplot(gs[1, 1])
+        if len(beliefs) > 0 and len(actions) > 0:
+            dominant_beliefs = np.argmax(beliefs, axis=1)
+            joint_dist = np.zeros((3, 3))
+            for b, a in zip(dominant_beliefs, actions.astype(int)):
+                joint_dist[b, a] += 1
+            joint_dist /= max(len(actions), 1)
+            
+            sns.heatmap(joint_dist, 
+                       xticklabels=['DECREASE', 'MAINTAIN', 'INCREASE'],
+                       yticklabels=['LOW', 'HOMEO', 'HIGH'],
+                       annot=True, fmt='.2f')
+            plt.title('Belief-Action Joint Distribution', fontsize=12)
+        
+        plt.suptitle(f'Distribution Analysis - {var_name}', fontsize=16)
+        plt.tight_layout()
+        plt.savefig(output_dir / 'distribution_dashboard.png', dpi=300, bbox_inches='tight')
+        plt.close()
+        
+    except Exception as e:
+        if logger:
+            logger.error(f"Failed to generate distribution plots: {str(e)}")
+        plt.close('all')
+
+def save_numerical_analysis(data: Dict, var_name: str, output_dir: Path, logger: logging.Logger):
+    """Save numerical analysis results"""
+    try:
+        analysis = {
+            'variable': var_name,
+            'control_strength': float(data.get('control_strength', 0.0)),
+            'metrics': calculate_performance_metrics(data, var_name)['metrics'],
+            'summary_statistics': {
+                'beliefs': {
+                    'mean_entropy': float(np.mean([
+                        -np.sum(b * np.log(b + 1e-10)) 
+                        for b in data.get('state_beliefs', [[1/3, 1/3, 1/3]])
+                    ])),
+                    'stability': float(1.0 - np.mean([
+                        np.std(b) for b in data.get('state_beliefs', [[1/3, 1/3, 1/3]])
+                    ]))
+                },
+                'controls': {
+                    'mean': float(np.mean(data.get('control_signals', [0.0]))),
+                    'std': float(np.std(data.get('control_signals', [0.0]))),
+                    'efficiency': float(np.mean(np.abs(
+                        data.get('control_signals', [0.0])
+                    )))
+                },
+                'actions': {
+                    'distribution': {
+                        'decrease': float(np.mean(
+                            np.array(data.get('selected_actions', [1])) == 0
+                        )),
+                        'maintain': float(np.mean(
+                            np.array(data.get('selected_actions', [1])) == 1
+                        )),
+                        'increase': float(np.mean(
+                            np.array(data.get('selected_actions', [1])) == 2
+                        ))
+                    }
+                }
+            }
+        }
+        
+        # Save analysis
+        with open(output_dir / 'numerical_analysis.json', 'w') as f:
+            json.dump(analysis, f, indent=2)
+            
+        logger.info(f"Saved numerical analysis for {var_name}")
+        
+    except Exception as e:
+        logger.error(f"Error saving numerical analysis for {var_name}: {e}")
 
 def analyze_active_inference_agents(agent: Any, output_dir: Path,
                                   logger: Optional[logging.Logger] = None) -> Dict:
