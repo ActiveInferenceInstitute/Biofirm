@@ -46,18 +46,24 @@ class BiofirmAgent:
     def _create_pomdp_agent(self, var_name: str, var_config: Dict) -> None:
         """Create PyMDP active inference agent for a variable"""
         try:
-            # Get POMDP matrices from handler
-            matrix_handler = POMDPMatrices(var_config, self.logger)
+            # Create simple POMDP config
+            matrix_config = {
+                'observation_confidence': 0.90,
+                'homeostatic_preference': 4.0
+            }
+            
+            # Get POMDP matrices
+            matrix_handler = POMDPMatrices(matrix_config, self.logger)
             matrices = matrix_handler.initialize_all_matrices()
             
             # Create PyMDP agent
             agent = PyMDPAgent(
-                A=matrices['A'],
-                B=matrices['B'],
-                C=matrices['C'],
-                D=matrices['D'],
-                num_controls=3,  # Decrease/Nothing/Increase
-                control_fac_idx=[0],  # Single controllable factor
+                A=matrices['A'][0].astype(np.float64),
+                B=matrices['B'][0].astype(np.float64),
+                C=matrices['C'][0].astype(np.float64),
+                D=matrices['D'][0].astype(np.float64),
+                num_controls=3,
+                control_fac_idx=[0],
                 inference_algo='MMP',
                 action_selection='stochastic',
                 sampling_mode="marginal"
@@ -68,8 +74,11 @@ class BiofirmAgent:
                 'agent': agent,
                 'current_obs': None,
                 'current_beliefs': matrices['D'][0].copy(),
-                'config': var_config
+                'config': var_config,
+                'matrices': matrices
             }
+            
+            self.logger.info(f"Created POMDP agent for {var_name}")
             
         except Exception as e:
             self.logger.error(f"Error creating POMDP agent for {var_name}: {str(e)}")
@@ -232,16 +241,75 @@ class BiofirmAgent:
 
     def _validate_config(self, config: Dict) -> Dict:
         """Validate configuration dictionary"""
-        required_keys = ['variables']
-        if not all(k in config for k in required_keys):
-            raise ValueError(f"Missing required keys in config: {required_keys}")
+        if 'variables' not in config:
+            raise ValueError("Missing 'variables' in config")
             
         # Ensure variables have required fields
         for var_name, var_config in config['variables'].items():
-            if var_config.get('controllable', False):
-                required_var_keys = ['initial_value', 'constraints', 'control_strength']
-                missing_keys = [k for k in required_var_keys if k not in var_config]
-                if missing_keys:
-                    raise ValueError(f"Variable {var_name} missing required keys: {missing_keys}")
+            required_fields = ['controllable', 'control_strength']
+            missing = [f for f in required_fields if f not in var_config]
+            if missing:
+                raise ValueError(f"Variable {var_name} missing required fields: {missing}")
         
         return config
+
+    def get_action(self, observations: Dict[str, int]) -> Dict[str, float]:
+        """Get control signals for each variable based on observations
+        
+        Args:
+            observations: Dictionary mapping variable names to discrete observations
+                         (0=LOW, 1=HOMEO, 2=HIGH)
+        
+        Returns:
+            Dictionary mapping variable names to control signals (-1.0 to 1.0)
+        """
+        try:
+            controls = {}
+            
+            # Process each modality
+            for var_name, agent_data in self.agents.items():
+                try:
+                    agent = agent_data['agent']
+                    obs = [observations[var_name]]  # Single modality observation
+                    
+                    # 1. Update beliefs about hidden states
+                    qs = agent.infer_states(obs)
+                    agent_data['current_beliefs'] = qs[0]
+                    
+                    # 2. Infer policies using Expected Free Energy
+                    q_pi, G = agent.infer_policies()
+                    
+                    # 3. Sample action from policy posterior
+                    action = agent.sample_action()
+                    
+                    # 4. Convert discrete action to control signal
+                    if action[0] == 0:    # DECREASE
+                        control = -1.0
+                    elif action[0] == 1:  # MAINTAIN
+                        control = 0.0
+                    else:                 # INCREASE
+                        control = 1.0
+                    
+                    # Scale by control strength
+                    control_strength = agent_data['config'].get('control_strength', 1.0)
+                    controls[var_name] = control * control_strength
+                    
+                    # Log decision process
+                    self.logger.debug(
+                        f"{var_name} decision:\n"
+                        f"  Observation: {['LOW', 'HOMEO', 'HIGH'][obs[0]]}\n"
+                        f"  Beliefs: LOW={qs[0][0]:.2f}, HOMEO={qs[0][1]:.2f}, HIGH={qs[0][2]:.2f}\n"
+                        f"  Policy probs: DEC={q_pi[0]:.2f}, MAIN={q_pi[1]:.2f}, INC={q_pi[2]:.2f}\n"
+                        f"  Selected action: {['DEC', 'MAIN', 'INC'][action[0]]}\n"
+                        f"  Control signal: {controls[var_name]:+.2f}"
+                    )
+                    
+                except Exception as e:
+                    self.logger.error(f"Error processing {var_name}: {str(e)}")
+                    controls[var_name] = 0.0  # Safe default
+            
+            return controls
+            
+        except Exception as e:
+            self.logger.error(f"Error in get_action: {str(e)}")
+            return {}

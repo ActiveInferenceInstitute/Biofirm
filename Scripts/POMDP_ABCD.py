@@ -13,14 +13,10 @@ from Scripts.utils.logging_utils import setup_logging
 class MatrixConfig:
     """Configuration parameters for POMDP matrices
     
-    Each ecological modality has:
-    - 3 observations (LOW, HOMEO, HIGH)
-    - 3 hidden states (LOW, HOMEO, HIGH)
-    - 3 control actions (DECREASE, MAINTAIN, INCREASE)
-    
-    Attributes:
-        observation_confidence: Confidence in correct state observations (0-1)
-        homeostatic_preference: Strength of preference for homeostatic state
+    Each modality has:
+    - 3 observations (LOW=0, HOMEO=1, HIGH=2)
+    - 3 hidden states (LOW=0, HOMEO=1, HIGH=2)
+    - 3 control actions (DECREASE=-1, MAINTAIN=0, INCREASE=1)
     """
     observation_confidence: float = 0.90  # High confidence in observations
     homeostatic_preference: float = 4.0   # Strong preference for homeostatic state
@@ -33,15 +29,17 @@ class MatrixConfig:
             raise ValueError("homeostatic_preference must be > 1.0")
 
 class POMDPMatrices:
-    """POMDP matrices for active inference ecosystem control"""
+    """POMDP matrices for active inference control"""
     
     def __init__(self, config: Dict, logger: Optional[logging.Logger] = None):
         """Initialize POMDP matrix handler"""
         self.logger = logger or setup_logging('pomdp')
         
         # Parse and validate config
-        self.config = self._validate_config(config)
-        self.matrix_config = self._parse_config(config)
+        self.matrix_config = MatrixConfig(
+            observation_confidence=config.get('observation_confidence', 0.90),
+            homeostatic_preference=config.get('homeostatic_preference', 4.0)
+        )
         
         self.logger.info(
             f"Initialized POMDP matrices with "
@@ -50,34 +48,19 @@ class POMDPMatrices:
         )
 
     def initialize_all_matrices(self) -> Dict[str, np.ndarray]:
-        """Initialize all POMDP matrices in PyMDP format
-        
-        Returns:
-            Dictionary containing:
-            - A: Observation model [1 x num_obs x num_states]
-            - B: Transition model [1 x num_states x num_states x num_actions]
-            - C: Preferences [1 x num_obs]
-            - D: Prior beliefs [1 x num_states]
-        """
+        """Initialize all POMDP matrices in PyMDP format"""
         try:
-            # Initialize raw matrices
-            A = self.initialize_likelihood_matrix()
-            B = self.initialize_transition_matrix()
-            C = self.initialize_preference_matrix()
-            D = self.initialize_prior_beliefs()
+            # Initialize raw matrices and ensure they're float64
+            A = self.initialize_likelihood_matrix().astype(np.float64)  # (3,3)
+            B = self.initialize_transition_matrix().astype(np.float64)  # (3,3,3)
+            C = self.initialize_preference_matrix().astype(np.float64)  # (3,)
+            D = self.initialize_prior_beliefs().astype(np.float64)      # (3,)
             
-            # Convert to PyMDP object array format
-            A_obj = utils.obj_array(1)
-            A_obj[0] = A.copy()
-            
-            B_obj = utils.obj_array(1)
-            B_obj[0] = B.copy()
-            
-            C_obj = utils.obj_array(1)
-            C_obj[0] = C.copy()
-            
-            D_obj = utils.obj_array(1)
-            D_obj[0] = D.copy()
+            # Create object arrays containing the numeric arrays
+            A_obj = utils.to_obj_array(A)  # Convert to object array format
+            B_obj = utils.to_obj_array(B)
+            C_obj = utils.to_obj_array(C)
+            D_obj = utils.to_obj_array(D)
             
             matrices = {
                 'A': A_obj,
@@ -86,20 +69,8 @@ class POMDPMatrices:
                 'D': D_obj
             }
             
-            # Validate matrices
+            # Validate matrices before returning
             self._validate_matrices(matrices)
-            
-            self.logger.info(
-                f"Initialized POMDP matrices:\n"
-                f"  A: P(o|s) with confidence={self.matrix_config.observation_confidence:.2f}\n"
-                f"    shape: {A.shape}, sums: {A.sum(axis=0)}\n"
-                f"  B: P(s'|s,a) for DEC/MAIN/INC actions\n"
-                f"    shape: {B.shape}\n"
-                f"  C: Preferences with HOMEO={C[1]:.2f}\n"
-                f"    shape: {C.shape}, sum: {C.sum()}\n"
-                f"  D: Prior beliefs with HOMEO bias\n"
-                f"    shape: {D.shape}, sum: {D.sum()}"
-            )
             
             return matrices
             
@@ -144,15 +115,6 @@ class POMDPMatrices:
             noise,     # P(o=HOMEO | s=HIGH)
             conf       # P(o=HIGH | s=HIGH)
         ]
-        
-        # Verify column normalization
-        if not np.allclose(A.sum(axis=0), 1.0):
-            raise ValueError(f"A matrix columns must sum to 1: {A.sum(axis=0)}")
-            
-        self.logger.debug(
-            f"Initialized A matrix with confidence {conf:.2f}:\n{A}\n"
-            f"Column sums: {A.sum(axis=0)}"
-        )
         
         return A
 
@@ -212,41 +174,30 @@ class POMDPMatrices:
     def _validate_matrices(self, matrices: Dict[str, np.ndarray]) -> None:
         """Validate POMDP matrices meet PyMDP requirements"""
         try:
+            # Extract arrays from object arrays and ensure float64
+            A = matrices['A'][0].astype(np.float64)
+            B = matrices['B'][0].astype(np.float64)
+            C = matrices['C'][0].astype(np.float64)
+            D = matrices['D'][0].astype(np.float64)
+            
             # Validate A matrix columns sum to 1
-            A = matrices['A'][0]  # Extract from object array
             if not np.allclose(A.sum(axis=0), 1.0):
                 raise ValueError(f"A matrix columns must sum to 1: {A.sum(axis=0)}")
             
             # Validate B matrix for each action
-            B = matrices['B'][0]  # Extract from object array
             for a in range(B.shape[2]):
                 if not np.allclose(B[:,:,a].sum(axis=0), 1.0):
                     raise ValueError(f"B matrix not normalized for action {a}: {B[:,:,a].sum(axis=0)}")
             
             # Validate C and D are probability distributions
-            for name in ['C', 'D']:
-                M = matrices[name][0]  # Extract from object array
+            for name, M in [('C', C), ('D', D)]:
                 if not np.isclose(M.sum(), 1.0):
                     raise ValueError(f"{name} matrix must sum to 1: {M.sum()}")
                 if not np.all(M >= 0):
                     raise ValueError(f"{name} matrix contains negative values")
+                if not np.all(np.isfinite(M)):
+                    raise ValueError(f"{name} matrix contains non-finite values")
                 
-            self.logger.debug("All matrices validated successfully")
-            
         except Exception as e:
             self.logger.error(f"Matrix validation error: {str(e)}")
             raise
-
-    def _validate_config(self, config: Dict) -> Dict:
-        """Validate configuration dictionary"""
-        required_keys = ['constraints']
-        if not all(k in config for k in required_keys):
-            raise ValueError(f"Missing required keys in config: {required_keys}")
-        return config
-
-    def _parse_config(self, config: Dict) -> MatrixConfig:
-        """Parse configuration into MatrixConfig dataclass"""
-        return MatrixConfig(
-            observation_confidence=config.get('observation_confidence', 0.90),
-            homeostatic_preference=config.get('homeostatic_preference', 4.0)
-        )
