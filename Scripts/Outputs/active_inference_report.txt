@@ -1,0 +1,52 @@
+=== Active Inference Analysis Report ===
+
+
+soil_organic_matter_N0.8_C2.5:
+  • Control Strength: 2.50
+  • Control Effort: 0.00
+  • Belief Entropy: 1.10
+
+soil_pH_N0.7_C2.8:
+  • Control Strength: 2.80
+  • Control Effort: 0.00
+  • Belief Entropy: 1.10
+
+soil_moisture_N0.4_C2.0:
+  • Control Strength: 2.00
+  • Control Effort: 0.00
+  • Belief Entropy: 1.10
+
+nutrient_levels_N0.6_C1.8:
+  • Control Strength: 1.80
+  • Control Effort: 0.00
+  • Belief Entropy: 1.10
+
+soil_structure_N1.0_C1.5:
+  • Control Strength: 1.50
+  • Control Effort: 0.00
+  • Belief Entropy: 1.10
+
+microbial_activity_N1.2_C1.2:
+  • Control Strength: 1.20
+  • Control Effort: 0.00
+  • Belief Entropy: 1.10
+
+biodiversity_N1.5_C0.8:
+  • Control Strength: 0.80
+  • Control Effort: 0.00
+  • Belief Entropy: 1.10
+
+soil_salinity_N1.8_C0.5:
+  • Control Strength: 0.50
+  • Control Effort: 0.00
+  • Belief Entropy: 1.10
+
+soil_temperature_N2.0_C0.3:
+  • Control Strength: 0.30
+  • Control Effort: 0.00
+  • Belief Entropy: 1.10
+
+soil_compaction_N1.6_C0.1:
+  • Control Strength: 0.10
+  • Control Effort: 0.00
+  • Belief Entropy: 1.10

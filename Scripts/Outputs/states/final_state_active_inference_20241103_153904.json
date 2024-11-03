@@ -1,17 +1,17 @@
 {
-  "timestamp": "2024-11-03T15:27:56.429958",
-  "timestep": 1000,
+  "timestamp": "2024-11-03T15:39:15.215769",
+  "timestep": 9000,
   "variables": {
-    "soil_organic_matter_N0.8_C2.5": 44.85069636071853,
-    "soil_pH_N0.7_C2.8": 41.97868830387001,
-    "soil_moisture_N0.4_C2.0": 18.360068797162715,
-    "nutrient_levels_N0.6_C1.8": 77.01741996386579,
-    "soil_structure_N1.0_C1.5": 88.7039829001777,
-    "microbial_activity_N1.2_C1.2": 94.0483393371741,
-    "biodiversity_N1.5_C0.8": 79.5108078886015,
-    "soil_salinity_N1.8_C0.5": 20.575105828231468,
-    "soil_temperature_N2.0_C0.3": 24.26903993604765,
-    "soil_compaction_N1.6_C0.1": 90.48174962422537
+    "soil_organic_matter_N0.8_C2.5": 46.16750966117161,
+    "soil_pH_N0.7_C2.8": 96.67055190213132,
+    "soil_moisture_N0.4_C2.0": 99.0573535221706,
+    "nutrient_levels_N0.6_C1.8": 46.26300592539784,
+    "soil_structure_N1.0_C1.5": 60.307660704441396,
+    "microbial_activity_N1.2_C1.2": 87.14489466014773,
+    "biodiversity_N1.5_C0.8": 48.827600925281345,
+    "soil_salinity_N1.8_C0.5": 50.891441531778675,
+    "soil_temperature_N2.0_C0.3": 35.610540114636464,
+    "soil_compaction_N1.6_C0.1": 14.604551859733611
   },
   "constraints": {
     "soil_organic_matter_N0.8_C2.5": {
@@ -56,16 +56,16 @@
     }
   },
   "constraint_verification": {
-    "soil_organic_matter_N0.8_C2.5": 0,
-    "soil_pH_N0.7_C2.8": 0,
-    "soil_moisture_N0.4_C2.0": 0,
-    "nutrient_levels_N0.6_C1.8": 2,
+    "soil_organic_matter_N0.8_C2.5": 1,
+    "soil_pH_N0.7_C2.8": 2,
+    "soil_moisture_N0.4_C2.0": 2,
+    "nutrient_levels_N0.6_C1.8": 1,
     "soil_structure_N1.0_C1.5": 2,
     "microbial_activity_N1.2_C1.2": 2,
-    "biodiversity_N1.5_C0.8": 2,
-    "soil_salinity_N1.8_C0.5": 0,
+    "biodiversity_N1.5_C0.8": 1,
+    "soil_salinity_N1.8_C0.5": 1,
     "soil_temperature_N2.0_C0.3": 0,
-    "soil_compaction_N1.6_C0.1": 2
+    "soil_compaction_N1.6_C0.1": 0
   },
   "controllable_variables": [
     "soil_organic_matter_N0.8_C2.5",
@@ -98,12 +98,12 @@
   },
   "metadata": {
     "control_strategy": "unknown",
-    "simulation_id": "20241103_152755",
+    "simulation_id": "20241103_153904",
     "random_seed": 115
   },
   "summary": {
-    "satisfied_constraints": 0,
+    "satisfied_constraints": 4,
     "total_constraints": 10,
-    "satisfaction_rate": 0.0
+    "satisfaction_rate": 40.0
   }
 }

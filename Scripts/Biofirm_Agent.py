@@ -6,6 +6,7 @@ import logging
 from pymdp.agent import Agent as PyMDPAgent
 from pymdp import utils
 
+# Use absolute imports
 from Scripts.POMDP_ABCD import POMDPMatrices
 from Scripts.utils.logging_utils import setup_logging
 from Scripts.utils.matrix_utils import convert_to_obj_array
