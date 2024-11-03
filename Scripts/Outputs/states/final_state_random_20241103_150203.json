@@ -1,0 +1,53 @@
+{
+  "timestamp": "2024-11-03T15:02:03.778227",
+  "timestep": 1000,
+  "variables": {
+    "soil_organic_matter_N0.8_C2.5": 59.58497190168261,
+    "soil_pH_N0.7_C2.8": 32.2912851962125
+  },
+  "constraints": {
+    "soil_organic_matter_N0.8_C2.5": {
+      "lower": 45.0,
+      "upper": 55.0
+    },
+    "soil_pH_N0.7_C2.8": {
+      "lower": 45.0,
+      "upper": 55.0
+    }
+  },
+  "constraint_verification": {
+    "soil_organic_matter_N0.8_C2.5": 2,
+    "soil_pH_N0.7_C2.8": 0
+  },
+  "controllable_variables": [
+    "soil_organic_matter_N0.8_C2.5",
+    "soil_pH_N0.7_C2.8"
+  ],
+  "performance_metrics": {
+    "satisfaction_rates": [
+      0.0
+    ],
+    "control_efforts": [
+      0.0
+    ],
+    "stability_scores": [
+      0.0
+    ],
+    "response_times": [
+      0.0
+    ],
+    "overall_performance": [
+      0.0
+    ]
+  },
+  "metadata": {
+    "control_strategy": "unknown",
+    "simulation_id": "20241103_150203",
+    "random_seed": 115
+  },
+  "summary": {
+    "satisfied_constraints": 0,
+    "total_constraints": 2,
+    "satisfaction_rate": 0.0
+  }
+}

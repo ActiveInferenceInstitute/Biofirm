@@ -50,23 +50,26 @@ class POMDPMatrices:
     def initialize_all_matrices(self) -> Dict[str, np.ndarray]:
         """Initialize all POMDP matrices in PyMDP format"""
         try:
-            # Initialize raw matrices and ensure they're float64
-            A = self.initialize_likelihood_matrix().astype(np.float64)  # (3,3)
-            B = self.initialize_transition_matrix().astype(np.float64)  # (3,3,3)
-            C = self.initialize_preference_matrix().astype(np.float64)  # (3,)
-            D = self.initialize_prior_beliefs().astype(np.float64)      # (3,)
+            # Initialize raw matrices and explicitly convert to float64 numpy arrays
+            A = np.array(self.initialize_likelihood_matrix(), dtype=np.float64)
+            B = np.array(self.initialize_transition_matrix(), dtype=np.float64)
+            C = np.array(self.initialize_preference_matrix(), dtype=np.float64)
+            D = np.array(self.initialize_prior_beliefs(), dtype=np.float64)
             
-            # Create object arrays containing the numeric arrays
-            A_obj = utils.to_obj_array(A)  # Convert to object array format
-            B_obj = utils.to_obj_array(B)
-            C_obj = utils.to_obj_array(C)
-            D_obj = utils.to_obj_array(D)
+            # Log matrix shapes and sample values for debugging
+            self.logger.debug(
+                f"Initialized POMDP matrices:\n"
+                f"A: shape={A.shape}, dtype={A.dtype}\n{A}\n"
+                f"B: shape={B.shape}, dtype={B.dtype}\n"
+                f"C: shape={C.shape}, dtype={C.dtype}, values={C}\n"
+                f"D: shape={D.shape}, dtype={D.dtype}, values={D}"
+            )
             
             matrices = {
-                'A': A_obj,
-                'B': B_obj,
-                'C': C_obj,
-                'D': D_obj
+                'A': A,
+                'B': B, 
+                'C': C,
+                'D': D
             }
             
             # Validate matrices before returning
@@ -81,42 +84,47 @@ class POMDPMatrices:
     def initialize_likelihood_matrix(self) -> np.ndarray:
         """Initialize observation model P(o|s)
         
-        Creates a likelihood mapping from hidden states to observations:
-        - Each column represents P(o|s) for a given state
-        - High confidence in correct state observation
-        - Small probability of observing adjacent states
+        Creates a simple 3x3 likelihood matrix mapping observations to states:
+        - Each column is P(o|s) for a given state
+        - High confidence in correct observations (diagonal)
+        - Small probability of adjacent observations
         
         Returns:
-            A[o,s] = P(o|s) with high confidence in correct observations
+            A[o,s] = P(o|s) likelihood matrix
+            Shape: (3,3) for LOW/HOMEO/HIGH observations and states
         """
-        conf = self.matrix_config.observation_confidence
-        noise = (1.0 - conf)  # Total remaining probability
-        
-        # For each state, distribute noise to adjacent observations
+        # Initialize with zeros
         A = np.zeros((3, 3), dtype=np.float64)
         
-        # LOW state [s=0]
-        A[:, 0] = [
-            conf,      # P(o=LOW | s=LOW)
-            noise,     # P(o=HOMEO | s=LOW)
-            0.0        # P(o=HIGH | s=LOW)
-        ]
+        # High confidence in correct observations (diagonal)
+        conf = self.matrix_config.observation_confidence  # e.g. 0.90
+        np.fill_diagonal(A, conf)
         
-        # HOMEO state [s=1]
-        A[:, 1] = [
-            noise/2,   # P(o=LOW | s=HOMEO)
-            conf,      # P(o=HOMEO | s=HOMEO)
-            noise/2    # P(o=HIGH | s=HOMEO)
-        ]
+        # Small probability of adjacent observations
+        noise = (1.0 - conf) / 2.0  # Split remaining probability
         
-        # HIGH state [s=2]
-        A[:, 2] = [
-            0.0,       # P(o=LOW | s=HIGH)
-            noise,     # P(o=HOMEO | s=HIGH)
-            conf       # P(o=HIGH | s=HIGH)
-        ]
+        # Add noise to adjacent states
+        A[0, 1] = noise  # P(o=LOW | s=HOMEO)
+        A[1, 0] = noise  # P(o=HOMEO | s=LOW)
+        A[1, 2] = noise  # P(o=HOMEO | s=HIGH)
+        A[2, 1] = noise  # P(o=HIGH | s=HOMEO)
         
-        return A
+        # Add tiny probability to remaining transitions
+        A[0, 2] = noise  # P(o=LOW | s=HIGH)
+        A[2, 0] = noise  # P(o=HIGH | s=LOW)
+        
+        # Final matrix should look like:
+        # [0.90  0.05  0.05]  # P(o=LOW | s=...)
+        # [0.05  0.90  0.05]  # P(o=HOMEO | s=...)
+        # [0.05  0.05  0.90]  # P(o=HIGH | s=...)
+        
+        # Verify columns sum to 1.0
+        if not np.allclose(A.sum(axis=0), 1.0):
+            self.logger.error(f"A matrix:\n{A}")
+            self.logger.error(f"Column sums: {A.sum(axis=0)}")
+            raise ValueError(f"A matrix columns must sum to 1: {A.sum(axis=0)}")
+        
+        return A.astype(np.float64)  # Ensure float64 type
 
     def initialize_transition_matrix(self) -> np.ndarray:
         """Initialize transition model P(s'|s,a)
@@ -161,7 +169,9 @@ class POMDPMatrices:
             0.1                                 # HIGH state
         ], dtype=np.float64)
         
-        return softmax(log_prefs)
+        # Normalize to probabilities
+        prefs = softmax(log_prefs)
+        return prefs.reshape(-1)  # Ensure 1D array
 
     def initialize_prior_beliefs(self) -> np.ndarray:
         """Initialize prior beliefs over states
@@ -169,35 +179,46 @@ class POMDPMatrices:
         Returns:
             D[s] = P(s) with slight HOMEO bias
         """
-        return np.array([0.33, 0.34, 0.33], dtype=np.float64)
+        priors = np.array([0.33, 0.34, 0.33], dtype=np.float64)
+        return priors.reshape(-1)  # Ensure 1D array
 
     def _validate_matrices(self, matrices: Dict[str, np.ndarray]) -> None:
         """Validate POMDP matrices meet PyMDP requirements"""
         try:
-            # Extract arrays from object arrays and ensure float64
-            A = matrices['A'][0].astype(np.float64)
-            B = matrices['B'][0].astype(np.float64)
-            C = matrices['C'][0].astype(np.float64)
-            D = matrices['D'][0].astype(np.float64)
+            # Get arrays directly - they're already numpy arrays, not object arrays
+            A = matrices['A']
+            B = matrices['B']
+            C = matrices['C']
+            D = matrices['D']
             
-            # Validate A matrix columns sum to 1
-            if not np.allclose(A.sum(axis=0), 1.0):
+            # Validate A matrix columns sum to 1 with strict tolerance
+            if not np.allclose(A.sum(axis=0), 1.0, rtol=1e-10, atol=1e-10):
                 raise ValueError(f"A matrix columns must sum to 1: {A.sum(axis=0)}")
             
-            # Validate B matrix for each action
+            # Validate B matrix for each action with strict tolerance
             for a in range(B.shape[2]):
-                if not np.allclose(B[:,:,a].sum(axis=0), 1.0):
+                if not np.allclose(B[:,:,a].sum(axis=0), 1.0, rtol=1e-10, atol=1e-10):
                     raise ValueError(f"B matrix not normalized for action {a}: {B[:,:,a].sum(axis=0)}")
             
-            # Validate C and D are probability distributions
+            # Validate C and D are probability distributions with strict tolerance
             for name, M in [('C', C), ('D', D)]:
-                if not np.isclose(M.sum(), 1.0):
+                if not np.allclose(M.sum(), 1.0, rtol=1e-10, atol=1e-10):
                     raise ValueError(f"{name} matrix must sum to 1: {M.sum()}")
                 if not np.all(M >= 0):
                     raise ValueError(f"{name} matrix contains negative values")
                 if not np.all(np.isfinite(M)):
                     raise ValueError(f"{name} matrix contains non-finite values")
                 
+            # Validate shapes
+            if A.shape != (3, 3):
+                raise ValueError(f"A matrix should be (3,3), got {A.shape}")
+            if B.shape != (3, 3, 3):
+                raise ValueError(f"B matrix should be (3,3,3), got {B.shape}")
+            if C.shape != (3,):
+                raise ValueError(f"C matrix should be (3,), got {C.shape}")
+            if D.shape != (3,):
+                raise ValueError(f"D matrix should be (3,), got {D.shape}")
+            
         except Exception as e:
             self.logger.error(f"Matrix validation error: {str(e)}")
             raise

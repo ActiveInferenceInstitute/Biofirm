@@ -1,0 +1,98 @@
+[
+  {
+    "timestamp": "2024-11-03T15:02:03.393324",
+    "timestep": 0,
+    "variables": {
+      "soil_organic_matter_N0.8_C2.5": 50.0,
+      "soil_pH_N0.7_C2.8": 50.0
+    },
+    "constraints": {
+      "soil_organic_matter_N0.8_C2.5": {
+        "lower": 45.0,
+        "upper": 55.0
+      },
+      "soil_pH_N0.7_C2.8": {
+        "lower": 45.0,
+        "upper": 55.0
+      }
+    },
+    "constraint_verification": {
+      "soil_organic_matter_N0.8_C2.5": 1,
+      "soil_pH_N0.7_C2.8": 1
+    },
+    "controllable_variables": [
+      "soil_organic_matter_N0.8_C2.5",
+      "soil_pH_N0.7_C2.8"
+    ],
+    "performance_metrics": {
+      "satisfaction_rates": [
+        0.0
+      ],
+      "control_efforts": [
+        0.0
+      ],
+      "stability_scores": [
+        0.0
+      ],
+      "response_times": [
+        0.0
+      ],
+      "overall_performance": [
+        0.0
+      ]
+    },
+    "metadata": {
+      "control_strategy": "unknown",
+      "simulation_id": "20241103_150203",
+      "random_seed": 115
+    }
+  },
+  {
+    "timestamp": "2024-11-03T15:02:03.784715",
+    "timestep": 0,
+    "variables": {
+      "soil_organic_matter_N0.8_C2.5": 50.0,
+      "soil_pH_N0.7_C2.8": 50.0
+    },
+    "constraints": {
+      "soil_organic_matter_N0.8_C2.5": {
+        "lower": 45.0,
+        "upper": 55.0
+      },
+      "soil_pH_N0.7_C2.8": {
+        "lower": 45.0,
+        "upper": 55.0
+      }
+    },
+    "constraint_verification": {
+      "soil_organic_matter_N0.8_C2.5": 1,
+      "soil_pH_N0.7_C2.8": 1
+    },
+    "controllable_variables": [
+      "soil_organic_matter_N0.8_C2.5",
+      "soil_pH_N0.7_C2.8"
+    ],
+    "performance_metrics": {
+      "satisfaction_rates": [
+        0.0
+      ],
+      "control_efforts": [
+        0.0
+      ],
+      "stability_scores": [
+        0.0
+      ],
+      "response_times": [
+        0.0
+      ],
+      "overall_performance": [
+        0.0
+      ]
+    },
+    "metadata": {
+      "control_strategy": "unknown",
+      "simulation_id": "20241103_150203",
+      "random_seed": 115
+    }
+  }
+]
