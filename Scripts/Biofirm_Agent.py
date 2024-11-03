@@ -1,214 +1,247 @@
-import sys
-from pathlib import Path
-import numpy as np
-from typing import List, Dict
-from pymdp.agent import Agent
-from pymdp.utils import obj_array
-import matplotlib.pyplot as plt
+"""Active inference agent for ecosystem control using PyMDP"""
 
-# Add project root to Python path
-project_root = Path(__file__).parent.parent
-sys.path.append(str(project_root))
+import numpy as np
+from typing import Dict, Optional, Union, Tuple, List, Any
+import logging
+from pymdp.agent import Agent as PyMDPAgent
+from pymdp import utils
+from pymdp.maths import softmax
+
+from Scripts.POMDP_ABCD import POMDPMatrices
+from Scripts.utils.logging_utils import setup_logging
 
 class BiofirmAgent:
-    """Wrapper class for PyMDP active inference agent with 3-state system"""
+    """Active inference agent for ecosystem control using multiple independent POMDPs"""
     
-    def __init__(self, num_variables: int):
-        """Initialize BiofirmAgent with environment dimensions"""
-        self.num_variables = num_variables
-        
-        # Create separate agents for each controllable variable
-        self.agents = []
-        for i in range(3):  # 3 controllable variables
-            A = self._initialize_likelihood_matrix(i)
-            B = self._initialize_transition_matrix(i)
-            C = self._initialize_preference_matrix(i)
-            D = self._initialize_prior_beliefs(i)
-            
-            agent = Agent(A=A, B=B, C=C, D=D, 
-                         inference_algo='MMP',
-                         policy_len=1,
-                         inference_horizon=2,
-                         action_selection='stochastic')
-            self.agents.append(agent)
-
-    def _initialize_likelihood_matrix(self, control_idx: int):
-        """Initialize A matrix mapping hidden states to observations
-        
-        The A matrix encodes P(o|s) - probability of observation given hidden state:
-        - States (s): LOW(0), HOMEOSTATIC(1), HIGH(2)  
-        - Observations (o): LOW(0), HOMEOSTATIC(1), HIGH(2)
-        
-        Returns:
-            3x3 matrix where A[o,s] = P(observation o | state s)
-        """
-        A = np.zeros((3, 3))
-        
-        # High confidence (0.9) in correct observations
-        # Small chance (0.05) of observing adjacent states
-        A[0,0] = 0.9  # P(observe LOW | state LOW) 
-        A[1,1] = 0.9  # P(observe HOME | state HOME)
-        A[2,2] = 0.9  # P(observe HIGH | state HIGH)
-        
-        # Add observation uncertainty
-        A[0,1] = A[1,0] = 0.05  # LOW-HOME confusion
-        A[1,2] = A[2,1] = 0.05  # HOME-HIGH confusion
-        A[0,2] = A[2,0] = 0.05  # LOW-HIGH confusion (rare)
-        
-        return A
-    
-    def _initialize_transition_matrix(self, control_idx: int):
-        """Initialize B matrix encoding state transitions under different actions
-        
-        The B matrix encodes P(s'|s,a) - probability of next state given current state and action:
-        - Current states (s): LOW(0), HOMEOSTATIC(1), HIGH(2)
-        - Next states (s'): LOW(0), HOMEOSTATIC(1), HIGH(2)
-        - Actions (a): DECREASE(0), MAINTAIN(1), INCREASE(2)
-        
-        Returns:
-            3x3x3 tensor where B[s',s,a] = P(next state s' | current state s, action a)
-        """
-        # Single B matrix for this control variable
-        B = np.zeros((3, 3, 3))  # 3 states, 3 next states, 3 actions
-        
-        # Action effects for each current state
-        for s in range(3):  # Current state (LOW, HOME, HIGH)
-            for a in range(3):  # Action (decrease, no change, increase)
-                if a == 0:  # Decrease action
-                    if s == 0:  # From LOW state
-                        B[:,s,a] = [0.9, 0.1, 0.0]  # Likely stay LOW
-                    elif s == 1:  # From HOME state
-                        B[:,s,a] = [0.7, 0.3, 0.0]  # Likely go LOW
-                    else:  # From HIGH state
-                        B[:,s,a] = [0.1, 0.8, 0.1]  # Likely go HOME
-                        
-                elif a == 1:  # No change action
-                    if s == 0:  # From LOW state
-                        B[:,s,a] = [0.8, 0.2, 0.0]  # Mostly stay LOW
-                    elif s == 1:  # From HOME state
-                        B[:,s,a] = [0.1, 0.8, 0.1]  # Mostly stay HOME
-                    else:  # From HIGH state
-                        B[:,s,a] = [0.0, 0.2, 0.8]  # Mostly stay HIGH
-                        
-                else:  # Increase action
-                    if s == 0:  # From LOW state
-                        B[:,s,a] = [0.1, 0.8, 0.1]  # Likely go HOME
-                    elif s == 1:  # From HOME state
-                        B[:,s,a] = [0.0, 0.3, 0.7]  # Likely go HIGH
-                    else:  # From HIGH state
-                        B[:,s,a] = [0.0, 0.1, 0.9]  # Likely stay HIGH
-                
-                # Normalize along first axis (next states)
-                B[:,s,a] = B[:,s,a] / np.sum(B[:,s,a])
-                
-                # Verify normalization
-                assert np.isclose(np.sum(B[:,s,a]), 1.0), (
-                    f"B matrix not normalized for state {s}, action {a}"
-                )
-        
-        return B
-    
-    def _initialize_preference_matrix(self, control_idx: int):
-        """Initialize C matrix (preference/goal encoding) for 3 states"""
-        # Strongly prefer HOMEOSTATIC state (state 1)
-        return np.array([0.1, 1.0, 0.1])
-    
-    def _initialize_prior_beliefs(self, control_idx: int):
-        """Initialize D matrix (prior beliefs) for 3 states"""
-        # Equal prior probability for each state
-        return np.array([0.33, 0.34, 0.33])
-
-    def get_action(self, observations: List[int]) -> Dict[str, float]:
-        """Get next action based on active inference for each controllable variable
+    def __init__(self, 
+                 config: Dict[str, Any],
+                 logger: Optional[logging.Logger] = None) -> None:
+        """Initialize BiofirmAgent with independent POMDP for each controllable variable
         
         Args:
-            observations: List of state indicators where:
-                0 = LOW (below target range)
-                1 = HOMEOSTATIC (within target range) 
-                2 = HIGH (above target range)
+            config: Configuration dictionary containing:
+                variables: Dict mapping variable names to their settings
+                constraints: Dict of variable constraints
+            logger: Optional logger instance
         """
-        controls = []
+        # Basic setup
+        self.logger = logger or setup_logging('biofirm_agent')
+        self.config = self._validate_config(config)
         
-        # Get action for each controllable variable using its dedicated agent
-        for i, agent in enumerate(self.agents):
-            # Get observation for this control variable
-            obs = observations[i]  # Already encoded as 0,1,2 from Environment._verify_constraints()
-            
-            # Active Inference steps:
-            # 1. State inference using A matrix (observation model)
-            qs = agent.infer_states([obs])  # Posterior over hidden states
-            
-            # 2. Policy inference using B matrix (transition model) and C matrix (preferences)
-            q_pi, G = agent.infer_policies()  # Returns policy distribution and expected free energy
-            
-            # 3. Action selection via free energy minimization
-            action = agent.sample_action()  # Samples from policy distribution
-            
-            # Convert to control signal (-1=decrease, 0=maintain, 1=increase)
-            control = (action % 3) - 1
-            controls.append(control)
+        # Initialize storage for PyMDP agents
+        self.agents = {}
+        self.agent_history = {}
         
-        # Scale and return control signals
-        return {
-            'health': controls[0] * 1.0,
-            'carbon': controls[1] * 1.0,
-            'buffer': controls[2] * 1.0
+        # Create POMDP agents for each controllable variable
+        for var_name, var_config in self.config['variables'].items():
+            if var_config.get('controllable', False):
+                try:
+                    self._create_pomdp_agent(var_name, var_config)
+                    self._initialize_history(var_name)
+                    self.logger.info(f"Initialized POMDP agent for {var_name}")
+                except Exception as e:
+                    self.logger.error(f"Error initializing POMDP agent for {var_name}: {str(e)}")
+                    raise
+
+    def _create_pomdp_agent(self, var_name: str, var_config: Dict) -> None:
+        """Create PyMDP active inference agent for a variable"""
+        try:
+            # Get POMDP matrices from handler
+            matrix_handler = POMDPMatrices(var_config, self.logger)
+            matrices = matrix_handler.initialize_all_matrices()
+            
+            # Create PyMDP agent
+            agent = PyMDPAgent(
+                A=matrices['A'],
+                B=matrices['B'],
+                C=matrices['C'],
+                D=matrices['D'],
+                num_controls=3,  # Decrease/Nothing/Increase
+                control_fac_idx=[0],  # Single controllable factor
+                inference_algo='MMP',
+                action_selection='stochastic',
+                sampling_mode="marginal"
+            )
+            
+            # Store agent and its configuration
+            self.agents[var_name] = {
+                'agent': agent,
+                'current_obs': None,
+                'current_beliefs': matrices['D'][0].copy(),
+                'config': var_config
+            }
+            
+        except Exception as e:
+            self.logger.error(f"Error creating POMDP agent for {var_name}: {str(e)}")
+            raise
+
+    def infer_states(self, observations: Dict[str, int]) -> Dict[str, np.ndarray]:
+        """Infer hidden states for each POMDP from observations
+        
+        Args:
+            observations: Dictionary mapping variable names to discrete observations (0=LOW, 1=HOMEO, 2=HIGH)
+            
+        Returns:
+            Dictionary mapping variable names to posterior beliefs over states
+        """
+        beliefs = {}
+        
+        for var_name, agent_data in self.agents.items():
+            try:
+                agent = agent_data['agent']
+                
+                # Create observation array for PyMDP agent
+                obs = [observations[var_name]]  # Single modality observation
+                
+                # Store observation
+                agent_data['current_obs'] = obs
+                
+                # Infer states using PyMDP agent
+                qs = agent.infer_states(obs)
+                beliefs[var_name] = qs[0]  # Get first factor beliefs
+                agent_data['current_beliefs'] = beliefs[var_name]
+                
+                # Log beliefs
+                self.logger.debug(
+                    f"{var_name} beliefs: "
+                    f"LOW={beliefs[var_name][0]:.2f}, "
+                    f"HOMEO={beliefs[var_name][1]:.2f}, "
+                    f"HIGH={beliefs[var_name][2]:.2f}"
+                )
+                
+            except Exception as e:
+                self.logger.error(f"Error inferring states for {var_name}: {str(e)}")
+                beliefs[var_name] = np.ones(3) / 3  # Uniform beliefs on error
+                
+        return beliefs
+
+    def infer_policies(self) -> Tuple[Dict[str, np.ndarray], Dict[str, np.ndarray]]:
+        """Infer policies for each POMDP
+        
+        Returns:
+            Tuple containing:
+            - Dictionary mapping variable names to policy distributions
+            - Dictionary mapping variable names to expected free energies
+        """
+        policies = {}
+        free_energies = {}
+        
+        for var_name, agent_data in self.agents.items():
+            try:
+                agent = agent_data['agent']
+                
+                # Get policy distribution and expected free energies
+                q_pi, G = agent.infer_policies()
+                
+                # Store results
+                policies[var_name] = q_pi
+                free_energies[var_name] = G
+                
+                # Log policy evaluation
+                self.logger.debug(
+                    f"{var_name} policy evaluation:\n"
+                    f"  DEC:  prob={q_pi[0]:.2f}, EFE={G[0]:.2f}\n"
+                    f"  MAIN: prob={q_pi[1]:.2f}, EFE={G[1]:.2f}\n"
+                    f"  INC:  prob={q_pi[2]:.2f}, EFE={G[2]:.2f}"
+                )
+                
+            except Exception as e:
+                self.logger.error(f"Error inferring policies for {var_name}: {str(e)}")
+                policies[var_name] = np.ones(3) / 3
+                free_energies[var_name] = np.zeros(3)
+                
+        return policies, free_energies
+
+    def sample_action(self) -> Dict[str, int]:
+        """Sample actions from policy distributions for each POMDP
+        
+        Returns:
+            Dictionary mapping variable names to discrete actions (0=DEC, 1=MAIN, 2=INC)
+        """
+        actions = {}
+        
+        for var_name, agent_data in self.agents.items():
+            try:
+                agent = agent_data['agent']
+                action = agent.sample_action()
+                actions[var_name] = int(action[0])
+                
+                self.logger.debug(
+                    f"{var_name} action: "
+                    f"{['DEC', 'MAIN', 'INC'][actions[var_name]]}"
+                )
+                
+            except Exception as e:
+                self.logger.error(f"Error sampling action for {var_name}: {str(e)}")
+                actions[var_name] = 1  # Default to MAINTAIN
+                
+        return actions
+
+    def action_to_controls(self, actions: Dict[str, int]) -> Dict[str, float]:
+        """Convert discrete POMDP actions to continuous control signals
+        
+        Args:
+            actions: Dictionary mapping variable names to discrete actions
+            
+        Returns:
+            Dictionary mapping variable names to continuous control signals
+        """
+        controls = {}
+        
+        for var_name, action_idx in actions.items():
+            try:
+                # Convert action to control signal
+                if action_idx == 0:    # DECREASE
+                    control = -1.0
+                elif action_idx == 1:  # MAINTAIN
+                    control = 0.0
+                else:                  # INCREASE
+                    control = 1.0
+                
+                # Scale by control strength
+                control_strength = self.config['variables'][var_name].get('control_strength', 1.0)
+                controls[var_name] = control * control_strength
+                
+                # Update history
+                self.agent_history[var_name]['control_signals'].append(controls[var_name])
+                
+            except Exception as e:
+                self.logger.error(f"Error converting action to control for {var_name}: {str(e)}")
+                controls[var_name] = 0.0
+                
+        return controls
+
+    def _initialize_history(self, var_name: str) -> None:
+        """Initialize history tracking for an agent"""
+        self.agent_history[var_name] = {
+            'observations': [],
+            'beliefs': [],
+            'actions': [],
+            'control_signals': [],
+            'free_energy': [],
+            'policy_preferences': []
         }
 
-    def update_beliefs(self, observations: List[int]):
-        """Update agent's beliefs based on observations"""
-        # Update beliefs for each agent with its corresponding observation
-        for i, agent in enumerate(self.agents):
-            obs = observations[i]
-            agent.infer_states([obs])
+    def get_agent_data(self, var_name: str) -> Dict:
+        """Get agent data for analysis"""
+        return {
+            'history': self.agent_history.get(var_name, {}),
+            'matrices': self.agents[var_name]['matrices'] if var_name in self.agents else None,
+            'config': self.agents[var_name]['config'] if var_name in self.agents else None
+        }
 
-    def visualize_policy_selection(self, obs: int, agent_idx: int):
-        """Visualize policy selection process for debugging
+    def _validate_config(self, config: Dict) -> Dict:
+        """Validate configuration dictionary"""
+        required_keys = ['variables']
+        if not all(k in config for k in required_keys):
+            raise ValueError(f"Missing required keys in config: {required_keys}")
+            
+        # Ensure variables have required fields
+        for var_name, var_config in config['variables'].items():
+            if var_config.get('controllable', False):
+                required_var_keys = ['initial_value', 'constraints', 'control_strength']
+                missing_keys = [k for k in required_var_keys if k not in var_config]
+                if missing_keys:
+                    raise ValueError(f"Variable {var_name} missing required keys: {missing_keys}")
         
-        Args:
-            obs: Current observation (0=LOW, 1=HOME, 2=HIGH)
-            agent_idx: Index of agent (0=health, 1=carbon, 2=buffer)
-        """
-        agent = self.agents[agent_idx]
-        
-        # Get posterior beliefs and policy distribution
-        qs = agent.infer_states([obs])
-        q_pi, G = agent.infer_policies()
-        
-        # Plot state beliefs and expected free energy
-        plt.figure(figsize=(10,5))
-        
-        plt.subplot(121)
-        plt.bar(['LOW', 'HOME', 'HIGH'], qs[0])
-        plt.title('State Beliefs')
-        
-        plt.subplot(122)
-        plt.bar(['DECREASE', 'MAINTAIN', 'INCREASE'], -G)
-        plt.title('Policy Preferences\n(negative free energy)')
-        
-        plt.tight_layout()
-        return plt.gcf()
-
-if __name__ == "__main__":
-    # Test the agent
-    try:
-        # Initialize and test agent
-        agent = BiofirmAgent(num_variables=10)
-        print("BiofirmAgent initialized successfully")
-        
-        # Test with sample observations
-        observations = [0] * 10  # All variables outside constraints
-        action = agent.get_action(observations)
-        print(f"\nTest with all variables outside constraints:")
-        print(f"Observations: {observations}")
-        print(f"Action: {action}")
-        
-        observations = [1] * 10  # All variables within constraints
-        action = agent.get_action(observations)
-        print(f"\nTest with all variables within constraints:")
-        print(f"Observations: {observations}")
-        print(f"Action: {action}")
-        
-    except Exception as e:
-        print(f"Error: {str(e)}")
-        sys.exit(1)
+        return config
