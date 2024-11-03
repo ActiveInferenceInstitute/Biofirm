@@ -9,479 +9,616 @@ from dataclasses import dataclass, asdict
 import sys
 import logging
 import traceback
-import matplotlib.pyplot as plt
 
-# Add the project root to Python path
-sys.path.append(str(Path(__file__).parent.parent))
+# Add project root to Python path
+project_root = Path(__file__).parent.parent
+sys.path.append(str(project_root))
 
-# Now import using the correct path
-from utils.logging_utils import setup_logging
 from utils.config_loader import load_ecosystem_config
-from Scripts.Visualization_Methods import plot_data, plot_comparison, plot_satisfaction_rates, generate_all_visualizations
+from Scripts.Visualization_Methods import generate_all_visualizations
 from Scripts.Biofirm_Agent import BiofirmAgent
+from Scripts.Free_Energy_Minimization import (
+    analyze_active_inference_agents,
+    generate_comprehensive_report,
+    setup_logging as setup_fe_logging
+)
+from utils.logging_utils import setup_logging, get_component_logger
+from utils.ecosystem_utils import (
+    calculate_dependencies,
+    get_variable_update_order,
+    calculate_base_change,
+    apply_variable_relationships,
+    calculate_stability_score,
+    calculate_response_time,
+    verify_constraints
+)
 
 # Simulation Parameters
 SIMULATION_PARAMS = {
-    'num_timesteps': 500,
-    'control_modes': ['random', 'active_inference'],
-    'default_control_strategy': 'active_inference',
-    'output_interval': 100,
-    'control_bounds': {
-        'min_adjustment': -5.0,
-        'max_adjustment': 5.0
-    },
-    'visualization': {
-        'show_plots': True,
-        'save_plots': True
-    }
+    'num_timesteps': 1000,          # Number of simulation steps
+    'progress_interval': 100,       # How often to print progress updates
+    'random_seed': 115,            # random seed
+    'output_dir': "Outputs",      # Default output directory
+    
+    # Control parameters
+    'control_strategies': ['random', 'active_inference'],
+    'control_update_frequency': 1,  # How often to update controls
+    
+    # Logging parameters
+    'log_level': logging.INFO,
+    'debug_mode': False           # Enable detailed debugging output
 }
 
 @dataclass
 class EnvironmentState:
-    """Dataclass to capture complete environment state for serialization"""
+    """Dataclass to capture complete environment state"""
     timestamp: str
     timestep: int
     variables: Dict[str, float]
     constraints: Dict[str, Dict[str, float]]
-    constraint_verification: List[int]
+    constraint_verification: Dict[str, int]  # Maps variable names to states (0,1,2)
     controllable_variables: List[str]
-    metadata: Dict[str, Any]  # New field for additional metadata
+    performance_metrics: Dict[str, float]  # Added performance tracking
+    metadata: Dict[str, Any]
 
     def to_dict(self) -> Dict[str, Any]:
-        """Convert state to dictionary with added metadata"""
+        """Convert state to dictionary format"""
         return {
-            **asdict(self),
-            'satisfied_constraints': sum(self.constraint_verification),
-            'total_constraints': len(self.constraint_verification),
-            'satisfaction_rate': sum(self.constraint_verification) / len(self.constraint_verification)
+            'timestamp': self.timestamp,
+            'timestep': self.timestep,
+            'variables': self.variables,
+            'constraints': self.constraints,
+            'constraint_verification': self.constraint_verification,
+            'controllable_variables': self.controllable_variables,
+            'performance_metrics': self.performance_metrics,
+            'metadata': self.metadata,
+            # Add summary statistics
+            'summary': {
+                'satisfied_constraints': sum(1 for state in self.constraint_verification.values() if state == 1),
+                'total_constraints': len(self.constraint_verification),
+                'satisfaction_rate': sum(1 for state in self.constraint_verification.values() if state == 1) / 
+                                   len(self.constraint_verification) * 100 if self.constraint_verification else 0
+            }
         }
 
 class Environment:
-    """
-    Simulates a natural resource environment with interdependent variables that evolve over time.
-    Tracks both actual variable values and whether they fall within specified constraints.
-    """
+    """Simulates ecological environment with configurable controllable variables"""
     
-    # Class-level default settings
-    DEFAULT_OUTPUT_DIR = "Outputs"
-    DEFAULT_RANDOM_SEED = 77
+    DEFAULT_OUTPUT_DIR = SIMULATION_PARAMS['output_dir']
+    DEFAULT_RANDOM_SEED = SIMULATION_PARAMS['random_seed']
     
     def __init__(self, 
-                 output_dir: Optional[str] = None, 
+                 output_dir: Optional[str] = None,
                  random_seed: Optional[int] = None,
                  config_path: Optional[str] = None):
-        """
-        Initialize environment with configuration and simulation settings
+        """Initialize environment with configuration"""
+        self._setup_basics(output_dir, random_seed)
         
-        Args:
-            output_dir: Directory for output files (default: "Outputs")
-            random_seed: Random seed for reproducibility (default: 77)
-            config_path: Path to ecosystem configuration file (optional)
-        """
-        # Set simulation settings
-        self.output_dir = Path(output_dir or self.DEFAULT_OUTPUT_DIR)
-        self.random_seed = random_seed if random_seed is not None else self.DEFAULT_RANDOM_SEED
-        self.simulation_id = datetime.now().strftime('%Y%m%d_%H%M%S')
-        
-        # Create output directories
-        self.output_dir.mkdir(parents=True, exist_ok=True)
-        self.state_dir = self.output_dir / 'states'
-        self.state_dir.mkdir(exist_ok=True)
-        
-        # Initialize file paths
-        self.history_file = self.output_dir / f'environment_history_{self.simulation_id}.json'
-        self.metrics_file = self.output_dir / f'metrics_{self.simulation_id}.json'
-        
-        # Setup enhanced logging
-        self.logger = setup_logging(self.simulation_id, self.output_dir)
-        self.logger.info(f"Initializing environment simulation {self.simulation_id}")
+        # Setup main logger - Updated to use new interface
+        self.logger = setup_logging(
+            name='ecosystem',
+            log_dir=self.output_dir,
+            level=SIMULATION_PARAMS['log_level']
+        )
+        self.logger.info("\n=== Ecosystem Simulation Initialization ===")
+        self.logger.info(f"Simulation ID: {self.simulation_id}")
+        self.logger.info(f"Output Directory: {self.output_dir}")
         
         try:
-            # Set random seed
-            np.random.seed(self.random_seed)
-            self.logger.info(f"Set random seed: {self.random_seed}")
+            # Load and validate configuration
+            self._load_and_validate_config(config_path)
             
-            # Load ecosystem configuration
-            self.config = load_ecosystem_config(config_path)
-            self.logger.info("Successfully loaded ecosystem configuration")
+            # Initialize DataFrame with proper columns
+            self._init_dataframe()
             
-            # Initialize from config
+            # Initialize variables and tracking
             self._init_from_config()
             self._init_tracking_system()
             self._save_state()
             
-            self._log_simulation_settings()
+            # Print initialization summary
+            self._print_initialization_summary()
             
         except Exception as e:
-            self.logger.error(f"Failed to initialize environment: {str(e)}\n{traceback.format_exc()}")
+            self.logger.error(f"Failed to initialize environment: {str(e)}")
             raise
 
-    def _log_simulation_settings(self):
-        """Log simulation settings"""
-        # Detailed logging to file
-        self.logger.info("\nSimulation Settings:")
-        self.logger.info(f"  Output Directory: {self.output_dir}")
-        self.logger.info(f"  Random Seed: {self.random_seed}")
-        self.logger.info(f"  History File: {self.history_file}")
-        self.logger.info(f"  State Directory: {self.state_dir}")
-        self.logger.info(f"  Metrics File: {self.metrics_file}")
+    def _setup_basics(self, output_dir: Optional[str], random_seed: Optional[int]):
+        """Setup basic configuration and directories"""
+        self.output_dir = Path(output_dir or self.DEFAULT_OUTPUT_DIR)
+        self.random_seed = random_seed if random_seed is not None else self.DEFAULT_RANDOM_SEED
+        self.simulation_id = datetime.now().strftime('%Y%m%d_%H%M%S')
         
-        # Simplified console output
-        print(f"\nInitializing Simulation {self.simulation_id}")
-        print(f"Output Directory: {self.output_dir}")
+        # Create directories
+        self.output_dir.mkdir(parents=True, exist_ok=True)
+        self.state_dir = self.output_dir / 'states'
+        self.state_dir.mkdir(exist_ok=True)
+        
+        # Set file paths
+        self.history_file = self.output_dir / f'environment_history_{self.simulation_id}.json'
+        self.metrics_file = self.output_dir / f'metrics_{self.simulation_id}.json'
 
-    @classmethod
-    def with_settings(cls, 
-                     output_dir: str = None,
-                     random_seed: int = None,
-                     config_path: str = None) -> 'Environment':
-        """
-        Create environment instance with custom settings
+    def _load_and_validate_config(self, config_path: Optional[str]):
+        """Load and validate configuration"""
+        self.config = load_ecosystem_config(config_path)
         
-        Args:
-            output_dir: Custom output directory
-            random_seed: Custom random seed
-            config_path: Custom config path
+        # Validate relationships
+        self._validate_variable_relationships()
+        
+        # Initialize variables
+        self._init_from_config()
+
+    def _validate_variable_relationships(self):
+        """Validate variable relationships to prevent cycles and invalid dependencies"""
+        relationships = self.config.get('variable_relationships', {})
+        all_variables = set(self.config['variables'].keys())
+        
+        for var_name, rel_config in relationships.items():
+            # Verify variable exists
+            if var_name not in all_variables:
+                raise ValueError(f"Relationship defined for non-existent variable: {var_name}")
             
-        Returns:
-            Configured Environment instance
-        """
-        return cls(
-            output_dir=output_dir,
-            random_seed=random_seed,
-            config_path=config_path
-        )
+            # Verify dependencies exist
+            dependencies = rel_config.get('depends_on', [])
+            for dep in dependencies:
+                if dep not in all_variables:
+                    raise ValueError(f"Invalid dependency {dep} for variable {var_name}")
+            
+            # Check for circular dependencies
+            self._check_circular_dependencies(var_name, dependencies, set())
+
+    def _check_circular_dependencies(self, var_name: str, dependencies: List[str], 
+                                   visited: set):
+        """Check for circular dependencies in variable relationships"""
+        if var_name in visited:
+            raise ValueError(f"Circular dependency detected involving {var_name}")
+        
+        visited.add(var_name)
+        relationships = self.config.get('variable_relationships', {})
+        
+        for dep in dependencies:
+            if dep in relationships:
+                next_deps = relationships[dep].get('depends_on', [])
+                self._check_circular_dependencies(dep, next_deps, visited.copy())
 
     def _init_from_config(self):
-        """Initialize variables from configuration file"""
-        self.logger.info("\nInitializing Environmental Variables from Config:")
+        """Initialize variables from configuration"""
+        self.logger.info("\nInitializing Environmental Variables:")
         
+        # Get variable names first
+        self.variable_names = list(self.config['variables'].keys())
+        
+        # Initialize all variables
+        for var_name, var_config in self.config['variables'].items():
+            setattr(self, var_name, var_config['initial_value'])
+            
+            # Log initialization with control status
+            control_status = "Controllable" if var_config.get('controllable', False) else "Uncontrolled"
+            self.logger.info(
+                f"  {var_name:25}: {var_config['initial_value']:6.2f} "
+                f"{var_config.get('unit', '')} [{control_status}]"
+            )
+        
+        # Get controllable variables - store both as vars and variables for compatibility
+        self.controllable_vars = self.controllable_variables = [
+            var_name for var_name, var_config in self.config['variables'].items()
+            if var_config.get('controllable', False)
+        ]
+        
+        self.logger.info(f"\nControllable Variables: {len(self.controllable_variables)}")
+        for var in self.controllable_variables:
+            config = self.config['variables'][var]
+            self.logger.info(
+                f"  - {var} (strength: {config.get('control_strength', 1.0):.1f}, "
+                f"trend: {config.get('trend_coefficient', 0.0):+.2f})"
+            )
+
+    def run_simulation(self, num_timesteps: int, control_strategy: str = 'random') -> pd.DataFrame:
+        """Run simulation with specified control strategy"""
         try:
-            # Initialize variables from config
+            # Initialize environment and agent
+            self._init_from_config()
+            
+            # Initialize active inference agent if needed
+            self.agent = None
+            if control_strategy == 'active_inference':
+                try:
+                    self.agent = BiofirmAgent(self.config, self.logger, self)
+                    # Initialize beliefs about hidden states
+                    observations = self._get_observations()
+                    self.agent.infer_states(observations)
+                except Exception as e:
+                    self.logger.error(f"Failed to initialize active inference agent: {str(e)}")
+                    raise
+            
+            self.logger.info(f"\nStarting {control_strategy} simulation for {num_timesteps} steps")
+            
+            try:
+                # Run simulation steps
+                for step in range(num_timesteps):
+                    # Get observations
+                    observations = self._get_observations()
+                    
+                    # Get control actions
+                    if control_strategy == 'random':
+                        controls = self._get_random_controls()
+                    else:
+                        # Active inference control loop
+                        # 1. Update beliefs about hidden states given new observations
+                        qs = self.agent.infer_states(observations)
+                        
+                        # 2. Infer policies using Expected Free Energy
+                        q_pi, neg_efe = self.agent.infer_policies()
+                        
+                        # 3. Sample action from policy posterior
+                        action = self.agent.sample_action()
+                        
+                        # 4. Convert discrete action to continuous controls
+                        controls = self.agent.action_to_controls(action)
+                    
+                    # Update environment
+                    self.step(controls)
+                    
+                    # Print progress
+                    if (step + 1) % SIMULATION_PARAMS['progress_interval'] == 0:
+                        verification = self._verify_constraints()
+                        self._print_progress_update(step, num_timesteps, verification)
+                
+                # Save final results
+                self._save_final_results(control_strategy)
+                
+                return self.data
+                
+            except Exception as e:
+                self.logger.error(f"Simulation failed: {str(e)}")
+                raise
+
+        except Exception as e:
+            self.logger.error(f"Failed to run simulation: {str(e)}")
+            raise
+
+    def _get_observations(self) -> Dict[str, int]:
+        """Get current state observations"""
+        observations = {}
+        for var_name in self.controllable_vars:
+            value = getattr(self, var_name)
+            # Convert to discrete observation (LOW=0, HOMEO=1, HIGH=2)
+            if value < 40:
+                obs = 0  # LOW
+            elif value > 60:
+                obs = 2  # HIGH
+            else:
+                obs = 1  # HOMEO
+            observations[var_name] = obs
+        return observations
+
+    def _get_random_controls(self) -> Dict[str, float]:
+        """Generate random control signals"""
+        return {
+            var: np.random.choice([-1.0, 0.0, 1.0])
+            for var in self.controllable_vars
+        }
+
+    def step(self, controls: Dict[str, float]) -> Tuple[Dict[str, int], pd.DataFrame]:
+        """Execute one simulation step with improved integration of controls and natural dynamics"""
+        try:
+            # Store previous state
+            prev_observations = self._verify_constraints()
+            
+            # Update each variable
             for var_name, var_config in self.config['variables'].items():
-                setattr(self, var_name, var_config['initial_value'])
-                self.logger.info(
-                    f"  {var_name:25}: {var_config['initial_value']:6.2f} "
-                    f"{var_config.get('unit', '')}"
+                current = getattr(self, var_name)
+                
+                # Apply control if variable is controllable
+                if var_name in controls:
+                    control = controls[var_name]
+                    strength = float(var_config['control_strength'])
+                    control_effect = control * strength
+                else:
+                    control_effect = 0.0
+                
+                # Calculate dependencies effect
+                dependency_effect = self._calculate_dependencies(var_name)
+                
+                # Add noise
+                noise = np.random.normal(0, var_config['noise_std'])
+                
+                # Calculate total change
+                total_change = control_effect + dependency_effect + noise
+                
+                # Update value with bounds
+                new_value = np.clip(current + total_change, 0.0, 100.0)
+                setattr(self, var_name, new_value)
+                
+                self.logger.debug(
+                    f"{var_name} update:\n"
+                    f"  Control effect: {control_effect:+.2f}\n"
+                    f"  Dependency effect: {dependency_effect:+.2f}\n"
+                    f"  Noise: {noise:+.2f}\n"
+                    f"  Total change: {total_change:+.2f}\n"
+                    f"  New value: {new_value:.2f}"
                 )
             
-            # Set controllable variables
-            self.controllable_variables_list = [
-                var_name for var_name, var_config in self.config['variables'].items()
-                if var_config.get('controllable', False)
-            ]
+            # Update tracking
+            new_observations = self._verify_constraints()
+            self._update_performance_metrics(new_observations, controls)
+            self._record_state()
             
-            self.logger.info("\nControllable Variables:")
-            for var in self.controllable_variables_list:
-                self.logger.info(
-                    f"  - {var} ({self.config['variables'][var].get('unit', '')})"
+            return new_observations, self.data
+            
+        except Exception as e:
+            self.logger.error(f"Step error: {str(e)}")
+            raise
+
+    def _calculate_dependencies(self, var_name: str) -> float:
+        """Calculate effect of variable dependencies"""
+        return calculate_dependencies(
+            self.config.get('variable_relationships', {}),
+            var_name,
+            self.get_variable_value
+        )
+
+    def _get_variable_update_order(self) -> List[str]:
+        """Determine correct order for updating variables"""
+        return get_variable_update_order(self.config)
+
+    def _calculate_base_change(self, var_name: str, current: float, 
+                             var_config: Dict) -> float:
+        """Calculate base change for a variable"""
+        return calculate_base_change(var_name, current, var_config)
+
+    def _apply_variable_relationships(self, var_name: str, base_value: float, 
+                                    previous_values: Dict[str, float]) -> float:
+        """Apply variable relationships"""
+        return apply_variable_relationships(
+            var_name, base_value, previous_values, 
+            self.config, self.logger
+        )
+
+    def _calculate_stability_score(self) -> float:
+        """Calculate system stability score"""
+        return calculate_stability_score(self.data, self.config)
+
+    def _calculate_response_time(self) -> float:
+        """Calculate system response time score"""
+        return calculate_response_time(self.data, self.config)
+
+    def _verify_constraints(self) -> Dict[str, int]:
+        """Verify if each variable is within constraints"""
+        variables = {var: getattr(self, var) for var in self.variable_names}
+        return verify_constraints(variables, self.config, self.logger)
+
+    def _update_variables(self):
+        """Update all variables based on relationships, trends, and controls"""
+        # Get previous values for relationship calculations
+        previous = {var: getattr(self, var) for var in self.config['variables']}
+        
+        # Sort variables by dependency order
+        update_order = self._get_variable_update_order()
+        
+        # Update each variable in correct order
+        for var_name in update_order:
+            var_config = self.config['variables'][var_name]
+            current = previous[var_name]
+            
+            try:
+                # 1. Calculate natural change (trend + noise)
+                new_value = self._calculate_base_change(var_name, current, var_config)
+                
+                # 2. Apply relationships from other variables
+                new_value = self._apply_variable_relationships(var_name, new_value, previous)
+                
+                # 3. Ensure value stays within physical limits
+                new_value = np.clip(new_value, 0.0, 100.0)
+                
+                # Log the update components
+                self.logger.debug(
+                    f"Updating {var_name}:\n"
+                    f"  Previous: {current:.2f}\n"
+                    f"  New: {new_value:.2f}\n"
+                    f"  Change: {new_value - current:+.2f}"
                 )
                 
-        except KeyError as e:
-            self.logger.error(f"Missing required configuration key: {e}")
-            raise
+                # Update the variable
+                setattr(self, var_name, new_value)
+                
+            except Exception as e:
+                self.logger.error(f"Error updating {var_name}: {str(e)}")
+                # Maintain previous value on error
+                setattr(self, var_name, current)
+
+    def _init_performance_metrics(self):
+        """Initialize performance tracking metrics"""
+        self.performance_metrics = {
+            'satisfaction_rates': [],    # Tracks percentage of constraints satisfied
+            'control_efforts': [],       # Tracks magnitude of control actions
+            'stability_scores': [],      # Tracks system stability
+            'response_times': [],        # Tracks time to reach targets
+            'overall_performance': []    # Composite performance score
+        }
+        
+        # Initialize with zero values to avoid empty lists
+        for metric_list in self.performance_metrics.values():
+            metric_list.append(0.0)
+
+    def _update_performance_metrics(self, verification: Dict[str, int], 
+                                  controls: Dict[str, float]):
+        """Update performance tracking metrics
+        
+        Args:
+            verification: Dictionary mapping variables to states (0,1,2)
+            controls: Dictionary of control signals applied
+        """
+        try:
+            # Calculate satisfaction rate (% of variables in homeostatic state)
+            satisfaction = sum(1 for state in verification.values() if state == 1)
+            satisfaction_rate = (satisfaction / len(verification)) * 100
+            self.performance_metrics['satisfaction_rates'].append(satisfaction_rate)
+            
+            # Calculate control effort (sum of absolute control signals)
+            control_effort = sum(abs(c) for c in controls.values())
+            self.performance_metrics['control_efforts'].append(control_effort)
+            
+            # Calculate stability (inverse of recent value changes)
+            stability = self._calculate_stability_score()
+            self.performance_metrics['stability_scores'].append(stability)
+            
+            # Calculate response time (how quickly system reaches targets)
+            response = self._calculate_response_time()
+            self.performance_metrics['response_times'].append(response)
+            
+            # Log metrics
+            self.logger.debug(
+                f"Performance Metrics:\n"
+                f"  Satisfaction Rate: {satisfaction_rate:.1f}%\n"
+                f"  Control Effort: {control_effort:.2f}\n"
+                f"  Stability Score: {stability:.2f}\n"
+                f"  Response Score: {response:.2f}"
+            )
+            
         except Exception as e:
-            self.logger.error(f"Error initializing from config: {e}")
+            self.logger.error(f"Error updating performance metrics: {str(e)}")
+
+    def _setup_console_output(self):
+        """Setup console output handler"""
+        console_handler = logging.StreamHandler()
+        console_handler.setLevel(logging.INFO)
+        formatter = logging.Formatter('%(message)s')  # Simplified format for console
+        console_handler.setFormatter(formatter)
+        self.logger.addHandler(console_handler)
+
+    def _print_initialization_summary(self):
+        """Print initialization summary to console"""
+        print("\nEnvironment Configuration Summary:")
+        print("---------------------------------")
+        
+        # Print controllable variables
+        print("\nControllable Variables:")
+        for var in self.controllable_variables:
+            config = self.config['variables'][var]
+            print(f"  • {var:25} (strength: {config.get('control_strength', 1.0):.1f}, "
+                  f"trend: {config.get('trend_coefficient', 0.0):+.2f})")
+        
+        # Print uncontrolled variables with dependencies
+        print("\nUncontrolled Variables with Dependencies:")
+        for var, config in self.config['variables'].items():
+            if not config.get('controllable', False):
+                deps = self.config.get('variable_relationships', {}).get(var, {}).get('depends_on', [])
+                if deps:
+                    print(f"  • {var:25} depends on: {', '.join(deps)}")
+
+        print("\nOutput Files:")
+        print(f"  • History: {self.history_file.name}")
+        print(f"  • Metrics: {self.metrics_file.name}")
+        print(f"  • States:  {self.state_dir.name}/")
+        print("\nSimulation ready to start.")
+        print("=" * 50)
+
+    def _print_progress_update(self, step: int, total_steps: int, 
+                             verification: Dict[str, int]):
+        """Print progress update with key metrics"""
+        homeostatic = sum(1 for state in verification.values() if state == 1)
+        total = len(verification)
+        satisfaction_rate = (homeostatic / total) * 100
+        
+        # Get recent performance metrics
+        stability = self.performance_metrics['stability_scores'][-1]
+        control_effort = self.performance_metrics['control_efforts'][-1]
+        
+        print(f"\nStep {step+1}/{total_steps} "
+              f"({(step+1)/total_steps*100:.1f}%)")
+        print(f"  • Satisfaction Rate: {satisfaction_rate:.1f}%")
+        print(f"  • Stability Score:   {stability:.2f}")
+        print(f"  • Control Effort:    {control_effort:.2f}")
+
+    def _save_final_results(self, control_strategy: str):
+        """Save final simulation results"""
+        try:
+            # Save final state
+            final_state = self._get_current_state()
+            final_state_file = self.state_dir / f'final_state_{control_strategy}_{self.simulation_id}.json'
+            with open(final_state_file, 'w') as f:
+                json.dump(final_state.to_dict(), f, indent=2)
+            
+            # Save performance metrics
+            metrics_file = self.output_dir / f'metrics_{control_strategy}_{self.simulation_id}.json'
+            with open(metrics_file, 'w') as f:
+                json.dump(self.performance_metrics, f, indent=2)
+            
+            # Save data to CSV
+            data_file = self.output_dir / f'data_{control_strategy}_{self.simulation_id}.csv'
+            self.data.to_csv(data_file, index=False)
+            
+            print("\nSimulation Complete!")
+            print("Results saved to:")
+            print(f"  • Final State: {final_state_file.name}")
+            print(f"  • Metrics:     {metrics_file.name}")
+            print(f"  • Data:        {data_file.name}")
+            
+        except Exception as e:
+            self.logger.error(f"Failed to save final results: {str(e)}")
+            # Save at least the data even if state saving fails
+            data_file = self.output_dir / f'data_{control_strategy}_{self.simulation_id}.csv'
+            self.data.to_csv(data_file, index=False)
             raise
 
     def _init_tracking_system(self):
         """Initialize tracking system from configuration"""
         self.logger.info("\nInitializing Tracking System:")
         
-        # Get variable names from config
-        self.variable_names = list(self.config['variables'].keys())
-        
-        # Initialize empty DataFrame for tracking history
-        self.data = pd.DataFrame(columns=['timestep'] + self.variable_names)
+        # Initialize performance metrics
+        self._init_performance_metrics()
         
         # Initialize constraints DataFrame
         self.logger.info("\nSetting Constraints:")
         constraints_data = {
-            'variable': self.variable_names,
-            'lower_constraint': [self.config['variables'][var]['constraints']['lower'] 
-                               for var in self.variable_names],
-            'upper_constraint': [self.config['variables'][var]['constraints']['upper'] 
-                               for var in self.variable_names]
+            'variable': [],
+            'lower_constraint': [],
+            'upper_constraint': []
         }
-        
-        self.constraints = pd.DataFrame(constraints_data)
         
         for var_name in self.variable_names:
             var_config = self.config['variables'][var_name]
+            constraints_data['variable'].append(var_name)
+            constraints_data['lower_constraint'].append(var_config['constraints']['lower'])
+            constraints_data['upper_constraint'].append(var_config['constraints']['upper'])
+            
             self.logger.info(
                 f"  {var_name:25}: [{var_config['constraints']['lower']:3.0f}, "
-                f"{var_config['constraints']['upper']:3.0f}] {var_config['unit']}"
+                f"{var_config['constraints']['upper']:3.0f}] {var_config.get('unit', '')}"
             )
         
-        # Initialize constraint verification
-        self.constraint_verification = self._verify_constraints()
-
-    def step(self, controllable_health: float, controllable_carbon: float, 
-            controllable_buffer: float) -> Tuple[List[int], pd.DataFrame]:
-        """Streamlined step function with minimal logging"""
-        try:
-            # Convert numpy values to Python floats
-            health_adj = float(controllable_health)
-            carbon_adj = float(controllable_carbon)
-            buffer_adj = float(controllable_buffer)
-            
-            # Execute step logic
-            self._update_controllable_variables(health_adj, carbon_adj, buffer_adj)
-            self._update_dependent_variables()
-            self._record_state()
-            self.constraint_verification = self._verify_constraints()
-            
-            return self.constraint_verification, self.data
-            
-        except Exception as e:
-            self.logger.error(f"Step error: {e}")
-            raise
-
-    def _update_controllable_variables(self, health: float, carbon: float, buffer: float):
-        """Update controllable variables with validation"""
-        updates = {
-            'forest_health': (health, self.forest_health),
-            'carbon_sequestration': (carbon, self.carbon_sequestration),
-            'riparian_buffer_width': (buffer, self.riparian_buffer_width)
-        }
+        self.constraints = pd.DataFrame(constraints_data)
         
-        for var_name, (adjustment, current) in updates.items():
-            new_value = np.clip(current + adjustment, 0, 100)
-            setattr(self, var_name, new_value)
-            self.logger.debug(
-                f"{var_name}: {current:.2f} -> {new_value:.2f} "
-                f"(adjustment: {adjustment:+.2f})"
-            )
-
-    def _log_state_changes(self, previous_state: Dict[str, float]):
-        """Enhanced logging of state variable changes"""
-        changes = []
-        significant_changes = []
-        
-        for var in self.variable_names:
-            current = getattr(self, var)
-            prev = previous_state[var]
-            delta = current - prev
-            
-            if abs(delta) > 0.01:  # Log significant changes only
-                change_str = (
-                    f"{var.replace('_', ' ').title():25}: "
-                    f"{prev:6.2f} → {current:6.2f} ({delta:+.2f})"
-                )
-                changes.append(change_str)
-                
-                # Track major changes (>10% change)
-                if abs(delta) > (prev * 0.1):
-                    significant_changes.append(var)
-        
-        if changes:
-            self.logger.info("\nState Changes:")
-            self.logger.info("\n  - " + "\n  - ".join(changes))
-            if significant_changes:
-                self.logger.warning(
-                    f"\nSignificant Changes Detected in: {', '.join(significant_changes)}"
-                )
-
-    def _save_detailed_state(self, step_number: int, step_start: datetime):
-        """Save detailed state information to JSON"""
-        state = self._get_current_state()
-        state.metadata = {
-            'step_duration': (datetime.now() - step_start).total_seconds(),
-            'simulation_id': self.simulation_id,
-            'step_number': step_number,
-            'control_strategy': self.control_strategy
-        }
-        
-        # Save state to JSON file
-        state_file = self.state_dir / f'state_{self.simulation_id}_{step_number:04d}.json'
-        try:
-            with open(state_file, 'w') as f:
-                json.dump(state.to_dict(), f, indent=2)
-            self.logger.debug(f"Detailed state saved to {state_file}")
-        except Exception as e:
-            self.logger.error(f"Failed to save detailed state: {str(e)}")
-
-    def _update_dependent_variables(self):
-        """Update all dependent variables based on current state and random factors"""
-        self.logger.info("\nUpdating Dependent Variables:")
-        
-        # Store previous values
-        previous = {var: getattr(self, var) for var in self.variable_names}
-        
-        # Update variables with logging
-        updates = [
-            ('wildlife_habitat_quality', 
-             lambda: np.clip(self.forest_health * 0.5 + np.random.normal(0, 5), 0, 100)),
-            ('water_quality',
-             lambda: np.clip(self.riparian_buffer_width * 1.5 + np.random.normal(0, 5), 0, 100)),
-            ('soil_health',
-             lambda: np.clip(self.forest_health * 0.6 + np.random.normal(0, 5), 0, 100)),
-            ('invasive_species_count',
-             lambda: int(np.clip(self.invasive_species_count - self.riparian_buffer_width/10 + 
-                               np.random.randint(-5, 5), 0, None))),
-            ('biodiversity_index',
-             lambda: np.clip(self.wildlife_habitat_quality * 0.4 + np.random.normal(0, 5), 0, 100)),
-            ('hazard_trees_count',
-             lambda: int(np.clip(self.hazard_trees_count + np.random.randint(-2, 3), 0, None))),
-            ('recreational_access_score',
-             lambda: np.clip(self.recreational_access_score + np.random.randint(-3, 3), 0, 100))
-        ]
-        
-        for var_name, update_func in updates:
-            old_value = previous[var_name]
-            new_value = update_func()
-            setattr(self, var_name, new_value)
-            delta = new_value - old_value
-            self.logger.info(
-                f"  {var_name:25}: {old_value:6.2f} → {new_value:6.2f} "
-                f"({delta:+.2f})"
-            )
+        # Initialize state recording
+        self._record_state()
 
     def _record_state(self):
-        """Record current state to historical data and save to JSON"""
-        # Record to DataFrame with explicit dtypes
-        new_data = pd.DataFrame({
-            'timestep': [len(self.data)],
-            **{var: [float(getattr(self, var))] for var in self.variable_names}
-        })
-        
-        # Ensure consistent dtypes during concatenation
-        if len(self.data) == 0:
-            self.data = new_data
-        else:
-            self.data = pd.concat([self.data, new_data], ignore_index=True)
-        
-        # Save detailed state to JSON history
-        state = self._get_current_state()
-        state.metadata.update({
-            'step_number': len(self.data) - 1,
-            'timestamp': datetime.now().isoformat(),
-            'constraint_status': {
-                var: (1 if self.constraint_verification[i] else 0)
-                for i, var in enumerate(self.variable_names)
-            }
-        })
-        
+        """Record current state to historical data"""
         try:
-            # Load existing history or create new
-            if self.history_file.exists():
-                with open(self.history_file, 'r') as f:
-                    history = json.load(f)
-            else:
-                history = []
+            # Create dictionary with current state
+            new_data = {
+                'timestep': len(self.data)
+            }
             
-            # Append new state
-            history.append(state.to_dict())
+            # Record all variable values
+            for var_name in self.config['variables'].keys():
+                new_data[var_name] = float(getattr(self, var_name))
             
-            # Save updated history
-            with open(self.history_file, 'w') as f:
-                json.dump(history, f, indent=2)
-                
+            # Add new row using DataFrame constructor
+            new_row = pd.DataFrame([new_data], columns=self.data.columns)
+            self.data = pd.concat([self.data, new_row], ignore_index=True)
+            
+            self.logger.debug(
+                f"Recorded state at timestep {new_data['timestep']}: " + 
+                ", ".join(f"{k}: {v:.2f}" for k, v in new_data.items() if k != 'timestep')
+            )
+            
         except Exception as e:
-            self.logger.error(f"Failed to save state history: {str(e)}")
+            self.logger.error(f"Error recording state: {str(e)}")
             raise
 
-    def _verify_constraints(self) -> List[int]:
-        """
-        Verify if each variable is within constraints, returning LOW (0), HOMEOSTATIC (1), or HIGH (2)
-        
-        Returns:
-            List of state indicators (0: LOW, 1: HOMEOSTATIC, 2: HIGH)
-        """
-        states = []
-        for name in self.variable_names:
-            value = getattr(self, name)
-            constraints = self.constraints[self.constraints['variable'] == name].iloc[0]
-            lower = constraints['lower_constraint']
-            upper = constraints['upper_constraint']
-            homeostatic_center = (lower + upper) / 2
-            homeostatic_range = (upper - lower) * 1  # can have a homeostatic zone within the constraints
-            
-            if value < lower:
-                states.append(0)  # LOW
-            elif value > upper:
-                states.append(2)  # HIGH
-            else:
-                # Check if in homeostatic range around center
-                if abs(value - homeostatic_center) <= homeostatic_range:
-                    states.append(1)  # HOMEOSTATIC
-                elif value < homeostatic_center:
-                    states.append(0)  # LOW side of valid range
-                else:
-                    states.append(2)  # HIGH side of valid range
-        
-        return states
-
-    def print_state(self):
-        """Print current environmental state with enhanced details"""
-        state_lines = [
-            "\n=== Environmental State Report ===",
-            f"Simulation ID: {self.simulation_id}",
-            f"Timestep: {len(self.data) - 1}",
-            f"Timestamp: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}",
-            "-" * 75,
-            "Variable Status:",
-            "-" * 75
-        ]
-        
-        # Track constraint satisfaction for summary
-        satisfied_constraints = 0
-        critical_variables = []
-        
-        for var in self.variable_names:
-            value = getattr(self, var)
-            constraints = self.constraints[self.constraints['variable'] == var].iloc[0]
-            is_satisfied = self.constraint_verification[self.variable_names.index(var)]
-            status = "✓" if is_satisfied else "⚠"
-            
-            # Track satisfaction
-            if is_satisfied:
-                satisfied_constraints += 1
-            else:
-                critical_variables.append(var)
-            
-            # Add control indicator
-            control_indicator = "[C]" if var in self.controllable_variables_list else "   "
-            
-            state_lines.append(
-                f"{control_indicator} {var.replace('_', ' ').title():25} = {value:6.2f} "
-                f"[{constraints['lower_constraint']:3.0f}, {constraints['upper_constraint']:3.0f}] {status}"
-            )
-        
-        # Add summary section
-        satisfaction_rate = (satisfied_constraints / len(self.variable_names)) * 100
-        state_lines.extend([
-            "-" * 75,
-            "Summary:",
-            f"Constraint Satisfaction: {satisfied_constraints}/{len(self.variable_names)} ({satisfaction_rate:.1f}%)",
-            f"Variables Needing Attention: {', '.join(critical_variables) if critical_variables else 'None'}",
-            "Legend: [C] = Controllable Variable, ✓ = Within Constraints, ⚠ = Outside Constraints",
-            "=" * 75
-        ])
-        
-        # Print to console and log
-        print("\n".join(state_lines))
-        self.logger.info("\n".join(state_lines))
-
-    def _get_current_state(self) -> EnvironmentState:
-        """Capture current environment state in serializable format"""
-        return EnvironmentState(
-            timestamp=datetime.now().isoformat(),
-            timestep=len(self.data) - 1,
-            variables={var: float(getattr(self, var)) for var in self.variable_names},
-            constraints={
-                row['variable']: {
-                    'lower': float(row['lower_constraint']),
-                    'upper': float(row['upper_constraint'])
-                }
-                for _, row in self.constraints.iterrows()
-            },
-            constraint_verification=self.constraint_verification,
-            controllable_variables=self.controllable_variables_list,
-            metadata={}
-        )
-
-    def _save_state(self) -> None:
+    def _save_state(self):
         """Save current state to JSON history file"""
         state = self._get_current_state()
         
@@ -506,269 +643,165 @@ class Environment:
             self.logger.error(f"Failed to save state: {str(e)}")
             raise
 
-    def get_simulation_summary(self) -> Dict[str, Any]:
-        """Generate summary statistics for the simulation"""
-        return {
-            'simulation_id': self.simulation_id,
-            'total_timesteps': len(self.data),
-            'final_state': asdict(self._get_current_state()),
-            'variable_descriptions': VARIABLE_DESCRIPTIONS,
-            'history_file': str(self.history_file)
-        }
-
-    def run_simulation(self, 
-                      num_timesteps: int = SIMULATION_PARAMS['num_timesteps'],
-                      control_strategy: str = SIMULATION_PARAMS['default_control_strategy']) -> pd.DataFrame:
-        """Run simulation with enhanced visualization and safety checks"""
-        self.logger.info(f"\nStarting {num_timesteps}-step simulation with {control_strategy} control")
-        self.control_strategy = control_strategy
-        
-        try:
-            # Initialize agent if using active inference
-            agent = None
-            if control_strategy == 'active_inference':
-                agent = BiofirmAgent(num_variables=len(self.variable_names))
-                self.logger.info("Initialized BiofirmAgent")
-            
-            # Initialize metrics tracking
-            metrics = self._init_simulation_metrics(control_strategy, num_timesteps)
-            
-            # Run simulation steps
-            for step in range(num_timesteps):
-                step_start = datetime.now()
-                try:
-                    # Generate and execute control actions
-                    controls = self._get_control_actions(control_strategy, agent)
-                    verification, _ = self.step(
-                        controllable_health=controls['health'],
-                        controllable_carbon=controls['carbon'],
-                        controllable_buffer=controls['buffer']
-                    )
-                    
-                    # Update agent if using active inference
-                    if agent:
-                        agent.update_beliefs(verification)
-                    
-                    # Save detailed state every 50 steps and at start/end
-                    if step == 0 or step == num_timesteps-1 or step % 50 == 0:
-                        self._save_detailed_state(step, step_start)
-                    
-                    # Record metrics
-                    self._record_step_metrics(metrics, step, controls, verification)
-                    
-                    # Only log at start, end, and major intervals
-                    if step == 0 or step == num_timesteps-1 or step % (num_timesteps//10) == 0:
-                        satisfaction_rate = sum(verification) / len(verification) * 100
-                        self.logger.info(
-                            f"Step {step+1}/{num_timesteps} - "
-                            f"Satisfaction Rate: {satisfaction_rate:.1f}%"
-                        )
-                        
-                except Exception as e:
-                    self.logger.error(f"Error in step {step}: {e}")
-                    raise
-            
-            # Save final metrics
-            self._save_simulation_metrics(metrics)
-            self.logger.info(f"Completed {control_strategy} simulation")
-            
-            return self.data
-            
-        except Exception as e:
-            self.logger.error(f"Simulation failed: {e}")
-            raise
-
-    def run_comparison(self) -> Tuple[pd.DataFrame, pd.DataFrame]:
-        """Run both random and active inference simulations and generate comparison visualizations"""
-        self.logger.info("\nStarting simulation comparison...")
-        
-        try:
-            # Run both strategies
-            self.logger.info("Running random control simulation...")
-            random_data = self.run_simulation(control_strategy='random')
-            
-            self.logger.info("\nRunning active inference simulation...")
-            active_data = self.run_simulation(control_strategy='active_inference')
-            
-            # Generate all visualizations
-            self.logger.info("\nGenerating visualizations...")
-            success = generate_all_visualizations(
-                random_data=random_data,
-                active_data=active_data,
-                constraints=self.constraints,
-                controllable_vars=self.controllable_variables_list,
-                output_dir=self.output_dir,
-                logger=self.logger
-            )
-            
-            if success:
-                self.logger.info(f"\nAll visualizations saved to: {self.output_dir}/visualizations")
-            else:
-                self.logger.warning("Some visualizations may not have been generated successfully")
-                
-            return random_data, active_data
-            
-        except Exception as e:
-            self.logger.error(f"Comparison failed: {e}")
-            plt.close('all')
-            raise
-
-    def _get_control_actions(self, strategy: str, agent: Optional[BiofirmAgent]) -> Dict[str, float]:
-        """Get control actions based on strategy"""
-        if strategy == 'random':
-            return self._generate_random_controls()
-        elif strategy == 'active_inference':
-            if not agent:
-                raise ValueError("Agent not initialized for active inference")
-            return agent.get_action(self.constraint_verification)
-        else:
-            raise ValueError(f"Unknown control strategy: {strategy}")
-
-    def _generate_visualizations(self):
-        """Generate and save visualization plots without display"""
-        try:
-            self.logger.info("\nGenerating visualization plots...")
-            
-            # Create plots using Visualization_Methods
-            plot_data(self.data, self.constraints, self.controllable_variables_list, 
-                     self.control_strategy, self.output_dir)
-            
-            self.logger.info(f"Plots saved to {self.output_dir}")
-            
-        except Exception as e:
-            self.logger.error(f"Error generating visualizations: {e}")
-            self.logger.warning("Continuing simulation without visualizations")
-
-    def _print_progress(self, step: int, total_steps: int, verification: List[int]):
-        """Print simulation progress with metrics"""
-        satisfaction_rate = sum(verification) / len(verification) * 100
-        self.logger.info(
-            f"Step {step+1}/{total_steps} - "
-            f"Constraint Satisfaction: {satisfaction_rate:.1f}%"
+    def _get_current_state(self) -> EnvironmentState:
+        """Get current environment state"""
+        return EnvironmentState(
+            timestamp=datetime.now().isoformat(),
+            timestep=len(self.data) - 1,
+            variables={var: float(getattr(self, var)) for var in self.variable_names},
+            constraints={
+                var: {
+                    'lower': float(self.constraints[self.constraints['variable'] == var]['lower_constraint'].iloc[0]),
+                    'upper': float(self.constraints[self.constraints['variable'] == var]['upper_constraint'].iloc[0])
+                }
+                for var in self.variable_names
+            },
+            constraint_verification=self._verify_constraints(),
+            controllable_variables=self.controllable_variables,
+            performance_metrics=self.performance_metrics,
+            metadata={
+                'control_strategy': getattr(self, 'control_strategy', 'unknown'),
+                'simulation_id': self.simulation_id,
+                'random_seed': self.random_seed
+            }
         )
 
-    def _init_simulation_metrics(self, control_strategy: str, num_timesteps: int) -> Dict:
-        """Initialize metrics tracking dictionary"""
-        return {
-            'simulation_id': self.simulation_id,
-            'start_time': datetime.now().isoformat(),
-            'control_strategy': control_strategy,
-            'num_timesteps': num_timesteps,
-            'config_path': str(self.config),
-            'timesteps': []
-        }
-
-    def _generate_random_controls(self) -> Dict[str, float]:
-        """Generate random control actions within bounds"""
-        bounds = SIMULATION_PARAMS['control_bounds']
-        return {
-            'health': np.random.uniform(bounds['min_adjustment'], bounds['max_adjustment']),
-            'carbon': np.random.uniform(bounds['min_adjustment'], bounds['max_adjustment']),
-            'buffer': np.random.uniform(bounds['min_adjustment'], bounds['max_adjustment'])
-        }
-
-    def _record_step_metrics(self, metrics: Dict, step: int, controls: Dict[str, float], verification: List[int]):
-        """Record metrics for current simulation step with 3-state verification"""
+    def get_variable_value(self, var_name: str) -> float:
+        """Get current value of a variable
+        
+        Args:
+            var_name: Name of variable to get value for
+            
+        Returns:
+            Current value of variable
+        """
         try:
-            # Get current state
-            current_state = {var: float(getattr(self, var)) for var in self.variable_names}
+            if var_name not in self.config['variables']:
+                raise ValueError(f"Unknown variable: {var_name}")
+                
+            value = float(getattr(self, var_name))
+            self.logger.debug(f"Got value for {var_name}: {value:.2f}")
+            return value
             
-            # Calculate satisfaction rate (count HOMEOSTATIC states)
-            homeostatic = sum(1 for state in verification if state == 1)
-            total = len(verification)
-            satisfaction_rate = (homeostatic / total) * 100
+        except Exception as e:
+            self.logger.error(f"Error getting value for {var_name}: {str(e)}")
+            return 0.0
+
+    def _init_dataframe(self):
+        """Initialize DataFrame with proper columns"""
+        try:
+            # Create columns list starting with timestep
+            columns = ['timestep']
             
-            # Record step metrics
-            step_metrics = {
-                'step_number': step,
-                'timestamp': datetime.now().isoformat(),
-                'controls': {
-                    'health': float(controls['health']),
-                    'carbon': float(controls['carbon']),
-                    'buffer': float(controls['buffer'])
-                },
-                'variables': current_state,
-                'states': {
-                    var: ('LOW' if verification[i] == 0 else 
-                          'HOMEOSTATIC' if verification[i] == 1 else 'HIGH')
-                    for i, var in enumerate(self.variable_names)
-                },
-                'homeostatic_rate': satisfaction_rate
+            # Add all variable columns
+            columns.extend(self.config['variables'].keys())
+            
+            # Initialize empty DataFrame with proper columns and dtypes
+            self.data = pd.DataFrame(columns=columns)
+            self.data['timestep'] = self.data['timestep'].astype(int)
+            
+            # Set float dtype for all variable columns
+            for var in self.config['variables'].keys():
+                self.data[var] = self.data[var].astype(float)
+                
+            self.logger.debug(
+                f"Initialized DataFrame with columns: {columns}\n"
+                f"Shape: {self.data.shape}"
+            )
+            
+        except Exception as e:
+            self.logger.error(f"Failed to initialize DataFrame: {str(e)}")
+            raise
+
+    def initialize_active_inference(self) -> None:
+        """Initialize active inference control agent"""
+        try:
+            self.logger.info(f"Initializing agents for {len(self.controllable_vars)} controllable variables")
+            
+            # Create minimal config for agent
+            agent_config = {
+                'variables': {}
             }
             
-            # Append to metrics
-            metrics['timesteps'].append(step_metrics)
+            # Add each controllable variable's config
+            for var_name in self.controllable_vars:
+                agent_config['variables'][var_name] = {
+                    'constraints': self.constraints[var_name],
+                    'observation_confidence': 0.90,
+                    'homeostatic_preference': 4.0
+                }
+            
+            # Create agent with simple config
+            self.agent = BiofirmAgent(agent_config, self.logger)
+            
+            self.logger.info("Active inference agent initialized successfully")
             
         except Exception as e:
-            self.logger.error(f"Error recording step metrics: {e}")
+            self.logger.error(f"Failed to initialize active inference agent: {str(e)}")
             raise
 
-    def _save_simulation_metrics(self, metrics: Dict):
-        """Save simulation metrics to file"""
-        try:
-            # Add final metrics
-            metrics.update({
-                'end_time': datetime.now().isoformat(),
-                'final_state': self._get_current_state().to_dict(),
-                'final_satisfaction_rate': sum(self.constraint_verification) / len(self.constraint_verification)
-            })
-            
-            # Save to file
-            with open(self.metrics_file, 'w') as f:
-                json.dump(metrics, f, indent=2)
-                
-            self.logger.info(f"Simulation metrics saved to {self.metrics_file}")
-            
-        except Exception as e:
-            self.logger.error(f"Error saving simulation metrics: {e}")
-            raise
-
-def initialize_environment(
-    output_dir: Optional[str] = None,
-    random_seed: Optional[int] = None,
-    config_path: Optional[str] = None
-) -> Environment:
-    """
-    Initialize and return a new environment instance with optional custom settings
-    
-    Args:
-        output_dir: Custom output directory
-        random_seed: Custom random seed
-        config_path: Custom config path
-        
-    Returns:
-        Configured Environment instance
-    """
-    return Environment.with_settings(
-        output_dir=output_dir,
-        random_seed=random_seed,
-        config_path=config_path
-    )
-
-# Variable descriptions for documentation
-VARIABLE_DESCRIPTIONS: Dict[str, str] = {
-    'forest_health': "Forest health index (0-100). Target: 50-100. Measures overall forest ecosystem health.",
-    'carbon_sequestration': "Carbon storage (tons/acre). Target: 30-100. Amount of carbon captured by forest.",
-    'wildlife_habitat_quality': "Habitat quality (0-100). Target: 50-100. Suitability for wildlife.",
-    'water_quality': "Water quality index (0-100). Target: 70-100. Water cleanliness and health.",
-    'soil_health': "Soil health index (0-100). Target: 60-100. Soil quality and sustainability.",
-    'invasive_species_count': "Invasive species count. Target: 0-50. Number of unwanted species.",
-    'riparian_buffer_width': "Buffer width (feet). Target: 25-100. Width of waterway protection zone.",
-    'biodiversity_index': "Biodiversity score (0-100). Target: 60-100. Species variety measure.",
-    'hazard_trees_count': "Hazard tree count. Target: 0-15. Number of risk-posing trees.",
-    'recreational_access_score': "Access quality (0-100). Target: 30-100. Recreational accessibility."
-}
-
-# Add main execution
 if __name__ == "__main__":
     try:
-        # Initialize environment
-        env = initialize_environment()
+        # Run separate simulations for each control strategy
+        results = {}
+        env = None  # Store last environment instance
         
-        # Run comparison of both strategies
-        random_data, active_data = env.run_comparison()
+        for strategy in SIMULATION_PARAMS['control_strategies']:
+            # Create fresh environment for each strategy
+            env = Environment()
+            print(f"\nRunning {strategy.title()} Control Simulation...")
+            
+            # Run single strategy simulation
+            results[strategy] = env.run_simulation(
+                num_timesteps=SIMULATION_PARAMS['num_timesteps'],
+                control_strategy=strategy
+            )
+            
+            print(f"{strategy.title()} simulation complete.")
         
-        print("\nSimulation complete. Visualizations saved to:", env.output_dir)
+        if env is None:
+            raise ValueError("No environment instance created")
+            
+        # Generate visualizations comparing the strategies
+        print("\nGenerating Visualizations...")
+        generate_all_visualizations(
+            random_data=results['random'],
+            active_data=results['active_inference'],
+            constraints=env.constraints,
+            controllable_vars=env.controllable_variables,
+            output_dir=env.output_dir,
+            logger=env.logger
+        )
+        
+        # Run Active Inference Analysis only for active inference simulation
+        if env.agent is not None:
+            print("\nAnalyzing Active Inference Performance...")
+            try:
+                # Setup specific logging for free energy analysis
+                fe_logger = setup_fe_logging(env.output_dir)
+                
+                # Run analysis
+                modality_stats = analyze_active_inference_agents(
+                    agent=env.agent,
+                    output_dir=env.output_dir,
+                    logger=fe_logger
+                )
+                
+                # Generate comprehensive report
+                generate_comprehensive_report(
+                    modality_stats=modality_stats,
+                    output_dir=env.output_dir,
+                    logger=fe_logger
+                )
+                
+                print("Active Inference Analysis Complete!")
+                
+            except Exception as e:
+                env.logger.error(f"Error in active inference analysis: {str(e)}")
+                env.logger.debug("Traceback:", exc_info=True)
+        
+        print("\nSimulation Suite Complete!")
+        print(f"All outputs saved to: {env.output_dir}")
         
     except Exception as e:
         print(f"\nError: {str(e)}")
