@@ -1,0 +1,350 @@
+{
+  "0": {
+    "id": "CA-ALA",
+    "country": "USA",
+    "state": "California",
+    "county": "Alameda"
+  },
+  "1": {
+    "id": "CA-ALP",
+    "country": "USA",
+    "state": "California",
+    "county": "Alpine"
+  },
+  "2": {
+    "id": "CA-AMA",
+    "country": "USA",
+    "state": "California",
+    "county": "Amador"
+  },
+  "3": {
+    "id": "CA-BUT",
+    "country": "USA",
+    "state": "California",
+    "county": "Butte"
+  },
+  "4": {
+    "id": "CA-CAL",
+    "country": "USA",
+    "state": "California",
+    "county": "Calaveras"
+  },
+  "5": {
+    "id": "CA-COL",
+    "country": "USA",
+    "state": "California",
+    "county": "Colusa"
+  },
+  "6": {
+    "id": "CA-CON",
+    "country": "USA",
+    "state": "California",
+    "county": "Contra Costa"
+  },
+  "7": {
+    "id": "CA-DEL",
+    "country": "USA",
+    "state": "California",
+    "county": "Del Norte"
+  },
+  "8": {
+    "id": "CA-ELD",
+    "country": "USA",
+    "state": "California",
+    "county": "El Dorado"
+  },
+  "9": {
+    "id": "CA-FRE",
+    "country": "USA",
+    "state": "California",
+    "county": "Fresno"
+  },
+  "10": {
+    "id": "CA-GLE",
+    "country": "USA",
+    "state": "California",
+    "county": "Glenn"
+  },
+  "11": {
+    "id": "CA-HUM",
+    "country": "USA",
+    "state": "California",
+    "county": "Humboldt"
+  },
+  "12": {
+    "id": "CA-IMP",
+    "country": "USA",
+    "state": "California",
+    "county": "Imperial"
+  },
+  "13": {
+    "id": "CA-INY",
+    "country": "USA",
+    "state": "California",
+    "county": "Inyo"
+  },
+  "14": {
+    "id": "CA-KER",
+    "country": "USA",
+    "state": "California",
+    "county": "Kern"
+  },
+  "15": {
+    "id": "CA-KIN",
+    "country": "USA",
+    "state": "California",
+    "county": "Kings"
+  },
+  "16": {
+    "id": "CA-LAK",
+    "country": "USA",
+    "state": "California",
+    "county": "Lake"
+  },
+  "17": {
+    "id": "CA-LAS",
+    "country": "USA",
+    "state": "California",
+    "county": "Lassen"
+  },
+  "18": {
+    "id": "CA-LAX",
+    "country": "USA",
+    "state": "California",
+    "county": "Los Angeles"
+  },
+  "19": {
+    "id": "CA-MAD",
+    "country": "USA",
+    "state": "California",
+    "county": "Madera"
+  },
+  "20": {
+    "id": "CA-MRN",
+    "country": "USA",
+    "state": "California",
+    "county": "Marin"
+  },
+  "21": {
+    "id": "CA-MRP",
+    "country": "USA",
+    "state": "California",
+    "county": "Mariposa"
+  },
+  "22": {
+    "id": "CA-MEN",
+    "country": "USA",
+    "state": "California",
+    "county": "Mendocino"
+  },
+  "23": {
+    "id": "CA-MER",
+    "country": "USA",
+    "state": "California",
+    "county": "Merced"
+  },
+  "24": {
+    "id": "CA-MOD",
+    "country": "USA",
+    "state": "California",
+    "county": "Modoc"
+  },
+  "25": {
+    "id": "CA-MNO",
+    "country": "USA",
+    "state": "California",
+    "county": "Mono"
+  },
+  "26": {
+    "id": "CA-MTY",
+    "country": "USA",
+    "state": "California",
+    "county": "Monterey"
+  },
+  "27": {
+    "id": "CA-NAP",
+    "country": "USA",
+    "state": "California",
+    "county": "Napa"
+  },
+  "28": {
+    "id": "CA-NEV",
+    "country": "USA",
+    "state": "California",
+    "county": "Nevada"
+  },
+  "29": {
+    "id": "CA-ORA",
+    "country": "USA",
+    "state": "California",
+    "county": "Orange"
+  },
+  "30": {
+    "id": "CA-PLA",
+    "country": "USA",
+    "state": "California",
+    "county": "Placer"
+  },
+  "31": {
+    "id": "CA-PLU",
+    "country": "USA",
+    "state": "California",
+    "county": "Plumas"
+  },
+  "32": {
+    "id": "CA-RIV",
+    "country": "USA",
+    "state": "California",
+    "county": "Riverside"
+  },
+  "33": {
+    "id": "CA-SAC",
+    "country": "USA",
+    "state": "California",
+    "county": "Sacramento"
+  },
+  "34": {
+    "id": "CA-SBT",
+    "country": "USA",
+    "state": "California",
+    "county": "San Benito"
+  },
+  "35": {
+    "id": "CA-SBD",
+    "country": "USA",
+    "state": "California",
+    "county": "San Bernardino"
+  },
+  "36": {
+    "id": "CA-SDG",
+    "country": "USA",
+    "state": "California",
+    "county": "San Diego"
+  },
+  "37": {
+    "id": "CA-SFO",
+    "country": "USA",
+    "state": "California",
+    "county": "San Francisco"
+  },
+  "38": {
+    "id": "CA-SJQ",
+    "country": "USA",
+    "state": "California",
+    "county": "San Joaquin"
+  },
+  "39": {
+    "id": "CA-SLO",
+    "country": "USA",
+    "state": "California",
+    "county": "San Luis Obispo"
+  },
+  "40": {
+    "id": "CA-SMT",
+    "country": "USA",
+    "state": "California",
+    "county": "San Mateo"
+  },
+  "41": {
+    "id": "CA-SBA",
+    "country": "USA",
+    "state": "California",
+    "county": "Santa Barbara"
+  },
+  "42": {
+    "id": "CA-SCL",
+    "country": "USA",
+    "state": "California",
+    "county": "Santa Clara"
+  },
+  "43": {
+    "id": "CA-SCR",
+    "country": "USA",
+    "state": "California",
+    "county": "Santa Cruz"
+  },
+  "44": {
+    "id": "CA-SHA",
+    "country": "USA",
+    "state": "California",
+    "county": "Shasta"
+  },
+  "45": {
+    "id": "CA-SIE",
+    "country": "USA",
+    "state": "California",
+    "county": "Sierra"
+  },
+  "46": {
+    "id": "CA-SIS",
+    "country": "USA",
+    "state": "California",
+    "county": "Siskiyou"
+  },
+  "47": {
+    "id": "CA-SOL",
+    "country": "USA",
+    "state": "California",
+    "county": "Solano"
+  },
+  "48": {
+    "id": "CA-SON",
+    "country": "USA",
+    "state": "California",
+    "county": "Sonoma"
+  },
+  "49": {
+    "id": "CA-STA",
+    "country": "USA",
+    "state": "California",
+    "county": "Stanislaus"
+  },
+  "50": {
+    "id": "CA-SUT",
+    "country": "USA",
+    "state": "California",
+    "county": "Sutter"
+  },
+  "51": {
+    "id": "CA-TEH",
+    "country": "USA",
+    "state": "California",
+    "county": "Tehama"
+  },
+  "52": {
+    "id": "CA-TRI",
+    "country": "USA",
+    "state": "California",
+    "county": "Trinity"
+  },
+  "53": {
+    "id": "CA-TUL",
+    "country": "USA",
+    "state": "California",
+    "county": "Tulare"
+  },
+  "54": {
+    "id": "CA-TUO",
+    "country": "USA",
+    "state": "California",
+    "county": "Tuolumne"
+  },
+  "55": {
+    "id": "CA-VEN",
+    "country": "USA",
+    "state": "California",
+    "county": "Ventura"
+  },
+  "56": {
+    "id": "CA-YOL",
+    "country": "USA",
+    "state": "California",
+    "county": "Yolo"
+  },
+  "57": {
+    "id": "CA-YUB",
+    "country": "USA",
+    "state": "California",
+    "county": "Yuba"
+  }
+}
