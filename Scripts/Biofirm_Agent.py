@@ -1,8 +1,9 @@
-"""Active inference agent for ecosystem control"""
+"""Active inference agent for ecosystem control using PyMDP"""
 
 import numpy as np
 from typing import Dict, Optional, Union, Tuple, List, Any
 import logging
+from pymdp.agent import Agent as PyMDPAgent
 from pymdp import utils
 from pymdp.maths import softmax
 
@@ -10,62 +11,59 @@ from Scripts.POMDP_ABCD import POMDPMatrices
 from Scripts.utils.logging_utils import setup_logging
 
 class BiofirmAgent:
-    """Active inference agent for ecosystem control"""
+    """Active inference agent for ecosystem control using multiple independent POMDPs"""
     
-    def __init__(self, config: Dict, logger: Optional[logging.Logger] = None):
-        """Initialize BiofirmAgent
+    def __init__(self, 
+                 config: Dict[str, Any],
+                 logger: Optional[logging.Logger] = None) -> None:
+        """Initialize BiofirmAgent with independent POMDP for each controllable variable
         
         Args:
             config: Configuration dictionary containing:
                 variables: Dict mapping variable names to their settings
+                constraints: Dict of variable constraints
             logger: Optional logger instance
         """
         # Basic setup
         self.logger = logger or setup_logging('biofirm_agent')
-        self.config = config
+        self.config = self._validate_config(config)
         
-        # Initialize storage
+        # Initialize storage for PyMDP agents
         self.agents = {}
         self.agent_history = {}
         
-        # Create agents for each variable
-        for var_name, var_config in config['variables'].items():
-            try:
-                if self._create_agent(var_name, var_config):
+        # Create POMDP agents for each controllable variable
+        for var_name, var_config in self.config['variables'].items():
+            if var_config.get('controllable', False):
+                try:
+                    self._create_pomdp_agent(var_name, var_config)
                     self._initialize_history(var_name)
-                    self.logger.info(f"Initialized agent for {var_name}")
-                else:
-                    raise RuntimeError(f"Failed to create agent for {var_name}")
-            except Exception as e:
-                self.logger.error(f"Error initializing agent for {var_name}: {str(e)}")
-                raise
+                    self.logger.info(f"Initialized POMDP agent for {var_name}")
+                except Exception as e:
+                    self.logger.error(f"Error initializing POMDP agent for {var_name}: {str(e)}")
+                    raise
 
-    def _create_agent(self, var_name: str, var_config: Dict) -> bool:
+    def _create_pomdp_agent(self, var_name: str, var_config: Dict) -> None:
         """Create PyMDP active inference agent for a variable"""
         try:
-            # Get POMDP matrices
+            # Get POMDP matrices from handler
             matrix_handler = POMDPMatrices(var_config, self.logger)
             matrices = matrix_handler.initialize_all_matrices()
             
-            # Create single-step policies
-            policies = np.array([[0], [1], [2]])  # DEC, MAIN, INC
-            
             # Create PyMDP agent
-            agent = Agent(
+            agent = PyMDPAgent(
                 A=matrices['A'],
                 B=matrices['B'],
                 C=matrices['C'],
                 D=matrices['D'],
-                num_controls=3,
-                policies=policies,
-                policy_len=1,
-                inference_horizon=1,
+                num_controls=3,  # Decrease/Nothing/Increase
+                control_fac_idx=[0],  # Single controllable factor
                 inference_algo='MMP',
                 action_selection='stochastic',
                 sampling_mode="marginal"
             )
             
-            # Store agent data
+            # Store agent and its configuration
             self.agents[var_name] = {
                 'agent': agent,
                 'current_obs': None,
@@ -73,33 +71,34 @@ class BiofirmAgent:
                 'config': var_config
             }
             
-            return True
-            
         except Exception as e:
-            self.logger.error(f"Error creating agent for {var_name}: {str(e)}")
-            return False
+            self.logger.error(f"Error creating POMDP agent for {var_name}: {str(e)}")
+            raise
 
     def infer_states(self, observations: Dict[str, int]) -> Dict[str, np.ndarray]:
-        """Infer hidden states from observations"""
+        """Infer hidden states for each POMDP from observations
+        
+        Args:
+            observations: Dictionary mapping variable names to discrete observations (0=LOW, 1=HOMEO, 2=HIGH)
+            
+        Returns:
+            Dictionary mapping variable names to posterior beliefs over states
+        """
         beliefs = {}
         
-        for var_name in self.config['variables'].keys():
+        for var_name, agent_data in self.agents.items():
             try:
-                # Get agent
-                agent_data = self.agents[var_name]
                 agent = agent_data['agent']
                 
-                # Create one-hot observation
-                obs = utils.obj_array(1)
-                obs[0] = np.zeros(3)  # 3 possible observations
-                obs[0][observations[var_name]] = 1.0
+                # Create observation array for PyMDP agent
+                obs = [observations[var_name]]  # Single modality observation
                 
                 # Store observation
                 agent_data['current_obs'] = obs
                 
-                # Infer states
+                # Infer states using PyMDP agent
                 qs = agent.infer_states(obs)
-                beliefs[var_name] = qs[0][0]  # Get first timestep beliefs
+                beliefs[var_name] = qs[0]  # Get first factor beliefs
                 agent_data['current_beliefs'] = beliefs[var_name]
                 
                 # Log beliefs
@@ -112,25 +111,24 @@ class BiofirmAgent:
                 
             except Exception as e:
                 self.logger.error(f"Error inferring states for {var_name}: {str(e)}")
-                beliefs[var_name] = np.ones(3) / 3
+                beliefs[var_name] = np.ones(3) / 3  # Uniform beliefs on error
                 
         return beliefs
 
     def infer_policies(self) -> Tuple[Dict[str, np.ndarray], Dict[str, np.ndarray]]:
-        """Infer policies and their expected free energies
+        """Infer policies for each POMDP
         
-        For each policy (action sequence), PyMDP:
-        1. Uses B matrix to predict state transitions
-        2. Uses A matrix to predict observations
-        3. Evaluates expected free energy using C preferences
-        4. Returns policy distribution and EFE values
+        Returns:
+            Tuple containing:
+            - Dictionary mapping variable names to policy distributions
+            - Dictionary mapping variable names to expected free energies
         """
         policies = {}
         free_energies = {}
         
-        for var_name in self.config['variables'].keys():
+        for var_name, agent_data in self.agents.items():
             try:
-                agent = self.agents[var_name]['agent']
+                agent = agent_data['agent']
                 
                 # Get policy distribution and expected free energies
                 q_pi, G = agent.infer_policies()
@@ -155,12 +153,16 @@ class BiofirmAgent:
         return policies, free_energies
 
     def sample_action(self) -> Dict[str, int]:
-        """Sample actions from policy distributions"""
+        """Sample actions from policy distributions for each POMDP
+        
+        Returns:
+            Dictionary mapping variable names to discrete actions (0=DEC, 1=MAIN, 2=INC)
+        """
         actions = {}
         
-        for var_name in self.config['variables'].keys():
+        for var_name, agent_data in self.agents.items():
             try:
-                agent = self.agents[var_name]['agent']
+                agent = agent_data['agent']
                 action = agent.sample_action()
                 actions[var_name] = int(action[0])
                 
@@ -176,17 +178,24 @@ class BiofirmAgent:
         return actions
 
     def action_to_controls(self, actions: Dict[str, int]) -> Dict[str, float]:
-        """Convert discrete actions to continuous control signals"""
+        """Convert discrete POMDP actions to continuous control signals
+        
+        Args:
+            actions: Dictionary mapping variable names to discrete actions
+            
+        Returns:
+            Dictionary mapping variable names to continuous control signals
+        """
         controls = {}
         
         for var_name, action_idx in actions.items():
             try:
                 # Convert action to control signal
-                if action_idx == 0:  # DECREASE
+                if action_idx == 0:    # DECREASE
                     control = -1.0
                 elif action_idx == 1:  # MAINTAIN
                     control = 0.0
-                else:  # INCREASE
+                else:                  # INCREASE
                     control = 1.0
                 
                 # Scale by control strength
@@ -202,7 +211,7 @@ class BiofirmAgent:
                 
         return controls
 
-    def _initialize_history(self, var_name: str):
+    def _initialize_history(self, var_name: str) -> None:
         """Initialize history tracking for an agent"""
         self.agent_history[var_name] = {
             'observations': [],
@@ -212,22 +221,6 @@ class BiofirmAgent:
             'free_energy': [],
             'policy_preferences': []
         }
-
-    def _update_agent_history(self, var_name: str, observation: int, 
-                            beliefs: np.ndarray):
-        """Update agent history with new data"""
-        history = self.agent_history[var_name]
-        history['observations'].append(observation)
-        history['beliefs'].append(beliefs.copy())
-        
-        # Update state value if environment available
-        if self.environment:
-            try:
-                state_value = self.environment.get_variable_value(var_name)
-                history['state_values'].append(float(state_value))
-            except Exception as e:
-                self.logger.error(f"Error getting state value: {str(e)}")
-                history['state_values'].append(0.0)
 
     def get_agent_data(self, var_name: str) -> Dict:
         """Get agent data for analysis"""
@@ -242,4 +235,13 @@ class BiofirmAgent:
         required_keys = ['variables']
         if not all(k in config for k in required_keys):
             raise ValueError(f"Missing required keys in config: {required_keys}")
+            
+        # Ensure variables have required fields
+        for var_name, var_config in config['variables'].items():
+            if var_config.get('controllable', False):
+                required_var_keys = ['initial_value', 'constraints', 'control_strength']
+                missing_keys = [k for k in required_var_keys if k not in var_config]
+                if missing_keys:
+                    raise ValueError(f"Variable {var_name} missing required keys: {missing_keys}")
+        
         return config

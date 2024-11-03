@@ -223,10 +223,23 @@ class Environment:
             self.agent = None
             if control_strategy == 'active_inference':
                 try:
-                    self.agent = BiofirmAgent(self.config, self.logger, self)
-                    # Initialize beliefs about hidden states
+                    # Create agent config dictionary with only the necessary configuration
+                    agent_config = {
+                        'variables': self.config['variables'],
+                        'constraints': self.config.get('constraints', {}),
+                        'control_strategies': self.config.get('control_strategies', ['random', 'active_inference'])
+                    }
+                    
+                    # Initialize agent with just config and logger
+                    self.agent = BiofirmAgent(
+                        config=agent_config,
+                        logger=self.logger
+                    )
+                    
+                    # Initialize beliefs with first observation
                     observations = self._get_observations()
                     self.agent.infer_states(observations)
+                    
                 except Exception as e:
                     self.logger.error(f"Failed to initialize active inference agent: {str(e)}")
                     raise
@@ -251,10 +264,10 @@ class Environment:
                         q_pi, neg_efe = self.agent.infer_policies()
                         
                         # 3. Sample action from policy posterior
-                        action = self.agent.sample_action()
+                        actions = self.agent.sample_action()
                         
-                        # 4. Convert discrete action to continuous controls
-                        controls = self.agent.action_to_controls(action)
+                        # 4. Convert discrete actions to continuous controls
+                        controls = self.agent.action_to_controls(actions)
                     
                     # Update environment
                     self.step(controls)
