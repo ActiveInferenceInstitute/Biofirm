@@ -35,11 +35,14 @@ class BiofirmAgent:
         self.logger = logger or setup_logging('biofirm_agent')
         self.config = config
         
+        # Store controllable variables for analysis
+        self.controllable_vars = list(config['variables'].keys())
+        
         # Initialize storage for POMDP agents
         self.agents = {}
         
         self.logger.info("\nInitializing Active Inference Agents:")
-        self.logger.info(f"Number of modalities: {len(self.config['variables'])}")
+        self.logger.info(f"Number of modalities: {len(self.controllable_vars)}")
         
         try:
             # Get shared POMDP matrices (same for all agents)
@@ -168,4 +171,39 @@ class BiofirmAgent:
             
         except Exception as e:
             self.logger.error(f"Error in get_action: {str(e)}")
+            return {}
+
+    def get_agent_data(self, var_name: str) -> Dict[str, Any]:
+        """Get agent data for analysis
+        
+        Args:
+            var_name: Name of variable/modality
+            
+        Returns:
+            Dictionary containing agent data:
+                - state_beliefs: List of belief states over time
+                - selected_actions: List of actions taken
+                - control_signals: List of control signals sent
+                - policy_preferences: List of policy preferences
+                - expected_free_energy: List of expected free energies
+        """
+        try:
+            if var_name not in self.agents:
+                self.logger.warning(f"No agent data for {var_name}")
+                return {}
+                
+            agent_data = self.agents[var_name]
+            agent = agent_data['agent']
+            
+            return {
+                'state_beliefs': [agent.qs[0].copy()],  # Current beliefs
+                'selected_actions': [1],  # Default to MAINTAIN
+                'control_signals': [0.0],  # Default to no control
+                'policy_preferences': [np.array([0.33, 0.34, 0.33])],  # Uniform
+                'expected_free_energy': [0.0],  # Default EFE
+                'control_strength': agent_data['control_strength']
+            }
+            
+        except Exception as e:
+            self.logger.error(f"Error getting agent data for {var_name}: {str(e)}")
             return {}

@@ -25,6 +25,110 @@
             "trend_coefficient": 0.0,
             "noise_std": 0.7,
             "unit": "index"
+        },
+        "soil_moisture_N0.4_C2.0": {
+            "initial_value": 50.0,
+            "description": "Soil water content - highly controllable through irrigation systems",
+            "constraints": {
+                "lower": 45,
+                "upper": 55
+            },
+            "controllable": true,
+            "control_strength": 2.0,
+            "trend_coefficient": 0.0,
+            "noise_std": 0.4,
+            "unit": "index"
+        },
+        "nutrient_levels_N0.6_C1.8": {
+            "initial_value": 50.0,
+            "description": "Available nutrients - manageable through fertilization",
+            "constraints": {
+                "lower": 45,
+                "upper": 55
+            },
+            "controllable": true,
+            "control_strength": 1.8,
+            "trend_coefficient": 0.0,
+            "noise_std": 0.6,
+            "unit": "index"
+        },
+        "soil_structure_N1.0_C1.5": {
+            "initial_value": 50.0,
+            "description": "Soil aggregation and structure - moderately controllable through tillage practices",
+            "constraints": {
+                "lower": 45,
+                "upper": 55
+            },
+            "controllable": true,
+            "control_strength": 1.5,
+            "trend_coefficient": 0.0,
+            "noise_std": 1.0,
+            "unit": "index"
+        },
+        "microbial_activity_N1.2_C1.2": {
+            "initial_value": 50.0,
+            "description": "Soil microbial biomass and activity - indirectly controllable",
+            "constraints": {
+                "lower": 45,
+                "upper": 55
+            },
+            "controllable": true,
+            "control_strength": 1.2,
+            "trend_coefficient": 0.0,
+            "noise_std": 1.2,
+            "unit": "index"
+        },
+        "biodiversity_N1.5_C0.8": {
+            "initial_value": 50.0,
+            "description": "Species diversity in soil ecosystem - limited control through management",
+            "constraints": {
+                "lower": 45,
+                "upper": 55
+            },
+            "controllable": true,
+            "control_strength": 0.8,
+            "trend_coefficient": 0.0,
+            "noise_std": 1.5,
+            "unit": "index"
+        },
+        "soil_salinity_N1.8_C0.5": {
+            "initial_value": 50.0,
+            "description": "Salt concentration - difficult to control directly",
+            "constraints": {
+                "lower": 45,
+                "upper": 55
+            },
+            "controllable": true,
+            "control_strength": 0.5,
+            "trend_coefficient": 0.0,
+            "noise_std": 1.8,
+            "unit": "index"
+        },
+        "soil_temperature_N2.0_C0.3": {
+            "initial_value": 50.0,
+            "description": "Soil thermal conditions - minimal direct control",
+            "constraints": {
+                "lower": 45,
+                "upper": 55
+            },
+            "controllable": true,
+            "control_strength": 0.3,
+            "trend_coefficient": 0.0,
+            "noise_std": 2.0,
+            "unit": "index"
+        },
+        "soil_compaction_N1.6_C0.1": {
+            "initial_value": 50.0,
+            "description": "Soil density and porosity - very difficult to control precisely",
+            "constraints": {
+                "lower": 45,
+                "upper": 55
+            },
+            "controllable": true,
+            "control_strength": 0.1,
+            "trend_coefficient": 0.0,
+            "noise_std": 1.6,
+            "unit": "index"
         }
     },
     "variable_relationships": {}
