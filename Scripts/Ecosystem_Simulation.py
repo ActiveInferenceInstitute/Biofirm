@@ -216,32 +216,34 @@ class Environment:
     def run_simulation(self, num_timesteps: int, control_strategy: str = 'random') -> pd.DataFrame:
         """Run simulation with specified control strategy"""
         try:
-            # Initialize environment and agent
+            # Initialize environment
             self._init_from_config()
             
             # Initialize active inference agent if needed
             self.agent = None
             if control_strategy == 'active_inference':
                 try:
-                    # Create agent config dictionary with only the necessary configuration
+                    # Create proper agent config with only essential info
                     agent_config = {
-                        'variables': self.config['variables'],
-                        'constraints': self.config.get('constraints', {}),
-                        'control_strategies': self.config.get('control_strategies', ['random', 'active_inference'])
+                        'variables': {}
                     }
                     
-                    # Initialize agent with just config and logger
-                    self.agent = BiofirmAgent(
-                        config=agent_config,
-                        logger=self.logger
-                    )
+                    # Add each controllable variable's config
+                    for var_name in self.controllable_vars:
+                        var_config = self.config['variables'][var_name]
+                        agent_config['variables'][var_name] = {
+                            'controllable': True,
+                            'control_strength': float(var_config['control_strength']),
+                            'noise_std': float(var_config.get('noise_std', 0.1))
+                        }
                     
-                    # Initialize beliefs with first observation
-                    observations = self._get_observations()
-                    self.agent.infer_states(observations)
+                    # Initialize agent
+                    self.agent = BiofirmAgent(agent_config, self.logger)
+                    self.logger.info(f"Initialized active inference agent for {len(self.controllable_vars)} variables")
                     
                 except Exception as e:
                     self.logger.error(f"Failed to initialize active inference agent: {str(e)}")
+                    self.logger.debug("Full error:", exc_info=True)
                     raise
             
             self.logger.info(f"\nStarting {control_strategy} simulation for {num_timesteps} steps")
@@ -249,25 +251,24 @@ class Environment:
             try:
                 # Run simulation steps
                 for step in range(num_timesteps):
-                    # Get observations
-                    observations = self._get_observations()
-                    
-                    # Get control actions
                     if control_strategy == 'random':
                         controls = self._get_random_controls()
                     else:
-                        # Active inference control loop
-                        # 1. Update beliefs about hidden states given new observations
-                        qs = self.agent.infer_states(observations)
-                        
-                        # 2. Infer policies using Expected Free Energy
-                        q_pi, neg_efe = self.agent.infer_policies()
-                        
-                        # 3. Sample action from policy posterior
-                        actions = self.agent.sample_action()
-                        
-                        # 4. Convert discrete actions to continuous controls
-                        controls = self.agent.action_to_controls(actions)
+                        try:
+                            # Get observations (0=LOW, 1=HOMEO, 2=HIGH)
+                            observations = self._get_observations()
+                            
+                            # Get agent controls (-1/0/1 multiplied by control_strength)
+                            controls = self.agent.get_action(observations)
+                            
+                            if not controls:  # Fallback to random if agent fails
+                                self.logger.warning("Agent failed to provide controls, using random")
+                                controls = self._get_random_controls()
+                                
+                        except Exception as e:
+                            self.logger.error(f"Error in active inference step: {str(e)}")
+                            self.logger.debug("Full error:", exc_info=True)
+                            controls = self._get_random_controls()
                     
                     # Update environment
                     self.step(controls)
@@ -291,29 +292,60 @@ class Environment:
             raise
 
     def _get_observations(self) -> Dict[str, int]:
-        """Get current state observations"""
+        """Get current state observations for all controllable variables
+        
+        Returns:
+            Dictionary mapping variable names to discrete observations (0=LOW, 1=HOMEO, 2=HIGH)
+        """
         observations = {}
+        
         for var_name in self.controllable_vars:
-            value = getattr(self, var_name)
-            # Convert to discrete observation (LOW=0, HOMEO=1, HIGH=2)
-            if value < 40:
-                obs = 0  # LOW
-            elif value > 60:
-                obs = 2  # HIGH
-            else:
-                obs = 1  # HOMEO
-            observations[var_name] = obs
+            try:
+                value = getattr(self, var_name)
+                var_config = self.config['variables'][var_name]
+                
+                # Get constraints
+                lower_bound = var_config['constraints']['lower']
+                upper_bound = var_config['constraints']['upper']
+                
+                # Convert to discrete observation using variable-specific constraints
+                if value < lower_bound:
+                    obs = 0  # LOW
+                elif value > upper_bound:
+                    obs = 2  # HIGH
+                else:
+                    obs = 1  # HOMEO
+                    
+                observations[var_name] = obs
+                
+                self.logger.debug(
+                    f"Variable {var_name}:\n"
+                    f"  Value: {value:.2f}\n"
+                    f"  Bounds: [{lower_bound}, {upper_bound}]\n"
+                    f"  Observation: {['LOW', 'HOMEO', 'HIGH'][obs]}"
+                )
+                
+            except Exception as e:
+                self.logger.error(f"Error getting observation for {var_name}: {str(e)}")
+                observations[var_name] = 1  # Default to HOMEO
+                
         return observations
 
     def _get_random_controls(self) -> Dict[str, float]:
-        """Generate random control signals"""
-        return {
-            var: np.random.choice([-1.0, 0.0, 1.0])
-            for var in self.controllable_vars
-        }
+        """Generate random control signals for controllable variables
+        
+        Returns:
+            Dictionary mapping variable names to control signals
+        """
+        controls = {}
+        for var_name in self.controllable_vars:
+            var_config = self.config['variables'][var_name]
+            control_strength = var_config['control_strength']
+            controls[var_name] = np.random.choice([-1.0, 0.0, 1.0]) * control_strength
+        return controls
 
-    def step(self, controls: Dict[str, float]) -> Tuple[Dict[str, int], pd.DataFrame]:
-        """Execute one simulation step with improved integration of controls and natural dynamics"""
+    def step(self, controls: Dict[str, float]) -> None:
+        """Execute one simulation step with controls"""
         try:
             # Store previous state
             prev_observations = self._verify_constraints()
@@ -324,20 +356,15 @@ class Environment:
                 
                 # Apply control if variable is controllable
                 if var_name in controls:
-                    control = controls[var_name]
-                    strength = float(var_config['control_strength'])
-                    control_effect = control * strength
+                    control_effect = controls[var_name]
                 else:
                     control_effect = 0.0
-                
-                # Calculate dependencies effect
-                dependency_effect = self._calculate_dependencies(var_name)
                 
                 # Add noise
                 noise = np.random.normal(0, var_config['noise_std'])
                 
                 # Calculate total change
-                total_change = control_effect + dependency_effect + noise
+                total_change = control_effect + noise
                 
                 # Update value with bounds
                 new_value = np.clip(current + total_change, 0.0, 100.0)
@@ -346,7 +373,6 @@ class Environment:
                 self.logger.debug(
                     f"{var_name} update:\n"
                     f"  Control effect: {control_effect:+.2f}\n"
-                    f"  Dependency effect: {dependency_effect:+.2f}\n"
                     f"  Noise: {noise:+.2f}\n"
                     f"  Total change: {total_change:+.2f}\n"
                     f"  New value: {new_value:.2f}"
@@ -354,10 +380,7 @@ class Environment:
             
             # Update tracking
             new_observations = self._verify_constraints()
-            self._update_performance_metrics(new_observations, controls)
             self._record_state()
-            
-            return new_observations, self.data
             
         except Exception as e:
             self.logger.error(f"Step error: {str(e)}")
