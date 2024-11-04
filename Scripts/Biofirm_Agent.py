@@ -148,6 +148,7 @@ class BiofirmAgent:
                     
                     # Update beliefs and get action
                     agent.infer_states([obs_array])  # List[array] for single modality
+                    agent.infer_policies()
                     action = agent.sample_action()
                     
                     # Convert discrete action to control signal
