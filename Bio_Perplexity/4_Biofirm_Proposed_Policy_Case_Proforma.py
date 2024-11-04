@@ -79,130 +79,269 @@ def load_research_reports(region_dir):
     return research_data
 
 def generate_business_case_prompt(bioregion, research_data):
-    """Generate prompt for business case analysis with enhanced financial focus."""
-    prompt = f"""Please analyze the following comprehensive research data for {bioregion['county']} County, {bioregion['state']} 
-and develop a detailed business case for establishing a Biofirm natural capital company in this region.
+    """Generate prompt for business case analysis with structured financial requirements."""
+    # Convert research data to a formatted string
+    research_summary = "\n\n".join([
+        f"=== {persona.upper()} PERSPECTIVE ===\n{content}"
+        for persona, content in research_data.items()
+    ])
+    
+    prompt = f"""Analyze the following research data for {bioregion.get('county', '')} County, {bioregion.get('state', '')} 
+and develop a detailed pro-forma business case for establishing a Biofirm natural capital company in this region.
 
-The research includes multiple expert perspectives:
+RESEARCH DATA:
+{research_summary}
 
-{research_data}
+Please provide a comprehensive pro-forma business analysis with two parts:
 
-Based on this research, please provide a comprehensive business case analysis with particular emphasis on:
-1. Unique opportunities in this region for natural capital development
-2. Competitive advantages and market positioning
-3. Specific revenue streams and business models
-4. Critical risks and mitigation strategies
-5. Clear recommendations for implementation
+PART 1 - NARRATIVE ANALYSIS
+Provide a detailed narrative analysis covering:
+1. Executive Summary
+2. Market Analysis & Opportunities
+3. Business Model & Revenue Streams
+4. Risk Assessment & Mitigation
+5. Implementation Strategy
+6. Recommendations
 
-Financial Analysis Requirements:
-1. Detailed 5-year proforma financial projections including:
-   - Revenue streams by category
-   - Operating costs breakdown
-   - Energy consumption and costs
-   - Capital expenditure requirements
-   - Funding sources and structure
-2. Key metrics:
-   - ROI analysis
-   - NPV calculations (use 10% discount rate)
-   - IRR projections
-   - Payback period
-3. Sensitivity analysis for key variables
-4. Iterative improvement framework for model refinement
+PART 2 - STRUCTURED FINANCIAL DATA
+Provide detailed financial projections in the following JSON-compatible format:
 
-Please maintain a practical, implementation-focused approach while ensuring alignment with 
-sustainability principles and natural capital preservation."""
+{{
+    "revenue_projections": {{
+        "year_1": {{
+            "product_sales": "X",
+            "licensing_royalties": "X",
+            "grants_funding": "X",
+            "consulting_services": "X",
+            "total_revenue": "X"
+        }},
+        // Repeat for years 2-5
+    }},
+    "cost_structure": {{
+        "energy_costs": {{
+            "electricity": "X",
+            "renewable_investment": "X",
+            "efficiency_measures": "X"
+        }},
+        "operational_costs": {{
+            "research_development": "X",
+            "manufacturing": "X",
+            "labor": "X",
+            "marketing": "X"
+        }},
+        "capital_expenditure": {{
+            "initial_setup": "X",
+            "equipment": "X",
+            "facility_improvements": "X"
+        }}
+    }},
+    "funding_requirements": {{
+        "initial_capital": "X",
+        "venture_capital": "X",
+        "grants": "X",
+        "loans": "X",
+        "timeline": ["milestone1", "milestone2"]
+    }},
+    "financial_metrics": {{
+        "roi": "X",
+        "npv": "X",
+        "irr": "X",
+        "payback_period": "X",
+        "profit_margins": "X"
+    }},
+    "sensitivity_analysis": {{
+        "revenue_impact": {{"scenario": "X% change", "impact": "Y% change"}},
+        "cost_impact": {{"scenario": "X% change", "impact": "Y% change"}},
+        "energy_impact": {{"scenario": "X% change", "impact": "Y% change"}}
+    }},
+    "sustainability_metrics": {{
+        "carbon_footprint": "X",
+        "energy_efficiency": "X",
+        "waste_reduction": "X",
+        "water_usage": "X"
+    }}
+}}
+
+Replace all X values with actual numbers, ensuring consistency across projections.
+Format Part 2 exactly as shown above to enable direct JSON parsing.
+Include clear assumptions for all calculations."""
 
     return prompt
+
+def extract_financial_data(content: str) -> Dict[str, Any]:
+    """Extract structured financial data from the business case content."""
+    try:
+        # Find the structured financial data section
+        parts = content.split("PART 2 - STRUCTURED FINANCIAL DATA")
+        if len(parts) < 2:
+            logger.warning("Structured financial data section not found")
+            return None
+        
+        financial_section = parts[1]
+        
+        # Initialize structured data
+        financial_data = {
+            "projections": {
+                "revenue": {
+                    "product_sales": {},
+                    "licensing_royalties": {},
+                    "grants_funding": {},
+                    "consulting_services": {},
+                    "total_revenue": {}
+                },
+                "costs": {
+                    "energy": {
+                        "electricity": {},
+                        "renewable_investment": {},
+                        "efficiency_measures": {}
+                    },
+                    "operational": {
+                        "research_development": {},
+                        "manufacturing": {},
+                        "labor": {},
+                        "marketing": {}
+                    },
+                    "capital": {
+                        "initial_setup": None,
+                        "equipment": {},
+                        "facility_improvements": {}
+                    }
+                },
+                "funding": {
+                    "initial_capital": None,
+                    "venture_capital": None,
+                    "grants": None,
+                    "loans": None,
+                    "timeline": []
+                },
+                "metrics": {
+                    "roi": None,
+                    "npv": None,
+                    "irr": None,
+                    "payback_period": None,
+                    "profit_margins": None
+                }
+            },
+            "sensitivity_analysis": {
+                "revenue": [],
+                "costs": [],
+                "energy": []
+            },
+            "sustainability_metrics": {
+                "carbon_footprint": None,
+                "energy_efficiency": None,
+                "waste_reduction": None,
+                "water_usage": None
+            }
+        }
+
+        # Extract values using regex patterns
+        # Note: In a full implementation, you would add detailed regex patterns 
+        # to extract each specific value from the financial_section
+        
+        # Example extraction (simplified):
+        import re
+        
+        # Extract revenue data
+        for year in range(1, 6):
+            year_pattern = f"Year {year}:"
+            if year_data := re.search(f"{year_pattern}.*?(\$[\d,]+)", financial_section):
+                financial_data["projections"]["revenue"]["total_revenue"][f"year_{year}"] = year_data.group(1)
+
+        # Extract metrics
+        if roi_match := re.search(r"ROI:\s*([\d.]+)%", financial_section):
+            financial_data["projections"]["metrics"]["roi"] = float(roi_match.group(1))
+        
+        if npv_match := re.search(r"NPV.*?:\s*\$([\d,]+)", financial_section):
+            financial_data["projections"]["metrics"]["npv"] = float(npv_match.group(1).replace(",", ""))
+
+        # Add more regex patterns for other data points...
+
+        return financial_data
+    except Exception as e:
+        logger.error(f"Error extracting financial data: {e}")
+        return None
 
 def save_business_case(output_dir, bioregion_id, content, financial_data=None):
     """Save pro-forma business case with enhanced financial data."""
     timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
     
-    # Save as Markdown with pro-forma designation
+    # Create directory if it doesn't exist
+    os.makedirs(output_dir, exist_ok=True)
+    
+    # Save narrative as Markdown
     md_filename = f"{bioregion_id}_pro_forma_{timestamp}.md"
     md_path = os.path.join(output_dir, md_filename)
     with open(md_path, 'w', encoding='utf-8') as f:
         f.write("# Pro-Forma Business Analysis\n\n")
         f.write(content)
     
-    # Save financial data if provided
+    # Save financial data as separate JSON for easier querying
     if financial_data:
         fin_filename = f"{bioregion_id}_pro_forma_financials_{timestamp}.json"
         fin_path = os.path.join(output_dir, fin_filename)
         with open(fin_path, 'w', encoding='utf-8') as f:
             json.dump(financial_data, f, indent=2)
+        
+        # Also save as CSV for easy spreadsheet analysis
+        try:
+            df = pd.json_normalize(financial_data, sep='_')
+            csv_filename = f"{bioregion_id}_pro_forma_financials_{timestamp}.csv"
+            csv_path = os.path.join(output_dir, csv_filename)
+            df.to_csv(csv_path, index=False)
+        except Exception as e:
+            logger.warning(f"Could not save CSV version of financial data: {e}")
     
-    # Save combined data as JSON
+    # Save complete analysis
     json_filename = f"{bioregion_id}_pro_forma_complete_{timestamp}.json"
     json_path = os.path.join(output_dir, json_filename)
     with open(json_path, 'w', encoding='utf-8') as f:
         json.dump({
-            "timestamp": timestamp,
-            "bioregion_id": bioregion_id,
-            "analysis_type": "pro_forma",
-            "content": content,
-            "financial_data": financial_data
+            "metadata": {
+                "timestamp": timestamp,
+                "bioregion_id": bioregion_id,
+                "analysis_type": "pro_forma",
+                "version": "2.0"
+            },
+            "narrative": content,
+            "financial_data": financial_data,
+            "schema_version": "pro_forma_v2"
         }, f, indent=2)
     
     logger.info(f"Saved pro-forma business analysis: {md_path}")
     return md_path
 
-def extract_financial_data(content: str) -> Dict[str, Any]:
-    """Extract structured financial data from the business case content."""
-    try:
-        # This is a placeholder for more sophisticated parsing logic
-        # In a real implementation, you'd want to use regex or other parsing methods
-        # to extract specific financial data points from the content
-        financial_data = {
-            "projections": {
-                "revenue": {},
-                "costs": {
-                    "energy": {},
-                    "operational": {},
-                    "capital": {}
-                },
-                "metrics": {
-                    "roi": None,
-                    "npv": None,
-                    "irr": None
-                }
-            },
-            "sensitivity_analysis": {},
-            "funding_requirements": {}
-        }
-        
-        return financial_data
-    except Exception as e:
-        logger.error(f"Error extracting financial data: {e}")
-        return None
-
 def process_region_business_case(client, system_prompts, bioregion, base_dir):
     """Process pro-forma business case analysis for a specific region."""
-    bioregion_id = bioregion['id']
-    region_dir = os.path.join(base_dir, f"{bioregion['state']}_{bioregion['county']}")
-    
-    if not os.path.exists(region_dir):
-        logger.warning(f"No research data found for pro-forma analysis of {bioregion_id}")
-        return
-    
-    # Load all research reports
-    research_data = load_research_reports(region_dir)
-    if not research_data:
-        logger.warning(f"No research reports found for pro-forma analysis of {bioregion_id}")
-        return
-    
-    # Generate business case prompt
-    prompt = generate_business_case_prompt(bioregion, research_data)
-    
-    messages = [
-        get_system_message(system_prompts, TARGET_SYSTEM_PROMPT),
-        {"role": "user", "content": prompt}
-    ]
-    
-    logger.info(f"Generating pro-forma business analysis for {bioregion_id}")
-    start_time = time.time()
-    
     try:
+        bioregion_id = bioregion.get('id')
+        state = bioregion.get('state', '')
+        county = bioregion.get('county', '')
+        
+        if not all([bioregion_id, state, county]):
+            logger.error(f"Missing required bioregion information for {bioregion_id}")
+            return
+            
+        region_dir = os.path.join(base_dir, f"{state}_{county}")
+        os.makedirs(region_dir, exist_ok=True)
+        
+        # Load all research reports
+        research_data = load_research_reports(region_dir)
+        if not research_data:
+            logger.warning(f"No research reports found for {bioregion_id}")
+            return
+        
+        # Generate business case prompt
+        prompt = generate_business_case_prompt(bioregion, research_data)
+        
+        messages = [
+            get_system_message(system_prompts, TARGET_SYSTEM_PROMPT),
+            {"role": "user", "content": prompt}
+        ]
+        
+        logger.info(f"Generating pro-forma analysis for {bioregion_id}")
+        start_time = time.time()
+        
         response = client.chat.completions.create(
             model="llama-3.1-sonar-large-128k-online",
             messages=messages,
@@ -213,7 +352,7 @@ def process_region_business_case(client, system_prompts, bioregion, base_dir):
         # Extract structured financial data
         financial_data = extract_financial_data(content)
         
-        # Save the pro-forma analysis with financial data
+        # Save the pro-forma analysis
         output_path = save_business_case(
             region_dir, 
             bioregion_id, 
@@ -225,11 +364,11 @@ def process_region_business_case(client, system_prompts, bioregion, base_dir):
         logger.info(f"Pro-forma analysis generated successfully in {elapsed_time:.2f} seconds")
         logger.info(f"Saved to: {output_path}")
         
+        time.sleep(1)  # Rate limiting
+        
     except Exception as e:
-        logger.error(f"Error generating pro-forma analysis for {bioregion_id}: {e}")
-        raise
-    
-    time.sleep(1)  # Rate limiting
+        logger.error(f"Error in pro-forma analysis for {bioregion_id}: {str(e)}")
+        return  # Continue with next region instead of raising
 
 def main():
     logger = setup_logging()
@@ -252,8 +391,13 @@ def main():
         bioregions = load_json_file(os.path.join(script_dir, 'Biofirm_Regions.json'))
         system_prompts = load_json_file(os.path.join(script_dir, 'Biofirm_System_Prompts.json'))
         
-        # Process each bioregion
+        # Process each bioregion with proper ID handling
         for bioregion_id, bioregion in bioregions.items():
+            # Ensure bioregion has required fields
+            if not isinstance(bioregion, dict) or 'id' not in bioregion:
+                logger.warning(f"Skipping invalid bioregion entry: {bioregion_id}")
+                continue
+                
             try:
                 process_region_business_case(
                     client,
@@ -262,7 +406,7 @@ def main():
                     os.path.join(script_dir, 'Outputs')
                 )
             except Exception as e:
-                logger.error(f"Failed to process pro-forma analysis for {bioregion_id}: {e}")
+                logger.error(f"Failed to process pro-forma analysis for {bioregion['id']}: {str(e)}")
                 continue
         
         logger.info("All pro-forma business analyses completed")
