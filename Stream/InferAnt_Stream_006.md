@@ -5,9 +5,10 @@ Previous Active InferAnt streams
 
 ## Goals
 
-- Demonstrate proof of concept for bioregional modeling using active inference frameworks
-- Prepare open source Bioregional template for November 13-15 Applied Active Inference Symposium (<https://symposium.activeinference.institute/>)
+- Demonstrate proof of concept for bioregional modeling using Active Inference frameworks
+- Prepare open source Bioregional template for November 13-15, 2024: 4th Applied Active Inference Symposium (<https://symposium.activeinference.institute/>)
 - Explore PyMDP methods and simulations for practical active inference understanding
+- Explore Perplexity based methods for bioregional research and business modeling
 
 ## Detailed Agenda
 
@@ -67,7 +68,7 @@ Previous Active InferAnt streams
   - Action space: [-1,0,1] with controllability scaling
   - State representation
 
-#### Modeling Framework
+#### Modeling Framework and Next Steps 
 
 - Generalized Notation System
   - P3IF integration
