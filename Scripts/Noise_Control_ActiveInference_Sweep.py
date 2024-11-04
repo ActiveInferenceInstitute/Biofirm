@@ -51,8 +51,13 @@ def create_sweep_config(noise_std: float, control_strength: float) -> Dict:
                 "control_strength": control_strength,
                 "noise_std": noise_std,
                 "trend": 0.0,
+                "controllable": True,  # Required for BiofirmAgent
+                # Add POMDP parameters
+                "observation_confidence": 0.90,
+                "homeostatic_preference": 4.0,
+                "state_transition_confidence": 0.85,
                 "constraints": {
-                    "lower": 45,  # Match current constraints
+                    "lower": 45,
                     "upper": 55
                 }
             }
@@ -62,9 +67,8 @@ def create_sweep_config(noise_std: float, control_strength: float) -> Dict:
 class NoiseControlSweepAnalysis:
     def __init__(self):
         """Initialize sweep analysis"""
-        # Setup logging
-        logging.basicConfig(level=logging.INFO)
-        self.logger = get_component_logger(logging.getLogger(__name__), 'sweep')
+        # Setup logging - using only component name
+        self.logger = get_component_logger('sweep')
         
         # Create sweep directory structure
         self.sweep_dir = Path("Outputs/sweep")
@@ -75,7 +79,7 @@ class NoiseControlSweepAnalysis:
         self.output_dir = self.sweep_dir / f"run_{timestamp}"
         self.output_dir.mkdir(parents=True, exist_ok=True)
         
-        # Setup file logging
+        # Add file handler for this specific run
         fh = logging.FileHandler(self.output_dir / "sweep.log")
         fh.setLevel(logging.DEBUG)
         formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
@@ -111,7 +115,16 @@ class NoiseControlSweepAnalysis:
     def run_parameter_sweep(self, n_repeats: int = NUM_REPEATS) -> pd.DataFrame:
         """Run full parameter sweep across noise and control ranges"""
         results = []
-        total_combinations = len(self.noise_range) * len(self.control_range)
+        total_combinations = len(self.noise_range) * len(self.control_range) * n_repeats
+        completed = 0
+        
+        # Print sweep configuration
+        print("\nStarting Parameter Sweep")
+        print("=" * 50)
+        print(f"Total Combinations: {len(self.noise_range) * len(self.control_range)}")
+        print(f"Repeats per Combination: {n_repeats}")
+        print(f"Total Simulations: {total_combinations}")
+        print("=" * 50 + "\n")
         
         # Create combinations directory
         combinations_dir = self.results_dir / "combinations"
@@ -133,24 +146,47 @@ class NoiseControlSweepAnalysis:
                 futures.append(future)
             
             # Process results as they complete
-            for i, future in enumerate(concurrent.futures.as_completed(futures)):
+            for future in concurrent.futures.as_completed(futures):
                 try:
                     metrics = future.result()
                     if metrics:
                         results.append(metrics)
                         
-                    # Log progress
-                    progress = (i + 1) / len(param_combinations) * 100
-                    self.logger.info(f"Progress: {progress:.1f}% ({i + 1}/{len(param_combinations)})")
+                    # Update progress
+                    completed += 1
+                    progress = completed / total_combinations * 100
+                    
+                    # Print progress with current metrics
+                    if metrics:
+                        print(
+                            f"\rProgress: {progress:5.1f}% | "
+                            f"N={metrics['noise_std']:.2f} C={metrics['control_strength']:.2f} | "
+                            f"SR={metrics.get('satisfaction_rate', 0):5.1f}% "
+                            f"CE={metrics.get('control_effort', 0):5.2f}",
+                            end="", flush=True
+                        )
+                    else:
+                        print(f"\rProgress: {progress:5.1f}%", end="", flush=True)
                     
                 except Exception as e:
                     self.logger.error(f"Error in simulation: {str(e)}")
                     self.logger.error(traceback.format_exc())
         
+        print("\n\nParameter sweep complete!")
+        
         # Create final results DataFrame
         if results:
             results_df = pd.DataFrame(results)
             self.save_final_results(results_df)
+            
+            # Log summary statistics
+            print("\nSweep Summary:")
+            print("-" * 20)
+            for metric in ['satisfaction_rate', 'control_effort', 'belief_entropy']:
+                mean = results_df[metric].mean()
+                std = results_df[metric].std()
+                print(f"  • {metric.replace('_', ' ').title()}: {mean:.1f} ± {std:.1f}")
+            
             return results_df
         else:
             self.logger.error("No valid results collected")
@@ -176,10 +212,13 @@ class NoiseControlSweepAnalysis:
                     'repeat': repeat
                 })
                 
-                # Log completion
+                # Log completion with metrics
                 self.logger.info(
-                    f"Completed N={noise_std:.3f}, C={control_strength:.3f}, "
-                    f"Repeat {repeat + 1}/{NUM_REPEATS}"
+                    f"\nCompleted N={noise_std:.3f}, C={control_strength:.3f}, "
+                    f"Repeat {repeat + 1}/{NUM_REPEATS}\n"
+                    f"  • Satisfaction Rate: {metrics.get('satisfaction_rate', 0):.1f}%\n"
+                    f"  • Control Effort: {metrics.get('control_effort', 0):.2f}\n"
+                    f"  • Belief Entropy: {metrics.get('belief_entropy', 0):.2f}"
                 )
                 
                 return metrics
@@ -189,7 +228,6 @@ class NoiseControlSweepAnalysis:
                 f"Error in combination N={noise_std:.3f}, C={control_strength:.3f}, "
                 f"Repeat {repeat}: {str(e)}"
             )
-            self.logger.error(traceback.format_exc())
             return None
 
     def run_single_simulation(self, noise_std: float, control_strength: float, 
@@ -205,7 +243,7 @@ class NoiseControlSweepAnalysis:
                 'observations': [],
                 'controls': [],
                 'satisfaction': [],
-                'beliefs': [],
+                'beliefs': np.array([[1/3, 1/3, 1/3]]),
                 'free_energy': []
             }
             
@@ -215,60 +253,69 @@ class NoiseControlSweepAnalysis:
             
             start_time = time.time()
             
-            # Run active inference loop
+            # Log simulation start
             self.logger.info(
-                f"\nStarting Active Inference Loop - "
-                f"N={noise_std:.3f}, C={control_strength:.3f}, "
-                f"Repeat {repeat + 1}"
+                f"\nStarting Simulation:\n"
+                f"  • Noise: {noise_std:.3f}\n"
+                f"  • Control: {control_strength:.3f}\n"
+                f"  • Repeat: {repeat + 1}/{NUM_REPEATS}"
             )
             
+            # Run simulation steps
             for step in range(self.n_timesteps):
-                # Get discrete observation from current state
-                obs_state = 0 if state < 45 else (2 if state > 55 else 1)
-                observation = {"sweep_var": obs_state}
-                
-                # Get action from agent
-                action_dict = agent.get_action(observation)
-                
-                # Process action and control
-                if action_dict and "sweep_var" in action_dict:
-                    control = action_dict["sweep_var"]  # Already scaled by control_strength
-                else:
-                    control = 0.0  # Default to MAINTAIN
-                
-                # Add noise and update state
-                noise = np.random.normal(0, noise_std)
-                state = np.clip(state + control + noise, 0.0, 100.0)
-                
-                # Get agent data for analysis
-                agent_data = agent.get_agent_data("sweep_var")
-                
-                # Update history
-                history['timesteps'].append(step)
-                history['states'].append(float(state))
-                history['observations'].append(int(obs_state))
-                history['controls'].append(float(control))
-                history['satisfaction'].append(bool(45.0 <= state <= 55.0))
-                
-                # Store agent internal states
-                if agent_data:
-                    history['beliefs'].append(
-                        agent_data.get('state_beliefs', [[1/3, 1/3, 1/3]])[0]
-                    )
-                    history['free_energy'].append(
-                        agent_data.get('expected_free_energy', [0.0])[0]
-                    )
-                
-                # Log detailed state every 10 steps
-                if step % 10 == 0:
-                    self.logger.info(
-                        f"Step {step}: State={state:.2f}, Obs={obs_state}, "
-                        f"Control={control:+.2f}"
-                    )
+                try:
+                    # Get discrete observation from current state
+                    obs_state = 0 if state < 45 else (2 if state > 55 else 1)
+                    observation = {"sweep_var": obs_state}
+                    
+                    # Get action from agent
+                    action_dict = agent.get_action(observation)
+                    
+                    # Process action and control
+                    if action_dict and "sweep_var" in action_dict:
+                        control = action_dict["sweep_var"]  # Already scaled by control_strength
+                    else:
+                        control = 0.0
+                    
+                    # Add noise and update state
+                    noise = np.random.normal(0, noise_std)
+                    state = np.clip(state + control + noise, 0.0, 100.0)
+                    
+                    # Get agent data
+                    agent_data = agent.get_agent_data("sweep_var")
+                    
+                    # Update history
+                    history['timesteps'].append(step)
+                    history['states'].append(float(state))
+                    history['observations'].append(int(obs_state))
+                    history['controls'].append(float(control))
+                    history['satisfaction'].append(bool(45.0 <= state <= 55.0))
+                    
+                    # Update beliefs and free energy
+                    if agent_data:
+                        if 'state_beliefs' in agent_data:
+                            beliefs = np.array(agent_data['state_beliefs'][0], dtype=float)
+                            history['beliefs'] = np.vstack([history['beliefs'], beliefs])
+                        
+                        if 'expected_free_energy' in agent_data:
+                            history['free_energy'].append(float(agent_data['expected_free_energy'][0]))
+                        else:
+                            history['free_energy'].append(0.0)
+                    
+                    # Log progress periodically
+                    if step % 25 == 0:
+                        satisfaction_rate = np.mean(history['satisfaction']) * 100
+                        self.logger.debug(
+                            f"Step {step:3d}: State={state:6.2f}, Obs={obs_state}, "
+                            f"Control={control:+6.2f}, SR={satisfaction_rate:5.1f}%"
+                        )
+                        
+                except Exception as e:
+                    self.logger.error(f"Error in step {step}: {str(e)}")
+                    continue
             
             # Calculate metrics
-            runtime = time.time() - start_time
-            satisfaction_rate = float(np.mean(history['satisfaction']))
+            satisfaction_rate = float(np.mean(history['satisfaction'])) * 100
             control_effort = float(np.mean(np.abs(history['controls'])))
             belief_entropy = float(np.mean([
                 -np.sum(b * np.log(b + 1e-10)) for b in history['beliefs']
@@ -277,7 +324,6 @@ class NoiseControlSweepAnalysis:
             metrics = {
                 'noise_std': noise_std,
                 'control_strength': control_strength,
-                'runtime': runtime,
                 'satisfaction_rate': satisfaction_rate,
                 'control_effort': control_effort,
                 'belief_entropy': belief_entropy,
@@ -287,27 +333,45 @@ class NoiseControlSweepAnalysis:
                 'state_std': float(np.std(history['states']))
             }
             
-            # Save detailed results
+            # Log simulation results
+            self.logger.info(
+                f"\nSimulation Complete:\n"
+                f"  • Satisfaction Rate: {satisfaction_rate:5.1f}%\n"
+                f"  • Control Effort: {control_effort:.3f}\n"
+                f"  • Belief Entropy: {belief_entropy:.3f}"
+            )
+            
+            # Save simulation data
             self.save_simulation_history(history, output_dir, repeat)
-            self.create_simulation_plots(history, output_dir, repeat)
             
             return metrics
             
         except Exception as e:
-            self.logger.error(f"Error in simulation: {str(e)}")
-            self.logger.error(traceback.format_exc())
+            self.logger.error(
+                f"Error in simulation (N={noise_std:.3f}, C={control_strength:.3f}, "
+                f"R={repeat}):\n  {str(e)}"
+            )
+            self.logger.debug(traceback.format_exc())
             return None
 
     def save_simulation_history(self, history: Dict, output_dir: Path, repeat: int):
         """Save simulation history and create visualization subfolder"""
-        # Create visualization subfolder
-        viz_dir = output_dir / "visualizations"
-        viz_dir.mkdir(exist_ok=True)
-        
-        # Save raw history data
-        history_file = output_dir / f"history_repeat_{repeat}.json"
-        with open(history_file, 'w') as f:
-            json.dump(history, f, indent=2)
+        try:
+            # Save raw history data
+            history_file = output_dir / f"history_repeat_{repeat}.json"
+            with open(history_file, 'w') as f:
+                # Convert numpy arrays to lists for JSON serialization
+                json_history = {
+                    k: [float(x) if isinstance(x, (np.floating, float)) else x 
+                        for x in v]
+                    for k, v in history.items()
+                }
+                json.dump(json_history, f, indent=2)
+                
+            self.logger.info(f"Saved simulation history to {history_file}")
+            
+        except Exception as e:
+            self.logger.error(f"Error saving simulation history: {str(e)}")
 
     def create_simulation_plots(self, history: Dict, output_dir: Path, repeat: int):
         """Create detailed plots for single simulation run"""
@@ -454,409 +518,525 @@ class NoiseControlSweepAnalysis:
 
     def save_final_results(self, results_df: pd.DataFrame):
         """Save and visualize final results"""
-        # Save raw results
-        results_df.to_csv(self.data_dir / "final_results.csv", index=False)
+        print("\nGenerating Final Results and Visualizations...")
+        print("=" * 50)
         
-        # Create summary visualizations
-        self.create_summary_plots(results_df)
-        
-        # Generate final report
-        self.generate_final_report(results_df)
-
-    def create_summary_plots(self, results_df: pd.DataFrame):
-        """Create comprehensive summary visualizations"""
-        # Create visualization subdirectories
-        heatmap_dir = self.viz_dir / "heatmaps"
-        analysis_dir = self.viz_dir / "analysis"
-        dist_dir = self.viz_dir / "distributions"
-        
-        for directory in [heatmap_dir, analysis_dir, dist_dir]:
-            directory.mkdir(exist_ok=True)
-        
-        metrics = ['satisfaction_rate', 'control_effectiveness', 'runtime']
-        
-        for metric in metrics:
-            try:
-                self._create_metric_heatmap(results_df, metric, heatmap_dir)
-                self._create_metric_analysis_plots(results_df, metric, analysis_dir)
-                self._create_metric_distribution_plots(results_df, metric, dist_dir)
-            except Exception as e:
-                self.logger.error(f"Error creating plots for {metric}: {str(e)}")
-
-    def _create_metric_heatmap(self, results_df: pd.DataFrame, metric: str, output_dir: Path):
-        """Create detailed heatmap for metric"""
         try:
-            plt.figure(figsize=(12, 10))
-            
-            # Convert to numeric and sort
-            results_df = results_df.copy()
-            results_df['noise_std'] = pd.to_numeric(results_df['noise_std'])
-            results_df['control_strength'] = pd.to_numeric(results_df['control_strength'])
-            
-            # Calculate means and standard deviations
-            mean_df = results_df.groupby(['noise_std', 'control_strength'])[metric].mean()
-            std_df = results_df.groupby(['noise_std', 'control_strength'])[metric].std()
-            
-            # Get unique sorted values for axes
-            noise_levels = sorted(results_df['noise_std'].unique())
-            control_levels = sorted(results_df['control_strength'].unique())
-            
-            # Create 2D arrays for heatmap
-            heatmap_data = np.zeros((len(noise_levels), len(control_levels)))
-            std_data = np.zeros((len(noise_levels), len(control_levels)))
-            
-            # Fill arrays
-            for i, noise in enumerate(noise_levels):
-                for j, control in enumerate(control_levels):
-                    idx = (noise, control)
-                    if idx in mean_df.index:
-                        heatmap_data[i, j] = mean_df[idx]
-                        std_data[i, j] = std_df[idx]
-            
-            # Create heatmap
-            ax = sns.heatmap(
-                heatmap_data,
-                annot=True,
-                fmt='.3f',
-                cmap='viridis',
-                xticklabels=[f'{x:.3f}' for x in control_levels],
-                yticklabels=[f'{x:.3f}' for x in noise_levels],
-                cbar_kws={'label': f'{metric.replace("_", " ").title()} (Mean)'}
-            )
-            
-            # Add std values
-            for i in range(len(noise_levels)):
-                for j in range(len(control_levels)):
-                    if not np.isnan(std_data[i, j]):
-                        plt.text(
-                            j + 0.5, i + 0.7,
-                            f'±{std_data[i,j]:.3f}',
-                            ha='center', va='center',
-                            color='white', fontsize=8
-                        )
-            
-            # Improve labels and title
-            plt.title(f'{metric.replace("_", " ").title()} vs Noise and Control\n'
-                     f'Mean ± Std across {len(results_df)} simulations',
-                     pad=20)
-            plt.xlabel('Control Strength (log scale)')
-            plt.ylabel('Noise Standard Deviation (log scale)')
-            
-            # Rotate axis labels
-            plt.xticks(rotation=45, ha='right')
-            plt.yticks(rotation=0)
-            
-            # Save plot
-            plt.tight_layout()
-            plot_path = output_dir / f"{metric}_heatmap.png"
-            plt.savefig(plot_path, bbox_inches='tight', dpi=300)
-            plt.close()
-            
-            # Save data
-            data_df = pd.DataFrame(
-                heatmap_data,
-                index=noise_levels,
-                columns=control_levels
-            )
-            data_df.to_csv(output_dir / f"{metric}_data.csv")
-            
-            self.logger.info(f"Saved heatmap for {metric} to {plot_path}")
-            
-        except Exception as e:
-            self.logger.error(f"Error creating heatmap for {metric}: {str(e)}")
-            self.logger.error(traceback.format_exc())
-
-    def _create_metric_line_plots(self, results_df: pd.DataFrame, metric: str, output_dir: Path):
-        """Create line plots showing metric trends"""
-        try:
-            fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(20, 8))
-            
-            # Convert to numeric
-            results_df = results_df.copy()
-            results_df['noise_std'] = pd.to_numeric(results_df['noise_std'])
-            results_df['control_strength'] = pd.to_numeric(results_df['control_strength'])
-            
-            # Plot vs noise for different control values
-            for control in sorted(results_df['control_strength'].unique()):
-                mask = results_df['control_strength'] == control
-                data = results_df[mask].groupby('noise_std').agg({
-                    metric: ['mean', 'std']
-                })
-                
-                ax1.errorbar(
-                    data.index,
-                    data[metric]['mean'],
-                    yerr=data[metric]['std'],
-                    label=f'Control={control:.3f}',
-                    marker='o',
-                    capsize=5
-                )
-            
-            ax1.set_xscale('log')
-            ax1.set_xlabel('Noise Standard Deviation')
-            ax1.set_ylabel(metric.replace('_', ' ').title())
-            ax1.set_title(f'{metric.title()} vs Noise\nfor different Control values')
-            ax1.grid(True, which="both", ls="-", alpha=0.2)
-            ax1.legend(bbox_to_anchor=(1.05, 1), loc='upper left')
-            
-            # Plot vs control for different noise values
-            for noise in sorted(results_df['noise_std'].unique()):
-                mask = results_df['noise_std'] == noise
-                data = results_df[mask].groupby('control_strength').agg({
-                    metric: ['mean', 'std']
-                })
-                
-                ax2.errorbar(
-                    data.index,
-                    data[metric]['mean'],
-                    yerr=data[metric]['std'],
-                    label=f'Noise={noise:.3f}',
-                    marker='o',
-                    capsize=5
-                )
-            
-            ax2.set_xscale('log')
-            ax2.set_xlabel('Control Strength')
-            ax2.set_ylabel(metric.replace('_', ' ').title())
-            ax2.set_title(f'{metric.title()} vs Control\nfor different Noise values')
-            ax2.grid(True, which="both", ls="-", alpha=0.2)
-            ax2.legend(bbox_to_anchor=(1.05, 1), loc='upper left')
-            
-            plt.tight_layout()
-            plot_path = output_dir / f"{metric}_analysis.png"
-            plt.savefig(plot_path, bbox_inches='tight', dpi=300)
-            plt.close()
-            
-        except Exception as e:
-            self.logger.error(f"Error creating line plots for {metric}: {str(e)}")
-            self.logger.error(traceback.format_exc())
-
-    def _create_metric_analysis_plots(self, results_df: pd.DataFrame, metric: str, output_dir: Path):
-        """Create detailed analysis plots for metric"""
-        plt.figure(figsize=(20, 8))
-        
-        # Plot vs noise with error bars
-        plt.subplot(1, 2, 1)
-        for control in results_df['control_strength'].unique():
-            mask = results_df['control_strength'] == control
-            means = results_df[mask].groupby('noise_std')[metric].mean()
-            stds = results_df[mask].groupby('noise_std')[metric].std()
-            
-            plt.errorbar(means.index, means.values, yerr=stds.values,
-                        label=f'Control={control:.3f}', marker='o')
-        
-        plt.xscale('log')
-        plt.xlabel('Noise Standard Deviation')
-        plt.ylabel(metric.replace('_', ' ').title())
-        plt.title(f'{metric.title()} vs Noise\nwith Error Bars')
-        plt.legend(bbox_to_anchor=(1.05, 1), loc='upper left')
-        plt.grid(True)
-        
-        # Plot vs control with error bars
-        plt.subplot(1, 2, 2)
-        for noise in results_df['noise_std'].unique():
-            mask = results_df['noise_std'] == noise
-            means = results_df[mask].groupby('control_strength')[metric].mean()
-            stds = results_df[mask].groupby('control_strength')[metric].std()
-            
-            plt.errorbar(means.index, means.values, yerr=stds.values,
-                        label=f'Noise={noise:.3f}', marker='o')
-        
-        plt.xscale('log')
-        plt.xlabel('Control Strength')
-        plt.ylabel(metric.replace('_', ' ').title())
-        plt.title(f'{metric.title()} vs Control\nwith Error Bars')
-        plt.legend(bbox_to_anchor=(1.05, 1), loc='upper left')
-        plt.grid(True)
-        
-        plt.tight_layout()
-        plt.savefig(
-            output_dir / f"{metric}_analysis.png",
-            bbox_inches='tight',
-            dpi=300
-        )
-        plt.close()
-
-    def _create_metric_distribution_plots(self, results_df: pd.DataFrame, metric: str, output_dir: Path):
-        """Create distribution plots for metric"""
-        try:
-            plt.figure(figsize=(15, 10))
-            
-            # Convert to numeric and get unique values
-            results_df = results_df.copy()
-            results_df['noise_std'] = pd.to_numeric(results_df['noise_std'])
-            results_df['control_strength'] = pd.to_numeric(results_df['control_strength'])
-            
-            # Format metric name for display
-            metric_display = metric.replace('_', ' ').title()
-            
-            # Overall distribution
-            plt.subplot(2, 2, 1)
-            sns.histplot(data=results_df, x=metric, kde=True)
-            plt.title(f'Overall Distribution of {metric_display}')
-            plt.xlabel(metric_display)
-            plt.ylabel('Count')
-            
-            # Distribution by noise level
-            plt.subplot(2, 2, 2)
-            sns.boxplot(
-                data=results_df,
-                x='noise_std',
-                y=metric,
-                order=sorted(results_df['noise_std'].unique())
-            )
-            plt.title(f'{metric_display} Distribution by Noise Level')
-            plt.xlabel('Noise Standard Deviation')
-            plt.ylabel(metric_display)
-            plt.xticks(rotation=45)
-            
-            # Distribution by control strength
-            plt.subplot(2, 2, 3)
-            sns.boxplot(
-                data=results_df,
-                x='control_strength',
-                y=metric,
-                order=sorted(results_df['control_strength'].unique())
-            )
-            plt.title(f'{metric_display} Distribution by Control Strength')
-            plt.xlabel('Control Strength')
-            plt.ylabel(metric_display)
-            plt.xticks(rotation=45)
-            
-            # Violin plot of interaction using manual binning
-            plt.subplot(2, 2, 4)
-            
-            # Create manual bins for noise and control
-            noise_bins = np.percentile(results_df['noise_std'].unique(), 
-                                     np.linspace(0, 100, 6))  # 5 bins
-            control_bins = np.percentile(results_df['control_strength'].unique(), 
-                                       np.linspace(0, 100, 6))  # 5 bins
-            
-            # Create bin labels
-            results_df['noise_bin'] = pd.cut(
-                results_df['noise_std'],
-                bins=noise_bins,
-                labels=[f'N{i+1}' for i in range(len(noise_bins)-1)],
-                include_lowest=True,
-                duplicates='drop'
-            )
-            
-            results_df['control_bin'] = pd.cut(
-                results_df['control_strength'],
-                bins=control_bins,
-                labels=[f'C{i+1}' for i in range(len(control_bins)-1)],
-                include_lowest=True,
-                duplicates='drop'
-            )
-            
-            # Create violin plot
-            sns.violinplot(
-                data=results_df,
-                x='noise_bin',
-                y=metric,
-                hue='control_bin'
-            )
-            plt.title(f'{metric_display} Distribution by Parameters')
-            plt.xlabel('Noise Level Bins')
-            plt.ylabel(metric_display)
-            plt.xticks(rotation=45)
-            
-            # Adjust layout and save
-            plt.tight_layout()
-            plot_path = output_dir / f"{metric}_distributions.png"
-            plt.savefig(plot_path, bbox_inches='tight', dpi=300)
-            plt.close()
-            
-            # Save binning information for reference
-            bin_info = {
-                'noise_bins': noise_bins.tolist(),
-                'control_bins': control_bins.tolist(),
-                'noise_labels': [f'N{i+1}' for i in range(len(noise_bins)-1)],
-                'control_labels': [f'C{i+1}' for i in range(len(control_bins)-1)]
+            # Create visualization directories
+            viz_dirs = {
+                'summary': self.viz_dir / 'summary',
+                'comparisons': self.viz_dir / 'comparisons',
+                'heatmaps': self.viz_dir / 'heatmaps',
+                'distributions': self.viz_dir / 'distributions',
+                'analysis': self.viz_dir / 'analysis'
             }
             
-            with open(output_dir / f"{metric}_bin_info.json", 'w') as f:
-                json.dump(bin_info, f, indent=2)
+            for dir_path in viz_dirs.values():
+                dir_path.mkdir(exist_ok=True, parents=True)
             
-            self.logger.info(f"Saved distribution plots for {metric} to {plot_path}")
+            # Save raw results
+            results_file = self.data_dir / "final_results.csv"
+            results_df.to_csv(results_file, index=False)
+            print(f"✓ Saved raw results to {results_file}")
+            
+            # Generate visualizations
+            print("\nGenerating Visualization Sets:")
+            
+            # 1. Parameter Space Overview
+            print("\n1. Parameter Space Analysis")
+            print("  • Generating heatmap...", end='', flush=True)
+            self._create_parameter_space_plot(results_df, viz_dirs['heatmaps'])
+            print(" ✓")
+            
+            # 2. Performance Surface Plots
+            print("\n2. Performance Surface Analysis")
+            metrics = {
+                'satisfaction_rate': 'Satisfaction Rate (%)',
+                'control_effort': 'Control Effort',
+                'belief_entropy': 'Belief Entropy'
+            }
+            for metric, title in metrics.items():
+                print(f"  • Generating {title} surface...", end='', flush=True)
+                self._create_surface_plots(results_df, viz_dirs['analysis'], metric, title)
+                print(" ✓")
+            
+            # 3. Distribution Analysis
+            print("\n3. Distribution Analysis")
+            print("  • Generating satisfaction distributions...", end='', flush=True)
+            self._create_satisfaction_analysis(results_df, viz_dirs['distributions'])
+            print(" ✓")
+            
+            # 4. Interaction Analysis
+            print("\n4. Interaction Analysis")
+            print("  • Generating noise-control interactions...", end='', flush=True)
+            self._create_interaction_analysis(results_df, viz_dirs['analysis'])
+            print(" ✓")
+            
+            # 5. Generate Report
+            print("\n5. Analysis Report")
+            print("  • Generating comprehensive report...", end='', flush=True)
+            self.generate_enhanced_report(results_df)
+            print(" ✓")
+            
+            # Print summary of outputs
+            print("\nVisualization Files Generated:")
+            for dir_name, dir_path in viz_dirs.items():
+                files = list(dir_path.glob('*.png'))
+                print(f"\n{dir_name.title()} Visualizations:")
+                for file in files:
+                    print(f"  • {file.name}")
+            
+            print("\nAnalysis Files:")
+            print(f"  • Results: {results_file}")
+            print(f"  • Report:  {self.output_dir / 'sweep_analysis_report.txt'}")
             
         except Exception as e:
-            self.logger.error(f"Error creating distribution plots for {metric}: {str(e)}")
-            self.logger.error(traceback.format_exc())
+            print("\n✗ Error generating visualizations:")
+            print(f"  {str(e)}")
+            self.logger.error(f"Error in visualization generation: {str(e)}")
+            self.logger.debug(traceback.format_exc())
 
-    def generate_final_report(self, results_df: pd.DataFrame):
-        """Generate comprehensive analysis report"""
+    def _create_parameter_space_plot(self, results_df: pd.DataFrame, output_dir: Path):
+        """Create enhanced parameter space overview plot"""
+        try:
+            # Create figure with two subplots
+            fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(20, 8))
+            
+            # 1. Satisfaction Rate Heatmap
+            pivot = results_df.pivot_table(
+                values='satisfaction_rate',
+                index='noise_std',
+                columns='control_strength',
+                aggfunc='mean'
+            )
+            
+            sns.heatmap(
+                pivot,
+                ax=ax1,
+                cmap='viridis',
+                annot=True,
+                fmt='.1f',
+                cbar_kws={'label': 'Satisfaction Rate (%)'}
+            )
+            ax1.set_title('Satisfaction Rate by Parameter Combination')
+            ax1.set_xlabel('Control Strength')
+            ax1.set_ylabel('Noise Standard Deviation')
+            
+            # Log optimal regions
+            optimal_idx = np.unravel_index(np.argmax(pivot.values), pivot.values.shape)
+            optimal_noise = pivot.index[optimal_idx[0]]
+            optimal_control = pivot.columns[optimal_idx[1]]
+            self.logger.info(
+                f"Optimal parameter combination found:\n"
+                f"  Noise: {optimal_noise:.3f}\n"
+                f"  Control: {optimal_control:.3f}\n"
+                f"  Satisfaction Rate: {pivot.values[optimal_idx]:.1f}%"
+            )
+            
+            # 2. Control Effort vs Satisfaction Scatter
+            scatter = ax2.scatter(
+                results_df['control_effort'],
+                results_df['satisfaction_rate'],
+                c=results_df['noise_std'],
+                s=100 * results_df['control_strength'],
+                alpha=0.6,
+                cmap='viridis'
+            )
+            
+            # Add colorbar and legend
+            cbar = plt.colorbar(scatter, ax=ax2)
+            cbar.set_label('Noise Level')
+            
+            # Add size legend
+            legend_elements = [
+                plt.scatter([], [], s=100*c, c='gray', alpha=0.6, 
+                           label=f'Control={c:.1f}')
+                for c in np.linspace(min(results_df['control_strength']), 
+                                   max(results_df['control_strength']), 4)
+            ]
+            ax2.legend(handles=legend_elements, title='Control Strength',
+                      bbox_to_anchor=(1.15, 1))
+            
+            ax2.set_title('Control Effort vs Satisfaction')
+            ax2.set_xlabel('Control Effort')
+            ax2.set_ylabel('Satisfaction Rate (%)')
+            ax2.grid(True, alpha=0.3)
+            
+            plt.tight_layout()
+            plot_path = output_dir / 'parameter_space_overview.png'
+            plt.savefig(plot_path, dpi=300, bbox_inches='tight')
+            plt.close()
+            
+            self.logger.info(f"Generated parameter space overview plot: {plot_path}")
+            
+        except Exception as e:
+            self.logger.error(f"Error creating parameter space plot: {str(e)}")
+            plt.close('all')
+
+    def _create_surface_plots(self, results_df: pd.DataFrame, output_dir: Path, 
+                             metric: str, title: str):
+        """Create enhanced 3D surface plots for key metrics"""
+        try:
+            fig = plt.figure(figsize=(15, 10))
+            ax = fig.add_subplot(111, projection='3d')
+            
+            # Create pivot table for surface
+            pivot = results_df.pivot_table(
+                values=metric,
+                index='noise_std',
+                columns='control_strength',
+                aggfunc='mean'
+            )
+            
+            X, Y = np.meshgrid(pivot.columns, pivot.index)
+            
+            # Plot surface with enhanced styling
+            surf = ax.plot_surface(
+                X, Y, pivot.values,
+                cmap='viridis',
+                edgecolor='none',
+                alpha=0.8,
+                antialiased=True
+            )
+            
+            # Add contour projection
+            ax.contour(X, Y, pivot.values, zdir='z', 
+                      offset=pivot.values.min(), cmap='viridis', alpha=0.5)
+            
+            # Find optimal point
+            optimal_idx = np.unravel_index(np.argmax(pivot.values), pivot.values.shape)
+            optimal_control = pivot.columns[optimal_idx[1]]
+            optimal_noise = pivot.index[optimal_idx[0]]
+            optimal_value = pivot.values[optimal_idx]
+            
+            # Log optimal point
+            self.logger.info(
+                f"\nOptimal point for {title}:\n"
+                f"  Control: {optimal_control:.3f}\n"
+                f"  Noise: {optimal_noise:.3f}\n"
+                f"  Value: {optimal_value:.3f}"
+            )
+            
+            # Customize labels and title
+            ax.set_xlabel('Control Strength', labelpad=10)
+            ax.set_ylabel('Noise Std', labelpad=10)
+            ax.set_zlabel(title, labelpad=10)
+            
+            plt.title(f'{title} Surface\nNoise vs Control Strength', 
+                     pad=20, size=14)
+            
+            # Add colorbar
+            fig.colorbar(surf, ax=ax, shrink=0.5, aspect=5, label=title)
+            
+            # Adjust view angle for better visualization
+            ax.view_init(elev=30, azim=45)
+            
+            plt.tight_layout()
+            plot_path = output_dir / f'{metric}_surface.png'
+            plt.savefig(plot_path, dpi=300, bbox_inches='tight')
+            plt.close()
+            
+            self.logger.info(f"Generated surface plot for {metric}: {plot_path}")
+            
+        except Exception as e:
+            self.logger.error(f"Error creating surface plot for {metric}: {str(e)}")
+
+    def _create_satisfaction_analysis(self, results_df: pd.DataFrame, output_dir: Path):
+        """Create detailed satisfaction rate analysis"""
+        try:
+            fig = plt.figure(figsize=(15, 10))
+            gs = plt.GridSpec(2, 2)
+            
+            # 1. Satisfaction Rate Distribution
+            ax1 = fig.add_subplot(gs[0, 0])
+            sns.histplot(
+                data=results_df,
+                x='satisfaction_rate',
+                bins=20,
+                kde=True,
+                ax=ax1
+            )
+            ax1.set_title('Distribution of Satisfaction Rates')
+            ax1.set_xlabel('Satisfaction Rate')
+            
+            # 2. Satisfaction vs Noise
+            ax2 = fig.add_subplot(gs[0, 1])
+            sns.boxplot(
+                data=results_df,
+                x=pd.qcut(results_df['noise_std'], q=5),
+                y='satisfaction_rate',
+                ax=ax2
+            )
+            ax2.set_title('Satisfaction Rate vs Noise Level')
+            ax2.set_xlabel('Noise Level (Quintiles)')
+            
+            # 3. Satisfaction vs Control
+            ax3 = fig.add_subplot(gs[1, 0])
+            sns.boxplot(
+                data=results_df,
+                x=pd.qcut(results_df['control_strength'], q=5),
+                y='satisfaction_rate',
+                ax=ax3
+            )
+            ax3.set_title('Satisfaction Rate vs Control Strength')
+            ax3.set_xlabel('Control Strength (Quintiles)')
+            
+            # 4. Satisfaction Rate Heatmap
+            ax4 = fig.add_subplot(gs[1, 1])
+            pivot = results_df.pivot_table(
+                values='satisfaction_rate',
+                index=pd.qcut(results_df['noise_std'], q=5),
+                columns=pd.qcut(results_df['control_strength'], q=5),
+                aggfunc='mean'
+            )
+            sns.heatmap(
+                pivot,
+                annot=True,
+                fmt='.2f',
+                cmap='viridis',
+                ax=ax4
+            )
+            ax4.set_title('Satisfaction Rate Heatmap')
+            ax4.set_xlabel('Control Strength (Quintiles)')
+            ax4.set_ylabel('Noise Level (Quintiles)')
+            
+            plt.tight_layout()
+            plt.savefig(output_dir / 'satisfaction_analysis.png', dpi=300, bbox_inches='tight')
+            plt.close()
+            
+        except Exception as e:
+            self.logger.error(f"Error creating satisfaction analysis: {str(e)}")
+
+    def _create_interaction_analysis(self, results_df: pd.DataFrame, output_dir: Path):
+        """Create analysis of noise-control interactions"""
+        try:
+            fig = plt.figure(figsize=(15, 10))
+            gs = plt.GridSpec(2, 2)
+            
+            # 1. Control Effectiveness
+            ax1 = fig.add_subplot(gs[0, 0])
+            effectiveness = results_df['satisfaction_rate'] / (results_df['control_effort'] + 1e-10)
+            sns.scatterplot(
+                data=results_df,
+                x='noise_std',
+                y='control_strength',
+                size='satisfaction_rate',
+                hue=effectiveness,
+                ax=ax1
+            )
+            ax1.set_title('Control Effectiveness')
+            
+            # 2. Optimal Control Strength
+            ax2 = fig.add_subplot(gs[0, 1])
+            optimal_control = results_df.groupby('noise_std')['satisfaction_rate'].idxmax()
+            optimal_points = results_df.loc[optimal_control]
+            sns.scatterplot(
+                data=optimal_points,
+                x='noise_std',
+                y='control_strength',
+                ax=ax2
+            )
+            ax2.set_title('Optimal Control Strength per Noise Level')
+            
+            # 3. Performance Stability
+            ax3 = fig.add_subplot(gs[1, 0])
+            stability = results_df.groupby(['noise_std', 'control_strength'])['satisfaction_rate'].std().reset_index()
+            pivot_stability = stability.pivot(
+                index='noise_std',
+                columns='control_strength',
+                values='satisfaction_rate'
+            )
+            sns.heatmap(
+                pivot_stability,
+                cmap='viridis_r',
+                ax=ax3,
+                cbar_kws={'label': 'Standard Deviation'}
+            )
+            ax3.set_title('Performance Stability')
+            
+            # 4. Trade-off Analysis
+            ax4 = fig.add_subplot(gs[1, 1])
+            sns.scatterplot(
+                data=results_df,
+                x='control_effort',
+                y='satisfaction_rate',
+                hue='noise_std',
+                size='control_strength',
+                ax=ax4
+            )
+            ax4.set_title('Control Effort vs Satisfaction Trade-off')
+            
+            plt.tight_layout()
+            plt.savefig(output_dir / 'interaction_analysis.png', dpi=300, bbox_inches='tight')
+            plt.close()
+            
+        except Exception as e:
+            self.logger.error(f"Error creating interaction analysis: {str(e)}")
+
+    def generate_enhanced_report(self, results_df: pd.DataFrame):
+        """Generate comprehensive analysis report with enhanced statistics"""
         report_path = self.output_dir / "sweep_analysis_report.txt"
         
         with open(report_path, 'w') as f:
             f.write("Active Inference Parameter Sweep Analysis Report\n")
             f.write("=" * 50 + "\n\n")
             
-            # Simulation parameters
+            # Simulation Parameters
             f.write("Simulation Parameters:\n")
             f.write("-" * 20 + "\n")
             f.write(f"Noise range: {self.noise_range[0]:.3f} to {self.noise_range[-1]:.3f}\n")
             f.write(f"Control range: {self.control_range[0]:.3f} to {self.control_range[-1]:.3f}\n")
-            f.write(f"Number of noise levels: {len(self.noise_range)}\n")
-            f.write(f"Number of control levels: {len(self.control_range)}\n")
-            f.write(f"Total parameter combinations: {len(self.noise_range) * len(self.control_range)}\n")
-            f.write(f"Repeats per combination: {NUM_REPEATS}\n")
-            f.write(f"Timesteps per simulation: {self.n_timesteps}\n")
-            f.write(f"Output directory: {self.output_dir}\n\n")
+            f.write(f"Total combinations: {len(self.noise_range) * len(self.control_range)}\n")
+            f.write(f"Repeats per combination: {NUM_REPEATS}\n\n")
             
-            # Overall statistics
+            # Overall Performance
             f.write("Overall Performance:\n")
             f.write("-" * 20 + "\n")
-            for metric in ['satisfaction_rate', 'control_effectiveness', 'runtime']:
+            metrics = ['satisfaction_rate', 'control_effort', 'belief_entropy']
+            for metric in metrics:
                 mean = results_df[metric].mean()
                 std = results_df[metric].std()
                 min_val = results_df[metric].min()
                 max_val = results_df[metric].max()
-                
                 f.write(f"\n{metric.replace('_', ' ').title()}:\n")
                 f.write(f"  Mean ± Std: {mean:.3f} ± {std:.3f}\n")
                 f.write(f"  Range: [{min_val:.3f}, {max_val:.3f}]\n")
             
-            # Best parameter combinations
-            f.write("\nOptimal Parameter Combinations:\n")
+            # Best Configurations
+            f.write("\nOptimal Configurations:\n")
             f.write("-" * 20 + "\n")
             
-            for metric in ['satisfaction_rate', 'control_effectiveness']:
-                best_idx = results_df.groupby(
-                    ['noise_std', 'control_strength']
-                )[metric].mean().idxmax()
-                
-                best_val = results_df.groupby(
-                    ['noise_std', 'control_strength']
-                )[metric].mean().max()
-                
-                f.write(f"\nBest for {metric.replace('_', ' ').title()}:\n")
-                f.write(f"  Noise: {best_idx[0]:.3f}\n")
-                f.write(f"  Control: {best_idx[1]:.3f}\n")
-                f.write(f"  Value: {best_val:.3f}\n")
+            # Best for satisfaction rate
+            best_satisfaction = results_df.loc[results_df['satisfaction_rate'].idxmax()]
+            f.write("\nBest for Satisfaction Rate:\n")
+            f.write(f"  Noise: {best_satisfaction['noise_std']:.3f}\n")
+            f.write(f"  Control: {best_satisfaction['control_strength']:.3f}\n")
+            f.write(f"  Satisfaction Rate: {best_satisfaction['satisfaction_rate']:.3f}%\n")
+            
+            # Best efficiency (satisfaction/effort ratio)
+            results_df['efficiency'] = results_df['satisfaction_rate'] / (results_df['control_effort'] + 1e-10)
+            best_efficiency = results_df.loc[results_df['efficiency'].idxmax()]
+            f.write("\nBest for Efficiency:\n")
+            f.write(f"  Noise: {best_efficiency['noise_std']:.3f}\n")
+            f.write(f"  Control: {best_efficiency['control_strength']:.3f}\n")
+            f.write(f"  Efficiency: {best_efficiency['efficiency']:.3f}\n")
+            
+            # Parameter Sensitivity Analysis
+            f.write("\nParameter Sensitivity Analysis:\n")
+            f.write("-" * 20 + "\n")
+            
+            # Effect of noise
+            noise_effect = results_df.groupby('noise_std')['satisfaction_rate'].mean()
+            f.write("\nEffect of Noise Level:\n")
+            for noise, satisfaction in noise_effect.items():
+                f.write(f"  Noise {noise:.3f}: {satisfaction:.1f}%\n")
+            
+            # Effect of control strength
+            control_effect = results_df.groupby('control_strength')['satisfaction_rate'].mean()
+            f.write("\nEffect of Control Strength:\n")
+            for control, satisfaction in control_effect.items():
+                f.write(f"  Control {control:.3f}: {satisfaction:.1f}%\n")
+            
+            self.logger.info(f"Generated comprehensive report: {report_path}")
 
 def main():
     """Run noise and control parameter sweep analysis"""
     try:
+        print("\nStarting Active Inference Parameter Sweep Analysis")
+        print("=" * 50)
+        
+        # Initialize sweep analysis
         sweep = NoiseControlSweepAnalysis()
-        sweep.logger.info("Starting parameter sweep analysis...")
         
-        results = sweep.run_parameter_sweep(n_repeats=NUM_REPEATS)
+        # Run parameter sweep
+        results_df = sweep.run_parameter_sweep(n_repeats=NUM_REPEATS)
         
-        if not results.empty:
-            sweep.logger.info("\nSweep Analysis Complete!")
-            sweep.logger.info(f"Results saved to: {sweep.output_dir}")
+        if results_df.empty:
+            print("\n✗ Error: No valid results collected")
+            return
             
-            # Print summary statistics
-            sweep.logger.info("\nOverall Results:")
-            for metric in ['satisfaction_rate', 'control_effectiveness', 'runtime']:
-                mean_val = results[metric].mean()
-                std_val = results[metric].std()
-                sweep.logger.info(f"{metric}: {mean_val:.3f} ± {std_val:.3f}")
-        else:
-            sweep.logger.error("Sweep analysis failed to collect valid results")
+        print("\nGenerating Analysis and Visualizations...")
+        print("=" * 50)
+        
+        # Create visualization directories
+        viz_dirs = {
+            'summary': sweep.viz_dir / 'summary',
+            'comparisons': sweep.viz_dir / 'comparisons',
+            'heatmaps': sweep.viz_dir / 'heatmaps',
+            'distributions': sweep.viz_dir / 'distributions',
+            'analysis': sweep.viz_dir / 'analysis'
+        }
+        
+        for dir_path in viz_dirs.values():
+            dir_path.mkdir(exist_ok=True, parents=True)
+        
+        # 1. Parameter Space Overview
+        print("\n1. Parameter Space Analysis")
+        print("  • Generating heatmap...", end='', flush=True)
+        sweep._create_parameter_space_plot(results_df, viz_dirs['heatmaps'])
+        print(" ✓")
+        
+        # 2. Performance Surface Plots
+        print("\n2. Performance Surface Analysis")
+        metrics = {
+            'satisfaction_rate': 'Satisfaction Rate (%)',
+            'control_effort': 'Control Effort',
+            'belief_entropy': 'Belief Entropy'
+        }
+        for metric, title in metrics.items():
+            print(f"  • Generating {title} surface...", end='', flush=True)
+            sweep._create_surface_plots(results_df, viz_dirs['analysis'], metric, title)
+            print(" ✓")
+        
+        # 3. Distribution Analysis
+        print("\n3. Distribution Analysis")
+        print("  • Generating satisfaction distributions...", end='', flush=True)
+        sweep._create_satisfaction_analysis(results_df, viz_dirs['distributions'])
+        print(" ✓")
+        
+        # 4. Interaction Analysis
+        print("\n4. Interaction Analysis")
+        print("  • Generating noise-control interactions...", end='', flush=True)
+        sweep._create_interaction_analysis(results_df, viz_dirs['analysis'])
+        print(" ✓")
+        
+        # 5. Generate Report
+        print("\n5. Analysis Report")
+        print("  • Generating comprehensive report...", end='', flush=True)
+        sweep.generate_enhanced_report(results_df)
+        print(" ✓")
+        
+        # Print summary of outputs
+        print("\nVisualization Files Generated:")
+        for dir_name, dir_path in viz_dirs.items():
+            files = list(dir_path.glob('*.png'))
+            if files:
+                print(f"\n{dir_name.title()} Visualizations:")
+                for file in files:
+                    print(f"  • {file.name}")
+        
+        print("\nAnalysis Files:")
+        print(f"  • Results: {sweep.data_dir}/final_results.csv")
+        print(f"  • Report:  {sweep.output_dir}/sweep_analysis_report.txt")
+        
+        # Print key findings
+        print("\nKey Findings:")
+        best_config = results_df.loc[results_df['satisfaction_rate'].idxmax()]
+        print(f"  • Best Configuration:")
+        print(f"    - Noise: {best_config['noise_std']:.3f}")
+        print(f"    - Control: {best_config['control_strength']:.3f}")
+        print(f"    - Satisfaction Rate: {best_config['satisfaction_rate']:.1f}%")
+        
+        mean_satisfaction = results_df['satisfaction_rate'].mean()
+        std_satisfaction = results_df['satisfaction_rate'].std()
+        print(f"\n  • Overall Performance:")
+        print(f"    - Mean Satisfaction: {mean_satisfaction:.1f}% ± {std_satisfaction:.1f}%")
+        
+        print("\nAnalysis Complete! ✓")
+        print(f"All outputs saved to: {sweep.output_dir}")
         
     except Exception as e:
+        print(f"\n✗ Error in sweep analysis: {str(e)}")
         logging.error(f"Error in sweep analysis: {str(e)}")
         logging.error(traceback.format_exc())
         raise
