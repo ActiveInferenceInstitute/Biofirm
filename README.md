@@ -36,8 +36,7 @@ Key Components:
 ### BioPerplexity Pipeline
 1. `1_Research_Bioregions.py`: County-level data collection
 2. `2_Biofirm_Business_Pitch.py`: Business case generation
-3. `3_Write_Letter_Perplexity.py`: Documentation generation
-4. `3_Biofirm_Visualization.py`: Data visualization
+3. `3_Biofirm_Visualization.py`: Data visualization
 
 ## Getting Started
 
