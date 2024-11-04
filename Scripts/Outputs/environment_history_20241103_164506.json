@@ -1,0 +1,106 @@
+[
+  {
+    "timestamp": "2024-11-03T16:45:06.426836",
+    "timestep": 0,
+    "variables": {
+      "soil_organic_matter_N0.8_C2.5": 50.0,
+      "soil_pH_N0.7_C2.8": 50.0,
+      "soil_moisture_N0.4_C2.0": 50.0,
+      "nutrient_levels_N0.6_C1.8": 50.0,
+      "soil_structure_N1.0_C1.5": 50.0,
+      "microbial_activity_N1.2_C1.2": 50.0,
+      "biodiversity_N1.5_C0.8": 50.0,
+      "soil_salinity_N1.8_C0.5": 50.0,
+      "soil_temperature_N2.0_C0.3": 50.0,
+      "soil_compaction_N1.6_C0.1": 50.0
+    },
+    "constraints": {
+      "soil_organic_matter_N0.8_C2.5": {
+        "lower": 45.0,
+        "upper": 55.0
+      },
+      "soil_pH_N0.7_C2.8": {
+        "lower": 45.0,
+        "upper": 55.0
+      },
+      "soil_moisture_N0.4_C2.0": {
+        "lower": 45.0,
+        "upper": 55.0
+      },
+      "nutrient_levels_N0.6_C1.8": {
+        "lower": 45.0,
+        "upper": 55.0
+      },
+      "soil_structure_N1.0_C1.5": {
+        "lower": 45.0,
+        "upper": 55.0
+      },
+      "microbial_activity_N1.2_C1.2": {
+        "lower": 45.0,
+        "upper": 55.0
+      },
+      "biodiversity_N1.5_C0.8": {
+        "lower": 45.0,
+        "upper": 55.0
+      },
+      "soil_salinity_N1.8_C0.5": {
+        "lower": 45.0,
+        "upper": 55.0
+      },
+      "soil_temperature_N2.0_C0.3": {
+        "lower": 45.0,
+        "upper": 55.0
+      },
+      "soil_compaction_N1.6_C0.1": {
+        "lower": 45.0,
+        "upper": 55.0
+      }
+    },
+    "constraint_verification": {
+      "soil_organic_matter_N0.8_C2.5": 1,
+      "soil_pH_N0.7_C2.8": 1,
+      "soil_moisture_N0.4_C2.0": 1,
+      "nutrient_levels_N0.6_C1.8": 1,
+      "soil_structure_N1.0_C1.5": 1,
+      "microbial_activity_N1.2_C1.2": 1,
+      "biodiversity_N1.5_C0.8": 1,
+      "soil_salinity_N1.8_C0.5": 1,
+      "soil_temperature_N2.0_C0.3": 1,
+      "soil_compaction_N1.6_C0.1": 1
+    },
+    "controllable_variables": [
+      "soil_organic_matter_N0.8_C2.5",
+      "soil_pH_N0.7_C2.8",
+      "soil_moisture_N0.4_C2.0",
+      "nutrient_levels_N0.6_C1.8",
+      "soil_structure_N1.0_C1.5",
+      "microbial_activity_N1.2_C1.2",
+      "biodiversity_N1.5_C0.8",
+      "soil_salinity_N1.8_C0.5",
+      "soil_temperature_N2.0_C0.3",
+      "soil_compaction_N1.6_C0.1"
+    ],
+    "performance_metrics": {
+      "satisfaction_rates": [
+        0.0
+      ],
+      "control_efforts": [
+        0.0
+      ],
+      "stability_scores": [
+        0.0
+      ],
+      "response_times": [
+        0.0
+      ],
+      "overall_performance": [
+        0.0
+      ]
+    },
+    "metadata": {
+      "control_strategy": "unknown",
+      "simulation_id": "20241103_164506",
+      "random_seed": 1155
+    }
+  }
+]

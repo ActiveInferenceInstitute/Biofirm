@@ -1,0 +1,64 @@
+Active Inference Parameter Sweep Analysis Report
+==================================================
+
+Simulation Parameters:
+--------------------
+Noise range: 0.100 to 2.000
+Control range: 0.100 to 2.000
+Total combinations: 100
+Repeats per combination: 3
+
+Overall Performance:
+--------------------
+
+Satisfaction Rate:
+  Mean ± Std: 51.750 ± 32.164
+  Range: [1.000, 100.000]
+
+Control Effort:
+  Mean ± Std: 0.000 ± 0.000
+  Range: [0.000, 0.000]
+
+Belief Entropy:
+  Mean ± Std: 1.099 ± 0.000
+  Range: [1.099, 1.099]
+
+Optimal Configurations:
+--------------------
+
+Best for Satisfaction Rate:
+  Noise: 0.100
+  Control: 0.100
+  Satisfaction Rate: 100.000%
+
+Best for Efficiency:
+  Noise: 0.100
+  Control: 0.100
+  Efficiency: 1000000000000.000
+
+Parameter Sensitivity Analysis:
+--------------------
+
+Effect of Noise Level:
+  Noise 0.100: 100.0%
+  Noise 0.311: 85.7%
+  Noise 0.522: 65.7%
+  Noise 0.733: 58.7%
+  Noise 0.944: 45.2%
+  Noise 1.156: 46.0%
+  Noise 1.367: 36.4%
+  Noise 1.578: 33.8%
+  Noise 1.789: 20.9%
+  Noise 2.000: 25.1%
+
+Effect of Control Strength:
+  Control 0.100: 61.4%
+  Control 0.311: 49.0%
+  Control 0.522: 52.4%
+  Control 0.733: 52.0%
+  Control 0.944: 46.8%
+  Control 1.156: 49.4%
+  Control 1.367: 48.1%
+  Control 1.578: 50.4%
+  Control 1.789: 56.4%
+  Control 2.000: 51.6%
