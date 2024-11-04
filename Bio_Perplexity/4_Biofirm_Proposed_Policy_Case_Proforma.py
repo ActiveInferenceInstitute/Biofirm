@@ -12,15 +12,32 @@ from typing import Dict, Any
 
 
 def setup_logging():
-    """Setup logging with pro-forma specific formatting"""
-    logging.basicConfig(
-        level=logging.INFO,
-        format='%(asctime)s - Pro-Forma Analysis - %(levelname)s - %(message)s'
+    """Setup logging with pro-forma specific formatting and cleaner output"""
+    # Create a formatter that includes timestamp and level
+    formatter = logging.Formatter(
+        '%(asctime)s - Pro-Forma Analysis - %(levelname)s - %(message)s',
+        datefmt='%Y-%m-%d %H:%M:%S'
     )
+    
+    # Setup console handler with the formatter
     console_handler = logging.StreamHandler()
+    console_handler.setFormatter(formatter)
     console_handler.setLevel(logging.INFO)
+    
+    # Setup logger
     logger = logging.getLogger('pro_forma_analysis')
-    logger.handlers = [console_handler]
+    logger.setLevel(logging.INFO)
+    
+    # Remove any existing handlers
+    if logger.handlers:
+        logger.handlers.clear()
+    
+    # Add our console handler
+    logger.addHandler(console_handler)
+    
+    # Prevent duplicate logging
+    logger.propagate = False
+    
     return logger
 
 logger = setup_logging()
@@ -269,26 +286,32 @@ def save_business_case(output_dir, bioregion_id, content, financial_data=None):
     # Create directory if it doesn't exist
     os.makedirs(output_dir, exist_ok=True)
     
+    files_saved = []
+    
     # Save narrative as Markdown
     md_filename = f"{bioregion_id}_pro_forma_{timestamp}.md"
     md_path = os.path.join(output_dir, md_filename)
     with open(md_path, 'w', encoding='utf-8') as f:
         f.write("# Pro-Forma Business Analysis\n\n")
         f.write(content)
+    files_saved.append(md_filename)
     
-    # Save financial data as separate JSON for easier querying
+    # Save financial data if available
     if financial_data:
+        # Save as JSON
         fin_filename = f"{bioregion_id}_pro_forma_financials_{timestamp}.json"
         fin_path = os.path.join(output_dir, fin_filename)
         with open(fin_path, 'w', encoding='utf-8') as f:
             json.dump(financial_data, f, indent=2)
+        files_saved.append(fin_filename)
         
-        # Also save as CSV for easy spreadsheet analysis
+        # Try to save as CSV
         try:
             df = pd.json_normalize(financial_data, sep='_')
             csv_filename = f"{bioregion_id}_pro_forma_financials_{timestamp}.csv"
             csv_path = os.path.join(output_dir, csv_filename)
             df.to_csv(csv_path, index=False)
+            files_saved.append(csv_filename)
         except Exception as e:
             logger.warning(f"Could not save CSV version of financial data: {e}")
     
@@ -307,8 +330,13 @@ def save_business_case(output_dir, bioregion_id, content, financial_data=None):
             "financial_data": financial_data,
             "schema_version": "pro_forma_v2"
         }, f, indent=2)
+    files_saved.append(json_filename)
     
-    logger.info(f"Saved pro-forma business analysis: {md_path}")
+    # Log saved files in a clean format
+    logger.info(f"Pro-forma analysis for {bioregion_id} saved:")
+    for filename in files_saved:
+        logger.info(f"  - {filename}")
+    
     return md_path
 
 def process_region_business_case(client, system_prompts, bioregion, base_dir):
@@ -339,7 +367,7 @@ def process_region_business_case(client, system_prompts, bioregion, base_dir):
             {"role": "user", "content": prompt}
         ]
         
-        logger.info(f"Generating pro-forma analysis for {bioregion_id}")
+        logger.info(f"Processing {bioregion_id}: Generating pro-forma analysis")
         start_time = time.time()
         
         response = client.chat.completions.create(
@@ -361,13 +389,12 @@ def process_region_business_case(client, system_prompts, bioregion, base_dir):
         )
         
         elapsed_time = time.time() - start_time
-        logger.info(f"Pro-forma analysis generated successfully in {elapsed_time:.2f} seconds")
-        logger.info(f"Saved to: {output_path}")
+        logger.info(f"Completed {bioregion_id}: Analysis generated in {elapsed_time:.2f} seconds")
         
         time.sleep(1)  # Rate limiting
         
     except Exception as e:
-        logger.error(f"Error in pro-forma analysis for {bioregion_id}: {str(e)}")
+        logger.error(f"Failed {bioregion_id}: {str(e)}")
         return  # Continue with next region instead of raising
 
 def main():

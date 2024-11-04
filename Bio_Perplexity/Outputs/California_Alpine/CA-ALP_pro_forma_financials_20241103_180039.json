@@ -1,0 +1,54 @@
+{
+  "projections": {
+    "revenue": {
+      "product_sales": {},
+      "licensing_royalties": {},
+      "grants_funding": {},
+      "consulting_services": {},
+      "total_revenue": {}
+    },
+    "costs": {
+      "energy": {
+        "electricity": {},
+        "renewable_investment": {},
+        "efficiency_measures": {}
+      },
+      "operational": {
+        "research_development": {},
+        "manufacturing": {},
+        "labor": {},
+        "marketing": {}
+      },
+      "capital": {
+        "initial_setup": null,
+        "equipment": {},
+        "facility_improvements": {}
+      }
+    },
+    "funding": {
+      "initial_capital": null,
+      "venture_capital": null,
+      "grants": null,
+      "loans": null,
+      "timeline": []
+    },
+    "metrics": {
+      "roi": null,
+      "npv": null,
+      "irr": null,
+      "payback_period": null,
+      "profit_margins": null
+    }
+  },
+  "sensitivity_analysis": {
+    "revenue": [],
+    "costs": [],
+    "energy": []
+  },
+  "sustainability_metrics": {
+    "carbon_footprint": null,
+    "energy_efficiency": null,
+    "waste_reduction": null,
+    "water_usage": null
+  }
+}
