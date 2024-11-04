@@ -33,8 +33,8 @@ from Scripts.utils.logging_utils import get_component_logger
 # Configuration Parameters
 NUM_CPUS = 8  # Number of parallel threads
 NOISE_RANGE = np.linspace(0.1, 2.0, 10)  # Range of noise levels
-CONTROL_RANGE = np.linspace(0.5, 3.0, 10)  # Range of control strengths
-TIMESTEPS = 100  # Shorter runs for sweep
+CONTROL_RANGE = np.linspace(0.1, 2.0, 10)  # Range of control strengths
+TIMESTEPS = 200  # Shorter runs for sweep
 NUM_REPEATS = 3  # Repeats per parameter combination
 
 POMDP_CONFIG = {
