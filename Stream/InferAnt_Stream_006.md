@@ -97,3 +97,5 @@ Previous Active InferAnt streams
 
 
 Andrew Pashea: " I dropped a Homeostasis_Machine.md in /BioFirm/Miscellaneous/ where I'm working on some further thoughts for relating this (in language) to solving nonequilibrium steady states; bioregional regenerative finance; and some other themes. I again love the high/low/homeostasis tripartite system -- we're effectively making something like a 'homeostasis machine' combining modern engineering control systems with domain and social/cultural knowledge. "
+
+Completed.
