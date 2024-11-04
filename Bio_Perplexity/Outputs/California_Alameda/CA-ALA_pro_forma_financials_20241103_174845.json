@@ -1,0 +1,17 @@
+{
+  "projections": {
+    "revenue": {},
+    "costs": {
+      "energy": {},
+      "operational": {},
+      "capital": {}
+    },
+    "metrics": {
+      "roi": null,
+      "npv": null,
+      "irr": null
+    }
+  },
+  "sensitivity_analysis": {},
+  "funding_requirements": {}
+}

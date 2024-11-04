@@ -1,160 +1,242 @@
 import matplotlib.pyplot as plt
 import numpy as np
-from typing import Dict, List, Optional
+from typing import Dict, List, Optional, Any, Union, Tuple
 import pandas as pd
 from pathlib import Path
 import seaborn as sns
 from scipy import stats
 import logging
 
-def plot_data(data: pd.DataFrame, 
-             constraints: pd.DataFrame, 
-             controllable_variables_list: List[str],
-             control_strategy: str = "active_inference",
-             output_dir: Path = None):
-    """
-    Plot environmental variables with enhanced visualization and comparisons
+def get_unit(variable_name: str) -> str:
+    """Get the appropriate unit label for a variable
     
     Args:
-        data: DataFrame containing simulation history
-        constraints: DataFrame with variable constraints
-        controllable_variables_list: List of controllable variables
-        control_strategy: Strategy used ("random" or "active_inference")
-        output_dir: Directory to save plots
+        variable_name: Name of the ecological variable
+        
+    Returns:
+        String containing the unit label
     """
-    plt.ioff()  # Turn off interactive mode
+    # Define units for each variable type
+    units = {
+        'forest_health': 'Health Index',
+        'carbon_sequestration': 'Tons CO2/ha',
+        'wildlife_habitat_quality': 'Habitat Score',
+        'riparian_buffer_width': 'Meters',
+        'soil_organic_matter': 'Percent',
+        'water_quality': 'Quality Index',
+        'biodiversity': 'Species Count',
+        'erosion_control': 'Erosion Index'
+    }
     
-    # Calculate number of rows and columns for subplots
-    n_vars = len(data.columns) - 1  # Exclude timestep column
-    n_cols = 5  # Set number of columns as 5
-    n_rows = int(np.ceil(n_vars / n_cols))  # Calculate number of rows needed
+    # Return unit if defined, otherwise return generic "Value"
+    return units.get(variable_name, 'Value')
 
-    # Create figure and subplots
-    fig, axes = plt.subplots(n_rows, n_cols, figsize=(15, 3*n_rows))
-    fig.suptitle(f'Environmental Variables Evolution - {control_strategy.title()} Control', 
-                 fontsize=14, y=1.02)
-    axes = axes.flatten()
+def calculate_satisfaction_rate(data: pd.DataFrame, constraints: pd.DataFrame) -> float:
+    """Calculate percentage of time variables are within constraints"""
+    satisfaction_count = 0
+    total_checks = 0
+    
+    for var in constraints['variable'].values:
+        if var in data.columns:
+            constraint = constraints[constraints['variable'] == var].iloc[0]
+            in_bounds = ((data[var] >= constraint['lower_constraint']) & 
+                        (data[var] <= constraint['upper_constraint']))
+            satisfaction_count += in_bounds.sum()
+            total_checks += len(data)
+    
+    return (satisfaction_count / total_checks * 100) if total_checks > 0 else 0.0
 
-    # Plot each variable
-    var_idx = 0
-    for col in data.columns:
-        if col != 'timestep':
-            ax = axes[var_idx]
+def plot_data(data: pd.DataFrame, 
+             constraints: pd.DataFrame, 
+             controllable_variables: List[str],
+             control_strategy: str = "active_inference",
+             output_dir: Path = None):
+    """Plot environmental variables with enhanced visualization and error handling"""
+    plt.ioff()
+    
+    try:
+        n_vars = len(data.columns) - 1  # Exclude timestep
+        n_cols = min(5, n_vars)  # Adjust columns based on variables
+        n_rows = int(np.ceil(n_vars / n_cols))
 
-            # Plot the variable
-            line = ax.plot(data['timestep'], data[col], '-', linewidth=2, 
-                         label=f'{control_strategy.title()}')[0]
+        # Create figure with two subplots side by side
+        fig = plt.figure(figsize=(24, 3*n_rows))
+        gs = plt.GridSpec(n_rows, n_cols*2, figure=fig)
+        
+        # Enhanced title based on control strategy
+        if control_strategy == 'active_inference':
+            title = 'Active Inference Control'
+            color = 'royalblue'
+            alpha = 0.9
+        else:
+            title = 'Random Control'
+            color = 'gray'
+            alpha = 0.7
+            
+        fig.suptitle(f'{title}: Variable Evolution Over Time', fontsize=16, y=1.02)
 
-            # Add constraints if they exist for this variable
-            if col in constraints['variable'].values:
-                constraint = constraints[constraints['variable'] == col].iloc[0]
-                ax.axhline(y=constraint['lower_constraint'], color='r', 
-                          linestyle='--', alpha=0.8, label='Constraints')
-                ax.axhline(y=constraint['upper_constraint'], color='r', 
-                          linestyle='--', alpha=0.8)
+        var_idx = 0
+        for col in data.columns:
+            if col != 'timestep':
+                # Calculate subplot position
+                row = var_idx // n_cols
+                col_pos = var_idx % n_cols
                 
-                # Shade the constraint region
-                ax.axhspan(constraint['lower_constraint'], 
-                          constraint['upper_constraint'], 
-                          color='g', alpha=0.1)
+                # Create subplot
+                ax = fig.add_subplot(gs[row, col_pos])
+                
+                # Determine if variable is controlled
+                is_controlled = col in controllable_variables
+                
+                # Plot with enhanced styling
+                ax.plot(data['timestep'], data[col], 
+                       linewidth=2.5 if is_controlled else 1.5,
+                       alpha=alpha,
+                       color=color,
+                       label='Controlled' if is_controlled else 'Uncontrolled')
 
-            # Add controllable indicator
-            title = col.replace('_', ' ').title()
-            if col in controllable_variables_list:
-                title += "\n(Controllable)"
-                ax.set_facecolor('#f0f9ff')  # Light blue background for controllable
+                # Add constraints with improved visibility
+                if col in constraints['variable'].values:
+                    constraint = constraints[constraints['variable'] == col].iloc[0]
+                    
+                    # Target range
+                    ax.axhspan(constraint['lower_constraint'], 
+                              constraint['upper_constraint'],
+                              color='green', alpha=0.1, label='Target Range')
+                    
+                    # Constraint lines
+                    ax.axhline(y=constraint['lower_constraint'], color='red', 
+                              linestyle='--', alpha=0.5)
+                    ax.axhline(y=constraint['upper_constraint'], color='red', 
+                              linestyle='--', alpha=0.5)
 
-            # Customize subplot
-            ax.set_title(title)
-            ax.set_xlabel('Timestep')
-            ax.grid(True, alpha=0.3)
-            ax.legend()
+                # Enhanced title and labels
+                title = col.replace('_', ' ').title()
+                if is_controlled:
+                    title += "\n[Controlled]"
+                else:
+                    title += "\n[Uncontrolled]"
+                    
+                ax.set_title(title, pad=10)
+                ax.set_xlabel('Time Step')
+                ax.set_ylabel(f"{get_unit(col)}")
+                
+                # Improved grid and legend
+                ax.grid(True, alpha=0.3, linestyle=':')
+                ax.legend(loc='upper right', framealpha=0.9)
 
-            var_idx += 1
+                # Calculate and display statistics
+                mean_val = data[col].mean()
+                std_val = data[col].std()
+                in_bounds = 0
+                if col in constraints['variable'].values:
+                    constraint = constraints[constraints['variable'] == col].iloc[0]
+                    in_bounds = ((data[col] >= constraint['lower_constraint']) & 
+                               (data[col] <= constraint['upper_constraint'])).mean() * 100
+                
+                stats_text = f'Mean: {mean_val:.1f}\nStd: {std_val:.1f}\nIn Target: {in_bounds:.1f}%'
+                ax.text(0.95, 0.05, stats_text,
+                       transform=ax.transAxes,
+                       verticalalignment='bottom',
+                       horizontalalignment='right',
+                       bbox=dict(facecolor='white', alpha=0.8))
 
-    # Remove any empty subplots
-    for idx in range(var_idx, len(axes)):
-        fig.delaxes(axes[idx])
+                var_idx += 1
 
-    # Adjust layout
-    plt.tight_layout()
-    
-    # Save if output directory provided
-    if output_dir:
-        plt.savefig(output_dir / f'simulation_{control_strategy}.png', 
-                   bbox_inches='tight', dpi=300)
-    plt.close(fig)  # Close figure
+        # Adjust layout
+        plt.tight_layout()
+        
+        if output_dir:
+            plt.savefig(output_dir / f'simulation_{control_strategy}.png', 
+                       bbox_inches='tight', dpi=300)
+        plt.close(fig)
+        
+    except Exception as e:
+        print(f"Error in plot_data: {str(e)}")
+        plt.close('all')
 
 def plot_comparison(random_data: pd.DataFrame, 
                    active_data: pd.DataFrame,
                    constraints: pd.DataFrame,
                    controllable_vars: List[str],
                    output_dir: Path):
-    """Plot side-by-side comparison between random and active inference control"""
+    """Plot side-by-side comparison of control strategies"""
     plt.ioff()
     
     try:
-        # Calculate number of variables and subplot layout
         variables = [col for col in random_data.columns if col != 'timestep']
-        n_vars = len(variables)
-        n_rows = n_vars
-        n_cols = 2  # Side by side comparison
+        n_rows = len(variables)
+        n_cols = 2
         
-        # Create figure
         fig, axes = plt.subplots(n_rows, n_cols, figsize=(15, 4*n_rows))
-        fig.suptitle('Random vs Active Inference Control Comparison', fontsize=16, y=1.02)
+        fig.suptitle('Control Strategy Comparison\nActive Inference (Right) vs Natural Evolution (Left)', 
+                    fontsize=16, y=1.02)
         
-        # Plot each variable
         for idx, var in enumerate(variables):
-            # Get constraint values if they exist
+            is_controlled = var in controllable_vars
+            
+            # Enhanced styling
+            if is_controlled:
+                color = 'royalblue'
+                alpha = 0.9
+                line_width = 2.5
+                label = 'Actively Controlled'
+            else:
+                color = 'gray'
+                alpha = 0.7
+                line_width = 1.5
+                label = 'Uncontrolled'
+            
+            # Get constraints
             constraint = constraints[constraints['variable'] == var].iloc[0]
             lower = constraint['lower_constraint']
             upper = constraint['upper_constraint']
             
-            # Random control subplot
-            ax_random = axes[idx, 0]
-            ax_random.plot(random_data['timestep'], random_data[var], 
-                         'b-', label='Random', alpha=0.7)
-            ax_random.axhline(y=lower, color='r', linestyle='--', alpha=0.5)
-            ax_random.axhline(y=upper, color='r', linestyle='--', alpha=0.5)
-            ax_random.axhspan(lower, upper, color='g', alpha=0.1)
-            
-            # Active inference subplot
-            ax_active = axes[idx, 1]
-            ax_active.plot(active_data['timestep'], active_data[var], 
-                         'g-', label='Active Inference', alpha=0.7)
-            ax_active.axhline(y=lower, color='r', linestyle='--', alpha=0.5)
-            ax_active.axhline(y=upper, color='r', linestyle='--', alpha=0.5)
-            ax_active.axhspan(lower, upper, color='g', alpha=0.1)
-            
-            # Calculate time in constraints
-            random_in_bounds = ((random_data[var] >= lower) & 
-                              (random_data[var] <= upper)).mean() * 100
-            active_in_bounds = ((active_data[var] >= lower) & 
-                              (active_data[var] <= upper)).mean() * 100
-            
-            # Customize subplots
-            title = var.replace('_', ' ').title()
-            if var in controllable_vars:
-                title += "\n(Controllable)"
-            
-            ax_random.set_title(f"{title}\nRandom Control\n{random_in_bounds:.1f}% In Bounds")
-            ax_active.set_title(f"{title}\nActive Inference\n{active_in_bounds:.1f}% In Bounds")
-            
-            for ax in [ax_random, ax_active]:
-                ax.grid(True, alpha=0.3)
-                ax.legend()
-                ax.set_xlabel('Timestep')
-            
-            # Highlight controllable variables
-            if var in controllable_vars:
-                ax_random.set_facecolor('#f0f9ff')
-                ax_active.set_facecolor('#f0f9ff')
+            # Plot both strategies
+            for col_idx, (data, strategy) in enumerate([
+                (random_data, 'Natural Evolution'),
+                (active_data, 'Active Inference')
+            ]):
+                ax = axes[idx, col_idx]
+                
+                # Plot data with enhanced styling
+                ax.plot(data['timestep'], data[var], color=color,
+                       linewidth=line_width, alpha=alpha,
+                       label=label if strategy == 'Active Inference' else 'Uncontrolled')
+                
+                # Add target range
+                ax.axhspan(lower, upper, color='green', alpha=0.1, label='Target Range')
+                ax.axhline(y=lower, color='red', linestyle='--', alpha=0.5)
+                ax.axhline(y=upper, color='red', linestyle='--', alpha=0.5)
+                
+                # Calculate performance metrics
+                in_bounds = ((data[var] >= lower) & (data[var] <= upper)).mean() * 100
+                mean_val = data[var].mean()
+                std_val = data[var].std()
+                
+                # Enhanced title with metrics
+                control_status = "[Controlled]" if (is_controlled and strategy == 'Active Inference') else "[Uncontrolled]"
+                title = (f"{var.replace('_', ' ').title()}\n{control_status}\n"
+                        f"In Target: {in_bounds:.1f}%\n"
+                        f"Mean: {mean_val:.1f} ± {std_val:.1f}")
+                ax.set_title(title)
+                
+                # Improved aesthetics
+                ax.grid(True, alpha=0.3, linestyle=':')
+                ax.set_xlabel('Time Step')
+                ax.set_ylabel(f"{get_unit(var)}")
+                ax.legend(loc='upper right', framealpha=0.9)
+                
+                # Set background color
+                if is_controlled and strategy == 'Active Inference':
+                    ax.set_facecolor('#f0f9ff')
+                else:
+                    ax.set_facecolor('#fafafa')
         
         plt.tight_layout()
         
         if output_dir:
-            plt.savefig(output_dir / 'strategy_comparison.png', 
+            plt.savefig(output_dir / 'strategy_comparison.png',
                        bbox_inches='tight', dpi=300)
         plt.close(fig)
         
@@ -243,14 +325,7 @@ def plot_satisfaction_rates(random_data: pd.DataFrame,
 def plot_correlation_heatmaps(random_data: pd.DataFrame, 
                             active_data: pd.DataFrame,
                             output_dir: Path = None):
-    """
-    Create side-by-side correlation heatmaps for both control strategies
-    
-    Args:
-        random_data: DataFrame from random control simulation
-        active_data: DataFrame from active inference simulation
-        output_dir: Directory to save plots
-    """
+    """Create side-by-side correlation heatmaps for both control strategies"""
     plt.ioff()
     
     try:
@@ -258,15 +333,27 @@ def plot_correlation_heatmaps(random_data: pd.DataFrame,
         fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(20, 8))
         fig.suptitle('Variable Correlation Comparison', fontsize=16)
         
-        # Calculate correlations (excluding timestep)
-        random_corr = random_data.drop('timestep', axis=1).corr()
-        active_corr = active_data.drop('timestep', axis=1).corr()
+        # Calculate correlations for all variables (excluding timestep)
+        def get_correlations(df: pd.DataFrame) -> pd.DataFrame:
+            # Remove timestep and calculate correlations
+            data = df.drop('timestep', axis=1)
+            # Handle zero variance columns
+            valid_cols = data.columns[data.std() != 0]
+            corr = pd.DataFrame(np.eye(len(data.columns)), 
+                              columns=data.columns, 
+                              index=data.columns)
+            if len(valid_cols) > 0:
+                corr.loc[valid_cols, valid_cols] = data[valid_cols].corr()
+            return corr
         
-        # Plot heatmaps
+        random_corr = get_correlations(random_data)
+        active_corr = get_correlations(active_data)
+        
+        # Plot heatmaps with consistent dimensions
         sns.heatmap(random_corr, ax=ax1, cmap='RdBu_r', center=0, 
-                   annot=True, fmt='.2f', square=True, cbar_kws={'label': 'Correlation'})
+                   annot=True, fmt='.2f', square=True)
         sns.heatmap(active_corr, ax=ax2, cmap='RdBu_r', center=0,
-                   annot=True, fmt='.2f', square=True, cbar_kws={'label': 'Correlation'})
+                   annot=True, fmt='.2f', square=True)
         
         # Customize plots
         ax1.set_title('Random Control Correlations')
@@ -391,174 +478,155 @@ def plot_state_distributions(random_data: pd.DataFrame,
 def plot_variable_distributions(random_data: pd.DataFrame,
                               active_data: pd.DataFrame,
                               constraints: pd.DataFrame,
-                              output_dir: Path = None):
-    """
-    Plot kernel density estimates of variable distributions for both strategies
-    
-    Args:
-        random_data: DataFrame from random control simulation
-        active_data: DataFrame from active inference simulation
-        constraints: DataFrame with variable constraints
-        output_dir: Directory to save plots
-    """
-    plt.ioff()
-    
+                              output_dir: Path):
+    """Plot distribution of variables under different control strategies"""
     try:
-        # Calculate number of variables and subplot layout
-        n_vars = len(constraints)
-        n_cols = 3
+        # Get variables excluding timestep
+        variables = [col for col in random_data.columns if col != 'timestep']
+        n_vars = len(variables)
+        
+        # Create subplots grid
+        n_cols = min(5, n_vars)
         n_rows = int(np.ceil(n_vars / n_cols))
+        fig, axes = plt.subplots(n_rows, n_cols, figsize=(4*n_cols, 4*n_rows))
         
-        # Create figure
-        fig, axes = plt.subplots(n_rows, n_cols, figsize=(15, 4*n_rows))
-        fig.suptitle('Variable Value Distributions Comparison', fontsize=16)
-        axes = axes.flatten()
-        
-        # Plot each variable
-        for idx, var in enumerate(constraints['variable']):
-            ax = axes[idx]
+        # Handle single row/column cases
+        if n_rows == 1 and n_cols == 1:
+            axes = np.array([[axes]])
+        elif n_rows == 1:
+            axes = axes.reshape(1, -1)
+        elif n_cols == 1:
+            axes = axes.reshape(-1, 1)
             
-            # Get constraint values
-            constraint = constraints[constraints['variable'] == var].iloc[0]
-            lower = constraint['lower_constraint']
-            upper = constraint['upper_constraint']
+        # Plot distributions for each variable
+        for idx, var in enumerate(variables):
+            row = idx // n_cols
+            col = idx % n_cols
+            ax = axes[row, col]
             
-            # Plot density estimates
-            sns.kdeplot(data=random_data[var], ax=ax, color='blue', 
-                       alpha=0.5, label='Random')
-            sns.kdeplot(data=active_data[var], ax=ax, color='green',
-                       alpha=0.5, label='Active Inference')
+            # Plot distributions
+            sns.kdeplot(data=random_data[var], ax=ax, color='gray', 
+                       label='Random', alpha=0.6)
+            sns.kdeplot(data=active_data[var], ax=ax, color='royalblue',
+                       label='Active', alpha=0.6)
             
-            # Add constraint lines
-            ax.axvline(x=lower, color='r', linestyle='--', alpha=0.5)
-            ax.axvline(x=upper, color='r', linestyle='--', alpha=0.5)
+            # Add constraints if available
+            if var in constraints['variable'].values:
+                constraint = constraints[constraints['variable'] == var].iloc[0]
+                ax.axvline(constraint['lower_constraint'], color='red', 
+                          linestyle='--', alpha=0.5)
+                ax.axvline(constraint['upper_constraint'], color='red',
+                          linestyle='--', alpha=0.5)
+                ax.axvspan(constraint['lower_constraint'], 
+                          constraint['upper_constraint'],
+                          color='green', alpha=0.1)
             
-            # Add statistical test
-            stat, pval = stats.ks_2samp(random_data[var], active_data[var])
-            ax.set_title(f'{var.replace("_", " ").title()}\np={pval:.3f}')
+            ax.set_title(var.replace('_', ' ').title())
+            if idx == 0:  # Only show legend for first plot
+                ax.legend()
             
-            ax.legend()
             ax.grid(True, alpha=0.3)
         
         # Remove empty subplots
-        for idx in range(len(constraints), len(axes)):
-            fig.delaxes(axes[idx])
+        for idx in range(len(variables), n_rows * n_cols):
+            row = idx // n_cols
+            col = idx % n_cols
+            fig.delaxes(axes[row, col])
         
+        plt.suptitle('Variable Distributions: Random vs Active Control', y=1.02)
         plt.tight_layout()
         
-        if output_dir:
-            plt.savefig(output_dir / 'variable_distributions.png',
-                       bbox_inches='tight', dpi=300)
-        plt.close(fig)
+        plt.savefig(output_dir / 'variable_distributions.png',
+                   bbox_inches='tight', dpi=300)
+        plt.close()
         
     except Exception as e:
-        print(f"Error in plot_variable_distributions: {e}")
+        print(f"Error generating variable distributions: {str(e)}")
         plt.close('all')
 
 def plot_control_actions(random_data: pd.DataFrame,
                         active_data: pd.DataFrame,
                         controllable_vars: List[str],
-                        output_dir: Path):
-    """Plot control action distributions and patterns"""
-    plt.ioff()
+                        output_dir: Path,
+                        logger: Optional[logging.Logger] = None):
+    """Plot control action distributions with improved handling
+    
+    Args:
+        random_data: DataFrame containing random control data
+        active_data: DataFrame containing active inference control data
+        controllable_vars: List of controllable variable names
+        output_dir: Directory to save visualization
+        logger: Optional logger instance
+    """
+    # Use print if logger not provided
+    log = logger.info if logger else print
     
     try:
-        fig, axes = plt.subplots(2, 2, figsize=(15, 12))
-        fig.suptitle('Control Action Analysis', fontsize=16)
+        fig, axes = plt.subplots(5, 2, figsize=(15, 20))
+        axes = axes.flatten()
         
-        # Calculate control actions (differences between timesteps)
-        def get_control_actions(data: pd.DataFrame):
-            actions = {}
-            for var in controllable_vars:
-                # Calculate single-step differences and trim to same length
-                actions[var] = np.diff(data[var].values)
-            return actions
-        
-        random_actions = get_control_actions(random_data)
-        active_actions = get_control_actions(active_data)
-        
-        # Ensure all action arrays have the same length
-        min_length = min(len(random_actions[controllable_vars[0]]),
-                        len(active_actions[controllable_vars[0]]))
-        
-        # Trim all arrays to minimum length
-        for var in controllable_vars:
-            random_actions[var] = random_actions[var][:min_length]
-            active_actions[var] = active_actions[var][:min_length]
-        
-        # Plot 1: Action Distribution Comparison
-        ax = axes[0, 0]
-        for var in controllable_vars:
-            sns.kdeplot(data=random_actions[var], ax=ax, 
-                       label=f'Random-{var}', linestyle='--')
-            sns.kdeplot(data=active_actions[var], ax=ax, 
-                       label=f'Active-{var}')
-        ax.set_title('Control Action Distributions')
-        ax.set_xlabel('Action Magnitude')
-        ax.set_ylabel('Density')
-        ax.grid(True, alpha=0.3)
-        ax.legend(bbox_to_anchor=(1.05, 1), loc='upper left')
-        
-        # Plot 2: Action Time Series
-        ax = axes[0, 1]
-        timesteps = np.arange(min_length)
-        for var in controllable_vars:
-            ax.plot(timesteps, random_actions[var], alpha=0.3, linestyle='--',
-                   label=f'Random-{var}')
-            ax.plot(timesteps, active_actions[var], alpha=0.7,
-                   label=f'Active-{var}')
-        ax.set_title('Control Actions Over Time')
-        ax.set_xlabel('Timestep')
-        ax.set_ylabel('Action Magnitude')
-        ax.grid(True, alpha=0.3)
-        ax.legend(bbox_to_anchor=(1.05, 1), loc='upper left')
-        
-        # Plot 3: Action Autocorrelation
-        ax = axes[1, 0]
-        max_lag = min(50, min_length // 4)
-        for var in controllable_vars:
-            # Calculate autocorrelation for both strategies
-            random_acf = [1.0] + [np.corrcoef(random_actions[var][:-i], 
-                                        random_actions[var][i:])[0,1] 
-                                for i in range(1, max_lag)]
-            active_acf = [1.0] + [np.corrcoef(active_actions[var][:-i], 
-                                           active_actions[var][i:])[0,1] 
-                               for i in range(1, max_lag)]
+        for i, var in enumerate(controllable_vars):
+            if i >= len(axes):
+                break
+                
+            ax = axes[i]
             
-            ax.plot(range(len(random_acf)), random_acf, linestyle='--', 
-                   alpha=0.3, label=f'Random-{var}')
-            ax.plot(range(len(active_acf)), active_acf, alpha=0.7,
-                   label=f'Active-{var}')
-        ax.set_title('Control Action Autocorrelation')
-        ax.set_xlabel('Lag')
-        ax.set_ylabel('Correlation')
-        ax.grid(True, alpha=0.3)
-        ax.legend(bbox_to_anchor=(1.05, 1), loc='upper left')
+            # Add small random noise for numerical stability
+            def add_jitter(data, var_name):
+                if var_name in data.columns:
+                    values = data[var_name].values
+                    noise = np.random.normal(0, 1e-6, size=len(values))
+                    return values + noise
+                return np.array([])
+            
+            random_values = add_jitter(random_data, var)
+            active_values = add_jitter(active_data, var)
+            
+            if len(random_values) > 0 and len(active_values) > 0:
+                try:
+                    # Plot distributions
+                    sns.kdeplot(data=random_values, ax=ax, color='red',
+                              label='Random', warn_singular=False)
+                    sns.kdeplot(data=active_values, ax=ax, color='green',
+                              label='Active Inference', warn_singular=False)
+                    
+                    # Add statistics
+                    ax.axvline(np.mean(random_values), color='red', linestyle='--', alpha=0.5)
+                    ax.axvline(np.mean(active_values), color='green', linestyle='--', alpha=0.5)
+                    
+                    # Add annotations
+                    stats_text = (
+                        f"Random μ={np.mean(random_values):.2f}, σ={np.std(random_values):.2f}\n"
+                        f"Active μ={np.mean(active_values):.2f}, σ={np.std(active_values):.2f}"
+                    )
+                    ax.text(0.95, 0.95, stats_text, transform=ax.transAxes,
+                           verticalalignment='top', horizontalalignment='right',
+                           bbox=dict(facecolor='white', alpha=0.8))
+                    
+                except Exception as e:
+                    log(f"Could not plot KDE for {var}, falling back to histogram: {e}")
+                    # Fallback to histogram
+                    ax.hist(random_values, alpha=0.5, color='red', label='Random',
+                           density=True, bins=20)
+                    ax.hist(active_values, alpha=0.5, color='green', label='Active',
+                           density=True, bins=20)
+            
+            ax.set_title(f'{var}\nControl Action Distribution')
+            ax.set_xlabel('Control Signal')
+            ax.set_ylabel('Density')
+            ax.legend()
+            ax.grid(True, alpha=0.3)
         
-        # Plot 4: Action Cross-correlation Matrix
-        ax = axes[1, 1]
-        all_actions = pd.DataFrame({
-            f'Random-{var}': random_actions[var] for var in controllable_vars
-        })
-        all_actions.update({
-            f'Active-{var}': active_actions[var] for var in controllable_vars
-        })
+        # Remove empty subplots
+        for ax in axes[len(controllable_vars):]:
+            fig.delaxes(ax)
         
-        # Create correlation matrix heatmap
-        sns.heatmap(all_actions.corr(), ax=ax, cmap='RdBu_r', center=0,
-                   annot=True, fmt='.2f', square=True)
-        ax.set_title('Control Action Correlations')
-        
-        # Adjust layout to prevent overlap
-        plt.tight_layout(rect=[0, 0.03, 0.95, 0.95])
-        
-        if output_dir:
-            plt.savefig(output_dir / 'control_actions_analysis.png',
-                       bbox_inches='tight', dpi=300)
-        plt.close(fig)
+        plt.tight_layout()
+        plt.savefig(output_dir / 'control_actions_analysis.png')
+        plt.close()
         
     except Exception as e:
-        print(f"Error in plot_control_actions: {e}")
+        log(f"Error generating control actions plot: {e}")
         plt.close('all')
 
 def plot_state_transitions(random_data: pd.DataFrame,
@@ -722,21 +790,27 @@ def plot_system_stability_analysis(random_data: pd.DataFrame,
         gs = plt.GridSpec(2, 2, figure=fig)
         fig.suptitle('System Stability Analysis', fontsize=16)
         
-        # Plot 1: Phase Space Trajectories
+        # Plot 1: Phase Space Trajectories (use controllable variables)
         ax1 = fig.add_subplot(gs[0, 0], projection='3d')
-        ax1.plot(random_data['forest_health'], 
-                random_data['carbon_sequestration'],
-                random_data['riparian_buffer_width'],
-                'b-', alpha=0.5, label='Random')
-        ax1.plot(active_data['forest_health'],
-                active_data['carbon_sequestration'],
-                active_data['riparian_buffer_width'],
-                'g-', alpha=0.5, label='Active')
-        ax1.set_title('Control Variable Phase Space')
-        ax1.set_xlabel('Forest Health')
-        ax1.set_ylabel('Carbon Seq.')
-        ax1.set_zlabel('Buffer Width')
-        ax1.legend()
+        
+        # Get first three controllable variables
+        vars_to_plot = [col for col in random_data.columns 
+                       if col != 'timestep'][:3]
+        
+        if len(vars_to_plot) >= 3:
+            ax1.plot(random_data[vars_to_plot[0]], 
+                    random_data[vars_to_plot[1]],
+                    random_data[vars_to_plot[2]],
+                    'b-', alpha=0.5, label='Random')
+            ax1.plot(active_data[vars_to_plot[0]],
+                    active_data[vars_to_plot[1]],
+                    active_data[vars_to_plot[2]],
+                    'g-', alpha=0.5, label='Active')
+            ax1.set_title('Variable Phase Space')
+            ax1.set_xlabel(vars_to_plot[0])
+            ax1.set_ylabel(vars_to_plot[1])
+            ax1.set_zlabel(vars_to_plot[2])
+            ax1.legend()
         
         # Plot 2: Stability Metrics
         ax2 = fig.add_subplot(gs[0, 1])
@@ -744,16 +818,18 @@ def plot_system_stability_analysis(random_data: pd.DataFrame,
         def calculate_stability_metrics(data: pd.DataFrame, 
                                      constraints: pd.DataFrame) -> Dict[str, float]:
             metrics = {}
-            for var in constraints['variable']:
-                values = data[var]
-                constraint = constraints[constraints['variable'] == var].iloc[0]
-                target = (constraint['upper_constraint'] + constraint['lower_constraint']) / 2
-                
-                # Calculate metrics
-                metrics[f"{var}_variance"] = values.var()
-                metrics[f"{var}_mean_deviation"] = np.abs(values - target).mean()
-                metrics[f"{var}_max_deviation"] = np.abs(values - target).max()
-                
+            for var in data.columns:
+                if var != 'timestep':
+                    values = data[var].values
+                    if len(values) > 0:
+                        constraint = constraints[constraints['variable'] == var].iloc[0]
+                        target = (constraint['upper_constraint'] + constraint['lower_constraint']) / 2
+                        
+                        # Calculate metrics
+                        metrics[f"{var}_variance"] = np.var(values)
+                        metrics[f"{var}_mean_deviation"] = np.mean(np.abs(values - target))
+                        metrics[f"{var}_max_deviation"] = np.max(np.abs(values - target))
+            
             return metrics
         
         random_metrics = calculate_stability_metrics(random_data, constraints)
@@ -772,53 +848,71 @@ def plot_system_stability_analysis(random_data: pd.DataFrame,
         # Plot 3: Control Effort Analysis
         ax3 = fig.add_subplot(gs[1, 0])
         
-        def calculate_control_effort(data: pd.DataFrame, 
-                                  controllable_vars: List[str]) -> pd.Series:
+        def calculate_control_effort(data: pd.DataFrame) -> pd.Series:
             efforts = {}
-            for var in controllable_vars:
-                efforts[var] = np.abs(np.diff(data[var])).sum()
+            for var in data.columns:
+                if var != 'timestep':
+                    # Calculate rolling mean of absolute changes
+                    changes = np.abs(np.diff(data[var].values))
+                    efforts[var] = np.mean(changes) if len(changes) > 0 else 0
             return pd.Series(efforts)
         
-        random_effort = calculate_control_effort(random_data, 
-                                               ['forest_health', 'carbon_sequestration', 
-                                                'riparian_buffer_width'])
-        active_effort = calculate_control_effort(active_data,
-                                               ['forest_health', 'carbon_sequestration',
-                                                'riparian_buffer_width'])
+        random_effort = calculate_control_effort(random_data)
+        active_effort = calculate_control_effort(active_data)
         
         effort_df = pd.DataFrame({
             'Random': random_effort,
             'Active': active_effort
         })
         effort_df.plot(kind='bar', ax=ax3)
-        ax3.set_title('Total Control Effort')
-        ax3.set_ylabel('Cumulative Absolute Change')
+        ax3.set_title('Average Control Effort')
+        ax3.set_ylabel('Mean Absolute Change')
         ax3.grid(True, alpha=0.3)
         
-        # Plot 4: System Response Analysis
+        # Plot 4: Response Analysis
         ax4 = fig.add_subplot(gs[1, 1])
         
-        def calculate_response_metrics(data: pd.DataFrame) -> Dict[str, float]:
+        def calculate_response_metrics(data: pd.DataFrame, 
+                                    target: float, 
+                                    tolerance: float) -> Dict[str, float]:
+            """Calculate response metrics with error handling"""
             metrics = {}
-            for var in data.columns:
-                if var != 'timestep':
-                    # Calculate various response metrics
-                    values = data[var]
-                    metrics[f"{var}_settling_time"] = len(values) - np.argmax(
-                        (np.abs(values - target) <= tolerance)[::-1]
-                    )
-                    metrics[f"{var}_overshoot"] = (
-                        (values.max() - values.iloc[-1]) / values.iloc[-1] * 100
-                    )
+            
+            try:
+                for var in data.columns:
+                    if var != 'timestep':
+                        values = data[var].values
+                        if len(values) > 0:
+                            # Calculate settling time
+                            within_tolerance = np.abs(values - target) <= tolerance
+                            if np.any(within_tolerance):
+                                settling_time = len(values) - np.argmax(within_tolerance[::-1])
+                                metrics[f"{var}_settling"] = settling_time
+                            
+                            # Calculate overshoot
+                            if values[-1] != 0:
+                                overshoot = ((np.max(values) - values[-1]) / values[-1]) * 100
+                                metrics[f"{var}_overshoot"] = overshoot
+            except Exception as e:
+                print(f"Error in response metrics: {e}")
+            
             return metrics
         
-        random_response = calculate_response_metrics(random_data)
-        active_response = calculate_response_metrics(active_data)
+        # Calculate response metrics
+        response_metrics = {}
+        for var in constraints['variable']:
+            constraint = constraints[constraints['variable'] == var].iloc[0]
+            target = (constraint['upper_constraint'] + constraint['lower_constraint']) / 2
+            tolerance = (constraint['upper_constraint'] - constraint['lower_constraint']) * 0.1
+            
+            random_response = calculate_response_metrics(random_data[[var]], target, tolerance)
+            active_response = calculate_response_metrics(active_data[[var]], target, tolerance)
+            
+            response_metrics.update(random_response)
+            response_metrics.update(active_response)
         
-        response_df = pd.DataFrame({
-            'Random': random_response,
-            'Active': active_response
-        })
+        # Plot response metrics
+        response_df = pd.DataFrame(response_metrics, index=['Value']).T
         response_df.plot(kind='bar', ax=ax4)
         ax4.set_title('System Response Characteristics')
         ax4.set_xticklabels(ax4.get_xticklabels(), rotation=45, ha='right')
@@ -835,219 +929,608 @@ def plot_system_stability_analysis(random_data: pd.DataFrame,
         print(f"Error in plot_system_stability_analysis: {e}")
         plt.close('all')
 
+def plot_decision_comparison(random_data: pd.DataFrame,
+                           active_data: pd.DataFrame,
+                           controllable_vars: List[str],
+                           output_dir: Path):
+    """Plot side-by-side comparison of decisions/actions taken by each control strategy"""
+    try:
+        # Create figure with 2x2 subplots with more space
+        fig = plt.figure(figsize=(20, 16))
+        gs = plt.GridSpec(2, 2, figure=fig, hspace=0.3, wspace=0.3)
+        
+        # 1. Overall Decision Distribution (top left) - keep as is
+        ax1 = fig.add_subplot(gs[0, 0])
+        # ... existing distribution code ...
+
+        # 2. Decision Timing Analysis (top right) - NEW
+        ax2 = fig.add_subplot(gs[0, 1])
+        def plot_decision_timing(data, label, color):
+            changes = []
+            for var in controllable_vars:
+                var_data = data[var].values
+                # Calculate time between value changes
+                change_points = np.where(np.abs(np.diff(var_data)) > 0.1)[0]
+                if len(change_points) > 1:
+                    changes.extend(np.diff(change_points))
+            
+            if changes:
+                sns.histplot(changes, ax=ax2, label=label, color=color, alpha=0.5)
+                
+        plot_decision_timing(random_data, "Random", "gray")
+        plot_decision_timing(active_data, "Active Inference", "royalblue")
+        ax2.set_title("Time Between Decisions")
+        ax2.set_xlabel("Timesteps")
+        ax2.set_ylabel("Frequency")
+        ax2.legend()
+        
+        # 3. Control Effectiveness (bottom left) - NEW
+        ax3 = fig.add_subplot(gs[1, 0])
+        
+        def calculate_control_effectiveness(data, constraints):
+            effectiveness = []
+            for var in controllable_vars:
+                values = data[var].values
+                constraint = constraints[constraints['variable'] == var].iloc[0]
+                target = (constraint['upper_constraint'] + constraint['lower_constraint']) / 2
+                
+                # Calculate moving average of distance to target
+                window = 50
+                distances = np.abs(values - target)
+                moving_avg = pd.Series(distances).rolling(window).mean()
+                
+                # Convert to effectiveness score (inverse of distance)
+                max_distance = max(target - constraint['lower_constraint'],
+                                 constraint['upper_constraint'] - target)
+                effectiveness.append(1 - (moving_avg / max_distance))
+                
+            return np.mean(effectiveness, axis=0)
+            
+        random_effect = calculate_control_effectiveness(random_data, constraints)
+        active_effect = calculate_control_effectiveness(active_data, constraints)
+        
+        timesteps = range(len(random_effect))
+        ax3.plot(timesteps, random_effect, label="Random", color="gray", alpha=0.7)
+        ax3.plot(timesteps, active_effect, label="Active Inference", color="royalblue", alpha=0.7)
+        ax3.set_title("Control Effectiveness Over Time")
+        ax3.set_xlabel("Timestep")
+        ax3.set_ylabel("Effectiveness Score")
+        ax3.legend()
+        ax3.grid(True, alpha=0.3)
+        
+        # 4. Decision Impact Analysis (bottom right) - keep as is
+        ax4 = fig.add_subplot(gs[1, 1])
+        # ... existing effectiveness distribution code ...
+        
+        plt.subplots_adjust(top=0.95, bottom=0.05, left=0.1, right=0.9)
+        plt.savefig(output_dir / 'decision_analysis.png',
+                   bbox_inches='tight', dpi=300)
+        plt.close()
+        
+    except Exception as e:
+        print(f"Error in plot_decision_analysis: {e}")
+        plt.close('all')
+
 def generate_all_visualizations(random_data: pd.DataFrame,
                               active_data: pd.DataFrame,
                               constraints: pd.DataFrame,
                               controllable_vars: List[str],
                               output_dir: Path,
-                              logger: logging.Logger,
-                              agent_data: Optional[Dict] = None):
-    """Generate and save all visualization types with logging"""
-    # Create visualization directory
+                              logger: logging.Logger) -> bool:
+    """Generate all visualization plots"""
+    # Create visualizations directory
     vis_dir = output_dir / 'visualizations'
-    vis_dir.mkdir(exist_ok=True)
+    vis_dir.mkdir(parents=True, exist_ok=True)
     
     try:
-        # Basic visualizations
-        visualizations = [
-            ("individual strategy plots", lambda: (
-                plot_data(random_data, constraints, controllable_vars, 'random', vis_dir),
-                plot_data(active_data, constraints, controllable_vars, 'active_inference', vis_dir)
-            )),
-            ("strategy comparison", lambda: plot_comparison(
-                random_data, active_data, constraints, controllable_vars, vis_dir
-            )),
-            ("satisfaction rates", lambda: plot_satisfaction_rates(
-                random_data, active_data, constraints, vis_dir
-            )),
-            ("correlation heatmaps", lambda: plot_correlation_heatmaps(
-                random_data, active_data, vis_dir
-            )),
-            ("state distributions", lambda: plot_state_distributions(
-                random_data, active_data, constraints, vis_dir
-            )),
-            ("variable distributions", lambda: plot_variable_distributions(
-                random_data, active_data, constraints, vis_dir
-            )),
-            ("control actions", lambda: plot_control_actions(
-                random_data, active_data, controllable_vars, vis_dir
-            )),
-            ("state transitions", lambda: plot_state_transitions(
-                random_data, active_data, constraints, vis_dir
-            )),
-            ("system stability", lambda: plot_system_stability_analysis(
-                random_data, active_data, constraints, vis_dir
-            ))
-        ]
-
-        # Generate each visualization with error handling
-        generated_files = []
-        for name, plot_func in visualizations:
-            try:
-                logger.info(f"Generating {name}...")
-                plot_func()
-                logger.info(f"✓ {name.title()} saved")
-            except Exception as e:
-                logger.error(f"Error generating {name}: {str(e)}")
-
-        # Generate active inference analysis if data available
-        if agent_data is not None:
-            try:
-                logger.info("Generating active inference analysis...")
-                plot_active_inference_analysis(agent_data, vis_dir)
-                logger.info("✓ Active inference analysis saved")
-            except Exception as e:
-                logger.error(f"Error generating active inference analysis: {str(e)}")
-
-        # Log all generated files
-        logger.info("\nGenerated visualization files:")
-        for file in sorted(vis_dir.glob('*.png')):
-            logger.info(f"  - {file.name}")
-
-        # Generate combined report
-        try:
-            logger.info("\nGenerating combined analysis report...")
-            generate_analysis_report(
-                random_data=random_data,
-                active_data=active_data,
-                constraints=constraints,
-                controllable_vars=controllable_vars,
-                agent_data=agent_data,
-                generated_files=generated_files,
-                output_dir=vis_dir
-            )
-            logger.info("✓ Analysis report saved")
-        except Exception as e:
-            logger.error(f"Error generating analysis report: {str(e)}")
-
+        logger.info("Generating individual strategy plots...")
+        # Create single faceted plot comparing both strategies
+        plot_combined_strategies(
+            random_data=random_data,
+            active_data=active_data,
+            constraints=constraints,
+            controllable_vars=controllable_vars,
+            output_dir=vis_dir
+        )
+        logger.info("✓ Individual Strategy Plots saved")
+        
+        logger.info("Generating strategy comparison...")
+        plot_comparison(
+            random_data=random_data,
+            active_data=active_data,
+            constraints=constraints,
+            controllable_vars=controllable_vars,
+            output_dir=vis_dir
+        )
+        logger.info("✓ Strategy Comparison saved")
+        
+        logger.info("Generating satisfaction rates...")
+        plot_satisfaction_rates(
+            random_data=random_data,
+            active_data=active_data,
+            constraints=constraints,
+            output_dir=vis_dir
+        )
+        logger.info("✓ Satisfaction Rates saved")
+        
+        logger.info("Generating correlation heatmaps...")
+        plot_correlation_heatmaps(
+            random_data=random_data,
+            active_data=active_data,
+            output_dir=vis_dir
+        )
+        logger.info("✓ Correlation Heatmaps saved")
+        
+        logger.info("Generating state distributions...")
+        plot_state_distributions(
+            random_data=random_data,
+            active_data=active_data,
+            constraints=constraints,
+            output_dir=vis_dir
+        )
+        logger.info("✓ State Distributions saved")
+        
+        logger.info("Generating variable distributions...")
+        plot_variable_distributions(
+            random_data=random_data,
+            active_data=active_data,
+            constraints=constraints,
+            output_dir=vis_dir
+        )
+        logger.info("✓ Variable Distributions saved")
+        
+        logger.info("Generating control actions...")
+        plot_control_actions(
+            random_data=random_data,
+            active_data=active_data,
+            controllable_vars=controllable_vars,
+            output_dir=vis_dir,
+            logger=logger
+        )
+        logger.info("✓ Control Actions saved")
+        
+        logger.info("Generating state transitions...")
+        plot_state_transitions(
+            random_data=random_data,
+            active_data=active_data,
+            constraints=constraints,
+            output_dir=vis_dir
+        )
+        logger.info("✓ State Transitions saved")
+        
+        logger.info("Generating system stability...")
+        plot_system_stability_analysis(
+            random_data=random_data,
+            active_data=active_data,
+            constraints=constraints,
+            output_dir=vis_dir
+        )
+        logger.info("✓ System Stability saved")
+        
+        logger.info("Generating decision comparison...")
+        plot_decision_comparison(
+            random_data=random_data,
+            active_data=active_data,
+            controllable_vars=controllable_vars,
+            output_dir=vis_dir
+        )
+        logger.info("✓ Decision Comparison saved")
+        
+        # Log generated files
+        generated_files = list(vis_dir.glob('*.png'))
+        if generated_files:
+            logger.info("\nGenerated visualization files:")
+            for file in sorted(f.name for f in generated_files):
+                logger.info(f"  - {file}")
+        
         return True
-
+        
     except Exception as e:
         logger.error(f"Error in visualization generation: {str(e)}")
+        logger.debug("Full traceback:", exc_info=True)
         plt.close('all')
         return False
 
-def generate_analysis_report(random_data: pd.DataFrame,
+def plot_combined_strategies(random_data: pd.DataFrame,
                            active_data: pd.DataFrame,
                            constraints: pd.DataFrame,
                            controllable_vars: List[str],
-                           agent_data: Optional[Dict],
-                           generated_files: List[str],
                            output_dir: Path):
-    """Generate a comprehensive analysis report combining all visualizations"""
+    """Create single faceted plot comparing both control strategies"""
+    plt.ioff()
+    
     try:
-        # Create report figure
-        fig = plt.figure(figsize=(20, 30))
-        gs = plt.GridSpec(5, 2, figure=fig)
-        fig.suptitle('Ecosystem Control Strategy Analysis Report', fontsize=20, y=0.98)
-
-        # 1. Overall Performance Comparison
-        ax1 = fig.add_subplot(gs[0, :])
-        plot_overall_performance_comparison(random_data, active_data, constraints, ax1)
-
-        # 2. Control Strategy Effectiveness
-        ax2 = fig.add_subplot(gs[1, 0])
-        plot_control_effectiveness(random_data, active_data, controllable_vars, ax2)
-
-        # 3. System Stability Analysis
-        ax3 = fig.add_subplot(gs[1, 1])
-        plot_stability_metrics(random_data, active_data, constraints, ax3)
-
-        # 4. State Distribution Analysis
-        ax4 = fig.add_subplot(gs[2, :])
-        plot_state_distribution_summary(random_data, active_data, constraints, ax4)
-
-        # 5. Control Action Analysis
-        ax5 = fig.add_subplot(gs[3, 0])
-        plot_control_action_summary(random_data, active_data, controllable_vars, ax5)
-
-        # 6. Active Inference Performance (if data available)
-        ax6 = fig.add_subplot(gs[3, 1])
-        if agent_data:
-            plot_active_inference_summary(agent_data, ax6)
-        else:
-            ax6.text(0.5, 0.5, 'Active Inference Data Not Available',
-                    ha='center', va='center')
-
-        # 7. Key Findings and Recommendations
-        ax7 = fig.add_subplot(gs[4, :])
-        plot_key_findings(random_data, active_data, constraints, ax7)
-
-        plt.tight_layout(rect=[0.02, 0.02, 0.98, 0.96])
+        # Get variables excluding timestep
+        variables = [col for col in random_data.columns if col != 'timestep']
+        n_vars = len(variables)
+        n_cols = 2  # Two columns: random and active inference
+        n_rows = n_vars
         
-        # Save report
-        plt.savefig(output_dir / 'analysis_report.png', dpi=300, bbox_inches='tight')
-        plt.close(fig)
-
+        # Create figure
+        fig = plt.figure(figsize=(20, 4*n_rows))
+        gs = plt.GridSpec(n_rows, n_cols)
+        
+        # Plot each variable
+        for var_idx, var_name in enumerate(variables):  # Changed from random_data.columns
+            # Plot random control
+            ax_random = fig.add_subplot(gs[var_idx, 0])
+            plot_variable(ax_random, random_data, var_name, constraints, 
+                         controllable_vars, 'Random Control', 'gray')
+            
+            # Plot active inference
+            ax_active = fig.add_subplot(gs[var_idx, 1])
+            plot_variable(ax_active, active_data, var_name, constraints,
+                         controllable_vars, 'Active Inference', 'royalblue')
+            
+            # Add variable name to the left
+            if var_idx == 0:
+                ax_random.set_title('Random Control', fontsize=12, pad=10)
+                ax_active.set_title('Active Inference', fontsize=12, pad=10)
+        
+        plt.suptitle('Control Strategy Comparison', fontsize=14, y=1.02)
+        plt.tight_layout()
+        
+        # Save plot
+        plt.savefig(output_dir / 'strategy_comparison.png',
+                   bbox_inches='tight', dpi=300)
+        plt.close()
+        
     except Exception as e:
-        raise Exception(f"Error generating analysis report: {str(e)}")
+        print(f"Error in plot_combined_strategies: {str(e)}")
+        plt.close('all')
 
-def plot_overall_performance_comparison(random_data: pd.DataFrame,
-                                     active_data: pd.DataFrame,
-                                     constraints: pd.DataFrame,
-                                     ax: plt.Axes):
-    """Plot overall performance metrics comparison"""
-    # Calculate performance metrics
-    metrics = calculate_performance_metrics(random_data, active_data, constraints)
+def plot_variable(ax: plt.Axes, 
+                 data: pd.DataFrame,
+                 var_name: str,
+                 constraints: pd.DataFrame,
+                 controllable_vars: List[str],
+                 title: str,
+                 color: str):
+    """Plot single variable for a control strategy"""
     
-    # Create grouped bar plot
-    x = np.arange(len(metrics['metrics']))
-    width = 0.35
+    # Determine if variable is controlled
+    is_controlled = var_name in controllable_vars
     
-    ax.bar(x - width/2, metrics['random'], width, label='Random Control',
-           color='lightblue', alpha=0.7)
-    ax.bar(x + width/2, metrics['active'], width, label='Active Inference',
-           color='lightgreen', alpha=0.7)
+    # Plot variable
+    ax.plot(data['timestep'], data[var_name],
+            color=color,
+            linewidth=2.5 if is_controlled else 1.5,
+            alpha=0.9 if is_controlled else 0.7,
+            label=var_name)
     
-    ax.set_ylabel('Performance Score')
-    ax.set_title('Overall Performance Comparison')
-    ax.set_xticks(x)
-    ax.set_xticklabels(metrics['metrics'], rotation=45, ha='right')
-    ax.legend()
+    # Add constraints
+    if var_name in constraints['variable'].values:
+        constraint = constraints[constraints['variable'] == var_name].iloc[0]
+        
+        # Target range
+        ax.axhspan(constraint['lower_constraint'],
+                  constraint['upper_constraint'],
+                  color='green', alpha=0.1)
+        
+        # Constraint lines
+        ax.axhline(y=constraint['lower_constraint'], color='red',
+                  linestyle='--', alpha=0.5)
+        ax.axhline(y=constraint['upper_constraint'], color='red',
+                  linestyle='--', alpha=0.5)
+    
+    # Calculate statistics
+    mean_val = data[var_name].mean()
+    std_val = data[var_name].std()
+    in_bounds = 0
+    if var_name in constraints['variable'].values:
+        constraint = constraints[constraints['variable'] == var_name].iloc[0]
+        in_bounds = ((data[var_name] >= constraint['lower_constraint']) & 
+                    (data[var_name] <= constraint['upper_constraint'])).mean() * 100
+    
+    # Add statistics text
+    stats_text = f'{var_name}\nMean: {mean_val:.1f}\nStd: {std_val:.1f}\nIn Target: {in_bounds:.1f}%'
+    ax.text(0.02, 0.98, stats_text,
+            transform=ax.transAxes,
+            verticalalignment='top',
+            bbox=dict(facecolor='white', alpha=0.8))
+    
+    # Customize plot
     ax.grid(True, alpha=0.3)
+    ax.set_ylabel(get_unit(var_name))
+    if is_controlled:
+        ax.set_facecolor('#f0f9ff')  # Light blue background for controlled variables
 
-    # Add value labels
-    for i, v in enumerate(metrics['random']):
-        ax.text(i - width/2, v, f'{v:.1f}', ha='center', va='bottom')
-    for i, v in enumerate(metrics['active']):
-        ax.text(i + width/2, v, f'{v:.1f}', ha='center', va='bottom')
+def plot_belief_dynamics(beliefs: np.ndarray, 
+                        variable_name: str,
+                        output_dir: Path,
+                        logger: Optional[logging.Logger] = None) -> None:
+    """Plot belief dynamics over time with improved error handling"""
+    try:
+        fig, ax = plt.subplots(figsize=(10, 6))
+        
+        # Ensure beliefs is 2D array [timesteps, belief_states]
+        if len(beliefs.shape) == 1:
+            beliefs = beliefs.reshape(-1, 1)
+            
+        # Create heatmap of belief evolution
+        im = ax.imshow(beliefs.T, aspect='auto', cmap='viridis')
+        plt.colorbar(im, ax=ax, label='Belief Probability')
+        
+        ax.set_title(f'Belief Dynamics for {variable_name}')
+        ax.set_xlabel('Time Step')
+        ax.set_ylabel('Belief State')
+        
+        # Save plot
+        output_path = output_dir / f'belief_dynamics_{variable_name}.png'
+        plt.savefig(output_path, bbox_inches='tight', dpi=300)
+        plt.close()
+        
+        if logger:
+            logger.info(f"Belief dynamics plot saved to {output_path}")
+            
+    except Exception as e:
+        if logger:
+            logger.error(f"Error generating belief dynamics plot: {str(e)}")
+        plt.close()
 
-def calculate_performance_metrics(random_data: pd.DataFrame,
-                               active_data: pd.DataFrame,
-                               constraints: pd.DataFrame) -> Dict:
-    """Calculate comprehensive performance metrics for both strategies"""
-    metrics = {
-        'metrics': [
-            'Constraint Satisfaction (%)',
-            'Stability Score',
-            'Control Efficiency',
-            'Response Time',
-            'Overall Score'
-        ],
-        'random': [],
-        'active': []
-    }
+def plot_decision_analysis(decisions: np.ndarray,
+                          variable_name: str, 
+                          output_dir: Path,
+                          logger: Optional[logging.Logger] = None) -> None:
+    """Plot decision analysis with improved visualization and metrics
     
-    # Calculate metrics for both strategies
-    for data, key in [(random_data, 'random'), (active_data, 'active')]:
-        # 1. Constraint Satisfaction
-        satisfaction = calculate_satisfaction_rate(data, constraints)
+    Args:
+        decisions: Array of decisions/actions taken
+        variable_name: Name of the variable being controlled
+        output_dir: Directory to save visualization
+        logger: Optional logger instance
+    """
+    try:
+        fig, axes = plt.subplots(2, 2, figsize=(15, 12))
+        fig.suptitle(f'Decision Analysis for {variable_name}', fontsize=14)
         
-        # 2. Stability Score
-        stability = calculate_stability_score(data)
+        # 1. Decision Distribution (Top Left)
+        ax = axes[0, 0]
+        unique_decisions, counts = np.unique(decisions, return_counts=True)
+        percentages = counts / len(decisions) * 100
         
-        # 3. Control Efficiency
-        efficiency = calculate_control_efficiency(data)
+        bars = ax.bar(['Decrease', 'Maintain', 'Increase'], percentages)
+        ax.set_title('Action Distribution')
+        ax.set_ylabel('Percentage of Time (%)')
         
-        # 4. Response Time
-        response = calculate_response_time(data)
+        # Add percentage labels on bars
+        for bar in bars:
+            height = bar.get_height()
+            ax.text(bar.get_x() + bar.get_width()/2., height,
+                   f'{height:.1f}%',
+                   ha='center', va='bottom')
         
-        # 5. Overall Score (weighted average)
-        overall = (satisfaction * 0.4 + stability * 0.3 + 
-                  efficiency * 0.2 + response * 0.1)
+        ax.grid(True, alpha=0.3)
         
-        metrics[key] = [satisfaction, stability, efficiency, response, overall]
-    
-    return metrics
+        # 2. Decision Transitions (Top Right)
+        ax = axes[0, 1]
+        transitions = np.zeros((3, 3))
+        for i in range(len(decisions)-1):
+            transitions[int(decisions[i]), int(decisions[i+1])] += 1
+            
+        # Normalize transitions
+        row_sums = transitions.sum(axis=1, keepdims=True)
+        transitions = np.divide(transitions, row_sums, 
+                              where=row_sums!=0,
+                              out=np.zeros_like(transitions))
+        
+        sns.heatmap(transitions, ax=ax, annot=True, fmt='.2f', cmap='YlOrRd',
+                   xticklabels=['Decrease', 'Maintain', 'Increase'],
+                   yticklabels=['Decrease', 'Maintain', 'Increase'])
+        ax.set_title('Action Transition Probabilities')
+        ax.set_xlabel('Next Action')
+        ax.set_ylabel('Current Action')
+        
+        # 3. Decision Consistency Analysis (Bottom Left)
+        ax = axes[1, 0]
+        
+        # Calculate run lengths of same decision
+        run_lengths = []
+        current_run = 1
+        
+        for i in range(1, len(decisions)):
+            if decisions[i] == decisions[i-1]:
+                current_run += 1
+            else:
+                run_lengths.append(current_run)
+                current_run = 1
+        run_lengths.append(current_run)
+        
+        # Plot run length distribution
+        ax.hist(run_lengths, bins=20, alpha=0.7, color='blue',
+                edgecolor='black')
+        ax.set_title('Decision Consistency')
+        ax.set_xlabel('Consecutive Steps Same Action')
+        ax.set_ylabel('Frequency')
+        
+        # Add statistics
+        mean_run = np.mean(run_lengths)
+        max_run = np.max(run_lengths)
+        stats_text = f'Mean Run: {mean_run:.1f}\nMax Run: {max_run:.0f}'
+        ax.text(0.95, 0.95, stats_text,
+                transform=ax.transAxes,
+                verticalalignment='top',
+                horizontalalignment='right',
+                bbox=dict(facecolor='white', alpha=0.8))
+        
+        ax.grid(True, alpha=0.3)
+        
+        # 4. Decision Timing Analysis (Bottom Right)
+        ax = axes[1, 1]
+        
+        # Calculate time between decision changes
+        change_points = np.where(np.diff(decisions) != 0)[0]
+        intervals = np.diff(change_points)
+        
+        if len(intervals) > 0:
+            # Plot interval distribution
+            ax.hist(intervals, bins=20, alpha=0.7, color='green',
+                   edgecolor='black')
+            ax.set_title('Time Between Decision Changes')
+            ax.set_xlabel('Time Steps')
+            ax.set_ylabel('Frequency')
+            
+            # Add statistics
+            mean_interval = np.mean(intervals)
+            median_interval = np.median(intervals)
+            stats_text = (f'Mean Interval: {mean_interval:.1f}\n'
+                         f'Median Interval: {median_interval:.1f}')
+            ax.text(0.95, 0.95, stats_text,
+                   transform=ax.transAxes,
+                   verticalalignment='top',
+                   horizontalalignment='right',
+                   bbox=dict(facecolor='white', alpha=0.8))
+        else:
+            ax.text(0.5, 0.5, 'No decision changes',
+                   ha='center', va='center')
+        
+        ax.grid(True, alpha=0.3)
+        
+        plt.tight_layout()
+        
+        # Save plot
+        output_path = output_dir / f'decision_analysis_{variable_name}.png'
+        plt.savefig(output_path, bbox_inches='tight', dpi=300)
+        plt.close()
+        
+        if logger:
+            logger.info(f"Decision analysis plot saved to {output_path}")
+            
+    except Exception as e:
+        if logger:
+            logger.error(f"Error generating decision analysis plot: {str(e)}")
+        plt.close()
 
-# Add helper functions for metric calculations...
+def plot_action_selection(actions: np.ndarray,
+                         beliefs: np.ndarray,
+                         variable_name: str,
+                         output_dir: Path,
+                         logger: Optional[logging.Logger] = None) -> None:
+    """Plot action selection analysis with improved error handling"""
+    try:
+        fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(15, 6))
+        
+        # Ensure arrays are properly shaped
+        actions = np.asarray(actions).flatten()
+        if len(beliefs.shape) == 1:
+            beliefs = beliefs.reshape(-1, 1)
+        
+        # Plot action-belief relationship
+        belief_max = np.argmax(beliefs, axis=1)
+        for action in np.unique(actions):
+            mask = actions == action
+            if np.any(mask):
+                ax1.scatter(belief_max[mask], actions[mask], 
+                          alpha=0.5, label=f'Action {action}')
+        
+        ax1.set_title('Action vs Belief State')
+        ax1.set_xlabel('Most Likely Belief State')
+        ax1.set_ylabel('Selected Action')
+        
+        # Plot action frequency over time
+        ax2.plot(actions, alpha=0.7)
+        ax2.set_title('Action Selection Over Time')
+        ax2.set_xlabel('Time Step')
+        ax2.set_ylabel('Selected Action')
+        
+        plt.suptitle(f'Action Selection Analysis for {variable_name}')
+        
+        # Save plot
+        output_path = output_dir / f'action_selection_{variable_name}.png'
+        plt.savefig(output_path, bbox_inches='tight', dpi=300)
+        plt.close()
+        
+        if logger:
+            logger.info(f"Action selection plot saved to {output_path}")
+            
+    except Exception as e:
+        if logger:
+            logger.error(f"Error generating action selection plot: {str(e)}")
+        plt.close()
+
+def plot_belief_evolution(beliefs: np.ndarray,
+                         variable_name: str,
+                         output_dir: Path,
+                         logger: Optional[logging.Logger] = None) -> None:
+    """Plot belief evolution over time with improved error handling"""
+    try:
+        fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(15, 6))
+        
+        # Ensure beliefs is 2D array
+        if len(beliefs.shape) == 1:
+            beliefs = beliefs.reshape(-1, 1)
+        
+        # Plot belief probabilities over time
+        for i in range(beliefs.shape[1]):
+            ax1.plot(beliefs[:, i], label=f'State {i}', alpha=0.7)
+        
+        ax1.set_title('Belief Evolution')
+        ax1.set_xlabel('Time Step')
+        ax1.set_ylabel('Belief Probability')
+        ax1.legend()
+        
+        # Plot entropy of belief distribution
+        entropy = -np.sum(beliefs * np.log2(beliefs + 1e-10), axis=1)
+        ax2.plot(entropy, color='red', alpha=0.7)
+        ax2.set_title('Belief Entropy')
+        ax2.set_xlabel('Time Step')
+        ax2.set_ylabel('Entropy (bits)')
+        
+        plt.suptitle(f'Belief Evolution Analysis for {variable_name}')
+        
+        # Save plot
+        output_path = output_dir / f'belief_evolution_{variable_name}.png'
+        plt.savefig(output_path, bbox_inches='tight', dpi=300)
+        plt.close()
+        
+        if logger:
+            logger.info(f"Belief evolution plot saved to {output_path}")
+            
+    except Exception as e:
+        if logger:
+            logger.error(f"Error generating belief evolution plot: {str(e)}")
+        plt.close()
+
+def plot_belief_convergence(beliefs: np.ndarray,
+                           variable_name: str,
+                           output_dir: Path,
+                           logger: Optional[logging.Logger] = None) -> None:
+    """Plot belief convergence analysis with improved error handling"""
+    try:
+        fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(15, 6))
+        
+        # Ensure beliefs is 2D array
+        if len(beliefs.shape) == 1:
+            beliefs = beliefs.reshape(-1, 1)
+        
+        # Calculate belief changes
+        belief_changes = np.abs(np.diff(beliefs, axis=0))
+        mean_changes = np.mean(belief_changes, axis=1)
+        
+        # Plot average belief changes
+        ax1.plot(mean_changes, alpha=0.7)
+        ax1.set_title('Belief Stability')
+        ax1.set_xlabel('Time Step')
+        ax1.set_ylabel('Average Belief Change')
+        
+        # Plot final belief distribution
+        final_beliefs = beliefs[-1]
+        ax2.bar(range(len(final_beliefs)), final_beliefs, alpha=0.7)
+        ax2.set_title('Final Belief Distribution')
+        ax2.set_xlabel('Belief State')
+        ax2.set_ylabel('Probability')
+        
+        plt.suptitle(f'Belief Convergence Analysis for {variable_name}')
+        
+        # Save plot
+        output_path = output_dir / f'belief_convergence_{variable_name}.png'
+        plt.savefig(output_path, bbox_inches='tight', dpi=300)
+        plt.close()
+        
+        if logger:
+            logger.info(f"Belief convergence plot saved to {output_path}")
+            
+    except Exception as e:
+        if logger:
+            logger.error(f"Error generating belief convergence plot: {str(e)}")
+        plt.close()

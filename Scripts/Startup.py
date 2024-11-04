@@ -1,6 +1,10 @@
 """
 Startup script for Biofirm package - handles dependencies and core imports.
 Creates and manages a virtual environment for isolated package management.
+
+Use 
+source venv/bin/activate
+After running this to activate the virtual environment.
 """
 import subprocess
 import sys
@@ -14,7 +18,7 @@ REQUIRED_PACKAGES = [
     'numpy==1.23.5',  # Specific version for pymdp compatibility
     'pandas',
     'matplotlib',
-    'colorama',  # Added for colored logging
+    'colorama',  # Added for colorful logging
     'inferactively-pymdp==0.0.7.1',
     'typing-extensions',
     'dataclasses;python_version<"3.7"'
