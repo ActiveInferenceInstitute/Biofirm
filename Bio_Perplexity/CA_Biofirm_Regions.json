@@ -1,0 +1,20 @@
+{
+  "CA-ALA": {
+    "id": "CA-ALA",
+    "state": "California",
+    "county": "Alameda",
+    "region_type": "coastal"
+  },
+  "CA-ALP": {
+    "id": "CA-ALP",
+    "state": "California",
+    "county": "Alpine",
+    "region_type": "mountain"
+  },
+  "CA-AMA": {
+    "id": "CA-AMA",
+    "state": "California",
+    "county": "Amador",
+    "region_type": "foothill"
+  }
+}

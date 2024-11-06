@@ -1,20 +1,404 @@
 {
-  "CA-ALA": {
-    "id": "CA-ALA",
-    "state": "California",
-    "county": "Alameda",
-    "region_type": "coastal"
+  "ME-AND": {
+    "id": "ME-AND",
+    "state": "Maine",
+    "county": "Androscoggin",
+    "country": "United States"
   },
-  "CA-ALP": {
-    "id": "CA-ALP",
-    "state": "California",
-    "county": "Alpine",
-    "region_type": "mountain"
+  "ME-ARO": {
+    "id": "ME-ARO",
+    "state": "Maine",
+    "county": "Aroostook",
+    "country": "United States"
   },
-  "CA-AMA": {
-    "id": "CA-AMA",
-    "state": "California",
-    "county": "Amador",
-    "region_type": "foothill"
+  "ME-CUM": {
+    "id": "ME-CUM",
+    "state": "Maine",
+    "county": "Cumberland",
+    "country": "United States"
+  },
+  "ME-FRA": {
+    "id": "ME-FRA",
+    "state": "Maine",
+    "county": "Franklin",
+    "country": "United States"
+  },
+  "ME-HAN": {
+    "id": "ME-HAN",
+    "state": "Maine",
+    "county": "Hancock",
+    "country": "United States"
+  },
+  "ME-KEN": {
+    "id": "ME-KEN",
+    "state": "Maine",
+    "county": "Kennebec",
+    "country": "United States"
+  },
+  "ME-KNO": {
+    "id": "ME-KNO",
+    "state": "Maine",
+    "county": "Knox",
+    "country": "United States"
+  },
+  "ME-LIN": {
+    "id": "ME-LIN",
+    "state": "Maine",
+    "county": "Lincoln",
+    "country": "United States"
+  },
+  "ME-OXF": {
+    "id": "ME-OXF",
+    "state": "Maine",
+    "county": "Oxford",
+    "country": "United States"
+  },
+  "ME-PEN": {
+    "id": "ME-PEN",
+    "state": "Maine",
+    "county": "Penobscot",
+    "country": "United States"
+  },
+  "ME-PIS": {
+    "id": "ME-PIS",
+    "state": "Maine",
+    "county": "Piscataquis",
+    "country": "United States"
+  },
+  "ME-SAG": {
+    "id": "ME-SAG",
+    "state": "Maine",
+    "county": "Sagadahoc",
+    "country": "United States"
+  },
+  "ME-SOM": {
+    "id": "ME-SOM",
+    "state": "Maine",
+    "county": "Somerset",
+    "country": "United States"
+  },
+  "ME-WAL": {
+    "id": "ME-WAL",
+    "state": "Maine",
+    "county": "Waldo",
+    "country": "United States"
+  },
+  "ME-WAS": {
+    "id": "ME-WAS",
+    "state": "Maine",
+    "county": "Washington",
+    "country": "United States"
+  },
+  "ME-YOR": {
+    "id": "ME-YOR",
+    "state": "Maine",
+    "county": "York",
+    "country": "United States"
+  },
+  "NH-BEL": {
+    "id": "NH-BEL",
+    "state": "New Hampshire",
+    "county": "Belknap",
+    "country": "United States"
+  },
+  "NH-CAR": {
+    "id": "NH-CAR",
+    "state": "New Hampshire",
+    "county": "Carroll",
+    "country": "United States"
+  },
+  "NH-CHE": {
+    "id": "NH-CHE",
+    "state": "New Hampshire",
+    "county": "Cheshire",
+    "country": "United States"
+  },
+  "NH-COO": {
+    "id": "NH-COO",
+    "state": "New Hampshire",
+    "county": "Coos",
+    "country": "United States"
+  },
+  "NH-GRA": {
+    "id": "NH-GRA",
+    "state": "New Hampshire",
+    "county": "Grafton",
+    "country": "United States"
+  },
+  "NH-HIL": {
+    "id": "NH-HIL",
+    "state": "New Hampshire",
+    "county": "Hillsborough",
+    "country": "United States"
+  },
+  "NH-MER": {
+    "id": "NH-MER",
+    "state": "New Hampshire",
+    "county": "Merrimack",
+    "country": "United States"
+  },
+  "NH-ROC": {
+    "id": "NH-ROC",
+    "state": "New Hampshire",
+    "county": "Rockingham",
+    "country": "United States"
+  },
+  "NH-STR": {
+    "id": "NH-STR",
+    "state": "New Hampshire",
+    "county": "Strafford",
+    "country": "United States"
+  },
+  "NH-SUL": {
+    "id": "NH-SUL",
+    "state": "New Hampshire",
+    "county": "Sullivan",
+    "country": "United States"
+  },
+  "VT-ADD": {
+    "id": "VT-ADD",
+    "state": "Vermont",
+    "county": "Addison",
+    "country": "United States"
+  },
+  "VT-BEN": {
+    "id": "VT-BEN",
+    "state": "Vermont",
+    "county": "Bennington",
+    "country": "United States"
+  },
+  "VT-CAL": {
+    "id": "VT-CAL",
+    "state": "Vermont",
+    "county": "Caledonia",
+    "country": "United States"
+  },
+  "VT-CHI": {
+    "id": "VT-CHI",
+    "state": "Vermont",
+    "county": "Chittenden",
+    "country": "United States"
+  },
+  "VT-ESS": {
+    "id": "VT-ESS",
+    "state": "Vermont",
+    "county": "Essex",
+    "country": "United States"
+  },
+  "VT-FRA": {
+    "id": "VT-FRA",
+    "state": "Vermont",
+    "county": "Franklin",
+    "country": "United States"
+  },
+  "VT-GRA": {
+    "id": "VT-GRA",
+    "state": "Vermont",
+    "county": "Grand Isle",
+    "country": "United States"
+  },
+  "VT-LAM": {
+    "id": "VT-LAM",
+    "state": "Vermont",
+    "county": "Lamoille",
+    "country": "United States"
+  },
+  "VT-ORA": {
+    "id": "VT-ORA",
+    "state": "Vermont",
+    "county": "Orange",
+    "country": "United States"
+  },
+  "VT-ORL": {
+    "id": "VT-ORL",
+    "state": "Vermont",
+    "county": "Orleans",
+    "country": "United States"
+  },
+  "VT-RUT": {
+    "id": "VT-RUT",
+    "state": "Vermont",
+    "county": "Rutland",
+    "country": "United States"
+  },
+  "VT-WAS": {
+    "id": "VT-WAS",
+    "state": "Vermont",
+    "county": "Washington",
+    "country": "United States"
+  },
+  "VT-WHA": {
+    "id": "VT-WHA",
+    "state": "Vermont",
+    "county": "Windham",
+    "country": "United States"
+  },
+  "VT-WND": {
+    "id": "VT-WND",
+    "state": "Vermont",
+    "county": "Windsor",
+    "country": "United States"
+  },
+  "MA-BAR": {
+    "id": "MA-BAR",
+    "state": "Massachusetts",
+    "county": "Barnstable",
+    "country": "United States"
+  },
+  "MA-BER": {
+    "id": "MA-BER",
+    "state": "Massachusetts",
+    "county": "Berkshire",
+    "country": "United States"
+  },
+  "MA-BRI": {
+    "id": "MA-BRI",
+    "state": "Massachusetts",
+    "county": "Bristol",
+    "country": "United States"
+  },
+  "MA-DUK": {
+    "id": "MA-DUK",
+    "state": "Massachusetts",
+    "county": "Dukes",
+    "country": "United States"
+  },
+  "MA-ESS": {
+    "id": "MA-ESS",
+    "state": "Massachusetts",
+    "county": "Essex",
+    "country": "United States"
+  },
+  "MA-FRA": {
+    "id": "MA-FRA",
+    "state": "Massachusetts",
+    "county": "Franklin",
+    "country": "United States"
+  },
+  "MA-HAM": {
+    "id": "MA-HAM",
+    "state": "Massachusetts",
+    "county": "Hampden",
+    "country": "United States"
+  },
+  "MA-HPS": {
+    "id": "MA-HPS",
+    "state": "Massachusetts",
+    "county": "Hampshire",
+    "country": "United States"
+  },
+  "MA-MID": {
+    "id": "MA-MID",
+    "state": "Massachusetts",
+    "county": "Middlesex",
+    "country": "United States"
+  },
+  "MA-NAN": {
+    "id": "MA-NAN",
+    "state": "Massachusetts",
+    "county": "Nantucket",
+    "country": "United States"
+  },
+  "MA-NOR": {
+    "id": "MA-NOR",
+    "state": "Massachusetts",
+    "county": "Norfolk",
+    "country": "United States"
+  },
+  "MA-PLY": {
+    "id": "MA-PLY",
+    "state": "Massachusetts",
+    "county": "Plymouth",
+    "country": "United States"
+  },
+  "MA-SUF": {
+    "id": "MA-SUF",
+    "state": "Massachusetts",
+    "county": "Suffolk",
+    "country": "United States"
+  },
+  "MA-WOR": {
+    "id": "MA-WOR",
+    "state": "Massachusetts",
+    "county": "Worcester",
+    "country": "United States"
+  },
+  "RI-BRI": {
+    "id": "RI-BRI",
+    "state": "Rhode Island",
+    "county": "Bristol",
+    "country": "United States"
+  },
+  "RI-KEN": {
+    "id": "RI-KEN",
+    "state": "Rhode Island",
+    "county": "Kent",
+    "country": "United States"
+  },
+  "RI-NEW": {
+    "id": "RI-NEW",
+    "state": "Rhode Island",
+    "county": "Newport",
+    "country": "United States"
+  },
+  "RI-PRO": {
+    "id": "RI-PRO",
+    "state": "Rhode Island",
+    "county": "Providence",
+    "country": "United States"
+  },
+  "RI-WAS": {
+    "id": "RI-WAS",
+    "state": "Rhode Island",
+    "county": "Washington",
+    "country": "United States"
+  },
+  "CT-FAI": {
+    "id": "CT-FAI",
+    "state": "Connecticut",
+    "county": "Fairfield",
+    "country": "United States"
+  },
+  "CT-HAR": {
+    "id": "CT-HAR",
+    "state": "Connecticut",
+    "county": "Hartford",
+    "country": "United States"
+  },
+  "CT-LIT": {
+    "id": "CT-LIT",
+    "state": "Connecticut",
+    "county": "Litchfield",
+    "country": "United States"
+  },
+  "CT-MID": {
+    "id": "CT-MID",
+    "state": "Connecticut",
+    "county": "Middlesex",
+    "country": "United States"
+  },
+  "CT-NHV": {
+    "id": "CT-NHV",
+    "state": "Connecticut",
+    "county": "New Haven",
+    "country": "United States"
+  },
+  "CT-NLN": {
+    "id": "CT-NLN",
+    "state": "Connecticut",
+    "county": "New London",
+    "country": "United States"
+  },
+  "CT-TOL": {
+    "id": "CT-TOL",
+    "state": "Connecticut",
+    "county": "Tolland",
+    "country": "United States"
+  },
+  "CT-WIN": {
+    "id": "CT-WIN",
+    "state": "Connecticut",
+    "county": "Windham",
+    "country": "United States"
   }
 }
