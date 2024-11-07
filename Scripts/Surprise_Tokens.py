@@ -1,7 +1,7 @@
 """
 This script retrieves the most recent environmental history data from CSV files in 
 the "Outputs" directory and reads ecosystem configuration from a JSON file. 
-It computes surprise values for specified variables based on their constraints and 
+It computes Bayesian surprise values for specified variables based on their constraints and 
 stores these values in a new DataFrame. The script then visualizes the surprise values 
 and saves the plots as PNG files. Finally, it calculates token accumulation based 
 on changes in surprise and generates additional plots for the token history, 
@@ -69,11 +69,8 @@ try:
         for timestep in range(len(env_history)):
             current_value = env_history.iloc[timestep][variable]
             
-            # Compute surprise based on the distance from the median
-            surprise = np.abs(current_value - median_value)  # Absolute difference from the median
-            
-            # Optionally, you can apply a log transformation if needed
-            # surprise = -np.log(surprise + epsilon)  # Uncomment if you want to use log scale
+            # Compute Bayesian surprise (example formula, adjust as needed)
+            surprise = np.log((current_value + epsilon) / (median_value + epsilon))  # Bayesian surprise calculation
             
             surprise_values.append(surprise)
 
@@ -92,7 +89,7 @@ axes = axes.flatten()  # Flatten the axes array for easy indexing
 
 for i, variable in enumerate(surprise_history.columns):
     axes[i].plot(surprise_history.index, surprise_history[variable], label=variable, alpha=0.6)  # Changed to line plot
-    axes[i].set_title(f'Surprise for {variable}')
+    axes[i].set_title(f'Bayesian surprise for {variable}')
     axes[i].set_xlabel('Timestep')
     axes[i].set_ylabel('Surprise')
     axes[i].grid()
