@@ -1,7 +1,7 @@
 """
 This script retrieves the most recent environmental history data from CSV files in 
 the "Outputs" directory and reads ecosystem configuration from a JSON file. 
-It computes Bayesian surprise (as log[current_value/constraint_median]) per timestep for
+It computes Bayesian surprise (Gaussian expectations using constraint ranges) per timestep for
 each variable based on their constraints and stores these values in a new DataFrame. 
 This is then used to compute token accumulation (cumulative changes in surprise reduction, 
 ignoring surprise increases) from timestep to timestep and generates.
@@ -51,6 +51,48 @@ epsilon = 1e-10
 # Create a new dataframe for surprise history
 surprise_history = pd.DataFrame(index=env_history.index)
 
+import numpy as np
+import pandas as pd
+from scipy import stats
+
+import scipy.stats as stats
+import numpy as np
+
+class BayesianSurpriseTracker:
+    def __init__(self, initial_mean, initial_variance):
+        # Initialize prior as Gaussian
+        self.prior_mean = initial_mean
+        self.prior_variance = initial_variance
+        
+    def update(self, observation, observation_variance):
+        # Compute posterior using Kalman update equations
+        posterior_variance = 1 / (1/self.prior_variance + 1/observation_variance)
+        posterior_mean = posterior_variance * (
+            self.prior_mean/self.prior_variance + 
+            observation/observation_variance
+        )
+        
+        # Compute surprise as KL divergence between prior and posterior
+        surprise = self._kl_divergence_gaussian(
+            self.prior_mean, self.prior_variance,
+            posterior_mean, posterior_variance
+        )
+        
+        # Update prior for next timestep
+        self.prior_mean = posterior_mean
+        self.prior_variance = posterior_variance
+        
+        return surprise
+    
+    def _kl_divergence_gaussian(self, p_mean, p_var, q_mean, q_var):
+        return 0.5 * (
+            np.log(q_var/p_var) + 
+            (p_var + (p_mean - q_mean)**2)/q_var - 1
+        )
+
+# Create a new dataframe for surprise history
+surprise_history = pd.DataFrame(index=env_history.index)
+
 print(f"Computing surprise for {len(config_dict['variables'])} variables over {len(env_history)} timesteps...")
 
 try:
@@ -59,8 +101,12 @@ try:
         lower_bound = constraints['constraints']['lower']
         upper_bound = constraints['constraints']['upper']
         
-        # Calculate the median of the constraint range
-        median_value = (lower_bound + upper_bound) / 2
+        # Initialize the tracker with prior based on constraints
+        initial_mean = (lower_bound + upper_bound) / 2
+        initial_variance = ((upper_bound - lower_bound) / 4) ** 2  # Using range/4 as 2-sigma
+        
+        # Create tracker for this variable
+        tracker = BayesianSurpriseTracker(initial_mean, initial_variance)
         
         # List to store surprise values for the current variable
         surprise_values = []
@@ -69,16 +115,45 @@ try:
         for timestep in range(len(env_history)):
             current_value = env_history.iloc[timestep][variable]
             
-            # Compute Bayesian surprise (example formula, adjust as needed)
-            surprise = np.log((current_value + epsilon) / (median_value + epsilon))  # Bayesian surprise calculation
+            # Assume observation variance is proportional to the range
+            observation_variance = ((upper_bound - lower_bound) / 6) ** 2  # Using range/6 as 3-sigma
             
+            # Compute Bayesian surprise and update beliefs
+            surprise = tracker.update(current_value, observation_variance)
             surprise_values.append(surprise)
 
         # Add the surprise values to the surprise_history dataframe
         surprise_history[variable] = surprise_values
 
 except Exception as e:
-        print(f"Error computing surprise for {variable}: {str(e)}")
+    print(f"Error computing surprise for {variable}: {str(e)}")
+
+# try:
+#     # Iterate through each variable in config_dict to compute surprise
+#     for variable, constraints in config_dict['variables'].items():
+#         lower_bound = constraints['constraints']['lower']
+#         upper_bound = constraints['constraints']['upper']
+        
+#         # Calculate the median of the constraint range
+#         median_value = (lower_bound + upper_bound) / 2
+        
+#         # List to store surprise values for the current variable
+#         surprise_values = []
+        
+#         # Iterate over each timestep to compute surprise for the variable
+#         for timestep in range(len(env_history)):
+#             current_value = env_history.iloc[timestep][variable]
+            
+#             # Compute Bayesian surprise (example formula, adjust as needed)
+#             surprise = np.log((current_value + epsilon) / (median_value + epsilon))  # Bayesian surprise calculation
+            
+#             surprise_values.append(surprise)
+
+#         # Add the surprise values to the surprise_history dataframe
+#         surprise_history[variable] = surprise_values
+
+# except Exception as e:
+#         print(f"Error computing surprise for {variable}: {str(e)}")
 
 # Plot the surprise values for all variables in subplots using line plots
 num_variables = len(surprise_history.columns)
