@@ -1,11 +1,11 @@
 """
 This script retrieves the most recent environmental history data from CSV files in 
 the "Outputs" directory and reads ecosystem configuration from a JSON file. 
-It computes Bayesian surprise values for specified variables based on their constraints and 
-stores these values in a new DataFrame. The script then visualizes the surprise values 
-and saves the plots as PNG files. Finally, it calculates token accumulation based 
-on changes in surprise and generates additional plots for the token history, 
-which are also saved as PNG files in the provided output directory.
+It computes Bayesian surprise (as log[current_value/constraint_median]) per timestep for
+each variable based on their constraints and stores these values in a new DataFrame. 
+This is then used to compute token accumulation (cumulative changes in surprise reduction, 
+ignoring surprise increases) from timestep to timestep and generates.
+Plots for Bayesian surprise and token accumulation are stored in output_dir/visualizations.
 """
 
 # Pull latest environmental history from Outputs directory
