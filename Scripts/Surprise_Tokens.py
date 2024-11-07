@@ -1,10 +1,18 @@
 """
-This script retrieves the most recent environmental history data from CSV files in 
-the "Outputs" directory and reads ecosystem configuration from a JSON file. 
-It computes Bayesian surprise (Gaussian expectations using constraint ranges) per timestep for
-each variable based on their constraints and stores these values in a new DataFrame. 
-This is then used to compute token accumulation (cumulative changes in surprise reduction, 
-ignoring surprise increases) from timestep to timestep and generates.
+This script processes environmental data from CSV files and ecosystem configurations 
+from a JSON file to compute Bayesian surprise and token accumulation. 
+
+The ActiveInferenceSurpriseTracker class calculates surprise using a truncated 
+Gaussian distribution and a Kalman update, measuring the difference between 
+prior and posterior distributions via Kullback-Leibler (KL) divergence. 
+A preference violation term penalizes observations outside defined bounds. 
+
+For token accumulation, the script tracks changes in surprise, adding tokens 
+only when surprise decreases. The change in surprise is calculated as the 
+difference between current and previous values, allowing the script to 
+visualize both surprise and token accumulation through generated plots, 
+revealing the dynamics of environmental variables over time.
+
 Plots for Bayesian surprise and token accumulation are stored in output_dir/visualizations.
 """
 
@@ -55,34 +63,60 @@ import numpy as np
 import pandas as pd
 from scipy import stats
 
-import scipy.stats as stats
-import numpy as np
-
-class BayesianSurpriseTracker:
-    def __init__(self, initial_mean, initial_variance):
-        # Initialize prior as Gaussian
+class ActiveInferenceSurpriseTracker:
+    def __init__(self, initial_mean, initial_variance, lower_bound, upper_bound, preference_strength=1.0):
         self.prior_mean = initial_mean
         self.prior_variance = initial_variance
+        self.lower_bound = lower_bound
+        self.upper_bound = upper_bound
+        self.preference_strength = preference_strength
         
+    def preference_distribution(self, x):
+        # Create a preference distribution that favors values within bounds
+        # Using a truncated Gaussian as the preference distribution
+        return stats.truncnorm.pdf(
+            x, 
+            (self.lower_bound - self.prior_mean) / np.sqrt(self.prior_variance),
+            (self.upper_bound - self.prior_mean) / np.sqrt(self.prior_variance),
+            loc=self.prior_mean,
+            scale=np.sqrt(self.prior_variance)
+        )
+    
     def update(self, observation, observation_variance):
-        # Compute posterior using Kalman update equations
+        # Standard Kalman update for the empirical distribution
         posterior_variance = 1 / (1/self.prior_variance + 1/observation_variance)
         posterior_mean = posterior_variance * (
             self.prior_mean/self.prior_variance + 
             observation/observation_variance
         )
         
+        # Combine empirical posterior with preferences
+        # The preference_strength parameter controls how strongly we weight preferences
+        combined_posterior_mean = (posterior_mean + 
+            self.preference_strength * np.clip(posterior_mean, self.lower_bound, self.upper_bound)
+        ) / (1 + self.preference_strength)
+        
         # Compute surprise as KL divergence between prior and posterior
-        surprise = self._kl_divergence_gaussian(
+        # Include both empirical surprise and preference violation
+        empirical_surprise = self._kl_divergence_gaussian(
             self.prior_mean, self.prior_variance,
             posterior_mean, posterior_variance
         )
         
+        # Additional surprise term for preference violation
+        preference_violation = 0.0
+        if observation < self.lower_bound:
+            preference_violation = self.preference_strength * (self.lower_bound - observation)**2
+        elif observation > self.upper_bound:
+            preference_violation = self.preference_strength * (observation - self.upper_bound)**2
+            
+        total_surprise = empirical_surprise + preference_violation
+        
         # Update prior for next timestep
-        self.prior_mean = posterior_mean
+        self.prior_mean = combined_posterior_mean
         self.prior_variance = posterior_variance
         
-        return surprise
+        return total_surprise
     
     def _kl_divergence_gaussian(self, p_mean, p_var, q_mean, q_var):
         return 0.5 * (
@@ -105,8 +139,14 @@ try:
         initial_mean = (lower_bound + upper_bound) / 2
         initial_variance = ((upper_bound - lower_bound) / 4) ** 2  # Using range/4 as 2-sigma
         
-        # Create tracker for this variable
-        tracker = BayesianSurpriseTracker(initial_mean, initial_variance)
+        # Create tracker for this variable with preferences
+        tracker = ActiveInferenceSurpriseTracker(
+            initial_mean, 
+            initial_variance,
+            lower_bound,
+            upper_bound,
+            preference_strength=1.0  # Adjust this to control preference strength
+        )
         
         # List to store surprise values for the current variable
         surprise_values = []
@@ -116,9 +156,9 @@ try:
             current_value = env_history.iloc[timestep][variable]
             
             # Assume observation variance is proportional to the range
-            observation_variance = ((upper_bound - lower_bound) / 6) ** 2  # Using range/6 as 3-sigma
+            observation_variance = ((upper_bound - lower_bound) / 6) ** 2
             
-            # Compute Bayesian surprise and update beliefs
+            # Compute surprise with preferences and update beliefs
             surprise = tracker.update(current_value, observation_variance)
             surprise_values.append(surprise)
 
@@ -128,32 +168,6 @@ try:
 except Exception as e:
     print(f"Error computing surprise for {variable}: {str(e)}")
 
-# try:
-#     # Iterate through each variable in config_dict to compute surprise
-#     for variable, constraints in config_dict['variables'].items():
-#         lower_bound = constraints['constraints']['lower']
-#         upper_bound = constraints['constraints']['upper']
-        
-#         # Calculate the median of the constraint range
-#         median_value = (lower_bound + upper_bound) / 2
-        
-#         # List to store surprise values for the current variable
-#         surprise_values = []
-        
-#         # Iterate over each timestep to compute surprise for the variable
-#         for timestep in range(len(env_history)):
-#             current_value = env_history.iloc[timestep][variable]
-            
-#             # Compute Bayesian surprise (example formula, adjust as needed)
-#             surprise = np.log((current_value + epsilon) / (median_value + epsilon))  # Bayesian surprise calculation
-            
-#             surprise_values.append(surprise)
-
-#         # Add the surprise values to the surprise_history dataframe
-#         surprise_history[variable] = surprise_values
-
-# except Exception as e:
-#         print(f"Error computing surprise for {variable}: {str(e)}")
 
 # Plot the surprise values for all variables in subplots using line plots
 num_variables = len(surprise_history.columns)
