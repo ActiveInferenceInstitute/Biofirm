@@ -1,0 +1,5 @@
+Summary of findings
+1. Both directory formats (with spaces and with underscores) are maintained correctly.
+2. Files added to the directory with spaces are processed correctly.
+3. Visualizations are generated for both directory formats.
+4. The pipeline runs successfully with both directory formats.
