@@ -40,4 +40,53 @@ Thumbs.db
 .idea/
 .vscode/
 *.swp
-*.swo 
+*.swo
+
+# IDE files
+.sublime-project
+.sublime-workspace
+
+# Jupyter Notebook
+.ipynb_checkpoints
+
+# Data files
+*.db
+*.sqlite3
+
+# Large binary files in output directories
+Outputs/**/*.png
+Outputs/**/*.jpg
+Outputs/**/*.jpeg
+Outputs/**/*.gif
+Outputs/**/*.pdf
+Outputs/**/*.zip
+Outputs/**/*.tar
+Outputs/**/*.gz
+
+Visualizations/**/*.png
+Visualizations/**/*.jpg
+Visualizations/**/*.jpeg
+Visualizations/**/*.gif
+Visualizations/**/*.pdf
+Visualizations/**/*.zip
+Visualizations/**/*.tar
+Visualizations/**/*.gz
+
+# But keep the directories themselves and text-based files
+!Outputs/
+!Outputs/**/*.md
+!Outputs/**/*.txt
+!Outputs/**/*.csv
+!Outputs/**/*.json
+
+!Visualizations/
+!Visualizations/**/*.md
+!Visualizations/**/*.txt
+!Visualizations/**/*.csv
+!Visualizations/**/*.json
+
+# API keys and sensitive information
+.env
+credentials.json
+*.pem
+*.key 
