@@ -14,7 +14,7 @@ graph TD
 
     subgraph "Processing Scripts"
         B1[1_OneEarth_Bioregions.py]
-        B2[2_OneEarth_Business_Pitch.py]
+        B2[2_OneEarth_Regeneration_Plan.py]
         B3[3_OneEarth_Vizualization.py]
         B4[Visualization_Methods.py]
         B5[run_pipeline.py]
@@ -27,7 +27,7 @@ graph TD
 
     subgraph "Output Data"
         D1[Research Reports]
-        D2[Business Cases]
+        D2[Regeneration Plans]
         D3[Visualizations]
     end
 
@@ -64,7 +64,7 @@ sequenceDiagram
     participant Setup as create_dirs.py
     participant Runner as run_pipeline.py
     participant Bio as 1_OneEarth_Bioregions.py
-    participant Business as 2_OneEarth_Business_Pitch.py
+    participant Regen as 2_OneEarth_Regeneration_Plan.py
     participant Vis as 3_OneEarth_Vizualization.py
     participant API as Perplexity API
     participant Outputs as Output Folders
@@ -78,30 +78,28 @@ sequenceDiagram
     loop For each bioregion
         Bio->>API: Request ecological research
         API-->>Bio: Return research data
-        Bio->>API: Request market research
+        Bio->>API: Request human intelligence mapping
         API-->>Bio: Return research data
-        Bio->>API: Request supply chain research
-        API-->>Bio: Return research data
-        Bio->>API: Request regulatory research
+        Bio->>API: Request dataset specialist analysis
         API-->>Bio: Return research data
         Bio->>Outputs: Save research reports
     end
     
     Bio-->>Runner: Research complete
-    Runner->>Business: Generate business cases
+    Runner->>Regen: Generate regeneration plans
     
     loop For each bioregion
-        Business->>Outputs: Load research reports
-        Business->>API: Generate business case
-        API-->>Business: Return business case
-        Business->>Outputs: Save business case
+        Regen->>Outputs: Load research reports
+        Regen->>API: Generate regeneration plan
+        API-->>Regen: Return regeneration plan
+        Regen->>Outputs: Save regeneration plan
     end
     
-    Business-->>Runner: Business cases complete
+    Regen-->>Runner: Regeneration plans complete
     Runner->>Vis: Generate visualizations
     
     Vis->>Outputs: Load research reports
-    Vis->>Outputs: Load business cases
+    Vis->>Outputs: Load regeneration plans
     Vis->>Outputs: Save visualizations
     
     Vis-->>Runner: Visualizations complete
@@ -132,7 +130,7 @@ erDiagram
         string research_data
     }
     
-    BUSINESS-CASE {
+    REGENERATION-PLAN {
         string bioregion_id
         string timestamp
         string content
@@ -146,10 +144,10 @@ erDiagram
     
     BIOREGION ||--o{ RESEARCH-REPORT : "researched by"
     RESEARCH-PERSONA ||--o{ RESEARCH-REPORT : "produces"
-    BIOREGION ||--o{ BUSINESS-CASE : "has"
-    RESEARCH-REPORT }|--o{ BUSINESS-CASE : "informs"
+    BIOREGION ||--o{ REGENERATION-PLAN : "has"
+    RESEARCH-REPORT }|--o{ REGENERATION-PLAN : "informs"
     RESEARCH-REPORT }|--o{ VISUALIZATION : "visualized in"
-    BUSINESS-CASE }|--o{ VISUALIZATION : "visualized in"
+    REGENERATION-PLAN }|--o{ VISUALIZATION : "visualized in"
 ```
 
 ## File Dependencies
@@ -163,7 +161,7 @@ flowchart TD
 
     subgraph "Core Processing"
         C[1_OneEarth_Bioregions.py]
-        D[2_OneEarth_Business_Pitch.py]
+        D[2_OneEarth_Regeneration_Plan.py]
         E[3_OneEarth_Vizualization.py]
     end
 
@@ -214,11 +212,11 @@ stateDiagram-v2
     ValidateFiles --> RunResearch
     ValidateFiles --> Error : Missing Files
     
-    RunResearch --> RunBusiness : Success
+    RunResearch --> RunRegeneration : Success
     RunResearch --> Error : Failure
     
-    RunBusiness --> RunVisualization : Success
-    RunBusiness --> Error : Failure
+    RunRegeneration --> RunVisualization : Success
+    RunRegeneration --> Error : Failure
     
     RunVisualization --> Complete : Success
     RunVisualization --> Error : Failure

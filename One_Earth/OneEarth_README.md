@@ -1,12 +1,12 @@
 # OneEarth Bioregion Analysis System
 
-This project adapts the Bio_Perplexity scripts and methods to the OneEarth use case. It provides a comprehensive system for analyzing bioregions, generating business cases, and visualizing the insights derived from the analyses.
+This project adapts the Bio_Perplexity scripts and methods to the OneEarth use case. It provides a comprehensive system for analyzing bioregions, generating regeneration plans, and visualizing the insights derived from the analyses.
 
 ## Project Overview
 
 The OneEarth project analyzes geographical bioregions using internet-enabled LLM search (currently with Perplexity API calls) to:
 1. Research bioregions through multiple specialized perspectives
-2. Generate business cases and opportunities for each region
+2. Generate regeneration plans and sustainability opportunities for each region
 3. Visualize and compare the results across different regions
 
 ## System Architecture
@@ -15,13 +15,13 @@ The system consists of three main components:
 
 ```mermaid
 graph TD
-    A[1_OneEarth_Bioregions.py] -->|Research Data| B[2_OneEarth_Business_Pitch.py]
-    B -->|Business Cases| C[3_OneEarth_Vizualization.py]
+    A[1_OneEarth_Bioregions.py] -->|Research Data| B[2_OneEarth_Regeneration_Plan.py]
+    B -->|Regeneration Plans| C[3_OneEarth_Vizualization.py]
     D[oneearth_bioregion_ecoregions.json] -->|Region Data| A
     E[OneEarth_System_Prompts.json] -->|Personas| A
-    E -->|Business Case Template| B
+    E -->|Regeneration Plan Template| B
     A -->|Research Reports| F[Outputs/Region_Folders]
-    B -->|Business Case Reports| F
+    B -->|Regeneration Plan Reports| F
     F -->|Analysis Data| C
     C -->|Visualizations| G[Visualizations/]
     H[run_pipeline.py] -->|Orchestrates| A
@@ -85,7 +85,7 @@ python run_pipeline.py --model production
 python run_pipeline.py --max-regions 2
 
 # Skip specific pipeline stages
-python run_pipeline.py --skip-research --skip-business
+python run_pipeline.py --skip-research --skip-regeneration
 ```
 
 ## Running Individual Components
@@ -107,25 +107,24 @@ This script:
 - Loads research personas from `OneEarth_System_Prompts.json`
 - For each bioregion, generates research using multiple specialized personas:
   - Ecological Researcher
-  - Market Analyst
-  - Supply Chain Strategist
-  - Regulatory Compliance Expert
+  - Human Intelligence Officer
+  - Dataset Specialist
 - Saves individual and consolidated research reports to the `Outputs` directory
 
-### 2. Business Case Generation
+### 2. Regeneration Plan Generation
 
 ```bash
 # Default settings
-python 2_OneEarth_Business_Pitch.py
+python 2_OneEarth_Regeneration_Plan.py
 
 # With options
-python 2_OneEarth_Business_Pitch.py --model [testing|production]
+python 2_OneEarth_Regeneration_Plan.py --model [testing|production]
 ```
 
 This script:
 - Reads the research reports generated in step 1
-- Uses the Business Case Manager persona to generate comprehensive business proposals
-- Saves business cases to the same regional folders in the `Outputs` directory
+- Uses the Regeneration Planner persona to generate comprehensive regeneration plans
+- Saves regeneration plans to the same regional folders in the `Outputs` directory
 
 ### 3. Visualization and Analysis
 
@@ -138,7 +137,7 @@ python 3_OneEarth_Vizualization.py --input-dir [path] --output-dir [path]
 ```
 
 This script:
-- Analyzes all research reports and business cases
+- Analyzes all research reports and regeneration plans
 - Generates visualizations including:
   - PCA and dimension reduction plots
   - Topic modeling

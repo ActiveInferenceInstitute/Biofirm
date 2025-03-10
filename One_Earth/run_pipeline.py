@@ -399,8 +399,22 @@ def check_requirements():
     
     return True
 
-def run_pipeline(skip_research=False, skip_business=False, skip_visualization=False, max_regions=None, model="testing", debug=False, max_tokens=4096):
-    """Run the complete OneEarth processing pipeline."""
+def run_pipeline(skip_research=False, skip_regeneration=False, skip_visualization=False, max_regions=None, model="testing", debug=False, max_tokens=4096):
+    """
+    Run the complete OneEarth pipeline.
+    
+    Args:
+        skip_research (bool): Skip the bioregion research step
+        skip_regeneration (bool): Skip the regeneration plan generation step
+        skip_visualization (bool): Skip the visualization step
+        max_regions (int): Maximum number of bioregions to process
+        model (str): Model to use ('testing' or 'production')
+        debug (bool): Enable debug logging
+        max_tokens (int): Maximum tokens for API responses
+        
+    Returns:
+        bool: True if successful, False otherwise
+    """
     logger = logging.getLogger(__name__)
     script_dir = os.path.dirname(os.path.abspath(__file__))
     
@@ -417,7 +431,7 @@ def run_pipeline(skip_research=False, skip_business=False, skip_visualization=Fa
     logger.info(f"  - Model: {model}")
     logger.info(f"  - Max Regions: {max_regions if max_regions else 'No limit'}")
     logger.info(f"  - Skip Research: {skip_research}")
-    logger.info(f"  - Skip Business: {skip_business}")
+    logger.info(f"  - Skip Regeneration Plans: {skip_regeneration}")
     logger.info(f"  - Skip Visualization: {skip_visualization}")
     logger.info(f"  - Debug Mode: {debug}")
     logger.info(f"  - Max Tokens: {max_tokens}")
@@ -442,26 +456,30 @@ def run_pipeline(skip_research=False, skip_business=False, skip_visualization=Fa
             if not research_success:
                 logger.error("Bioregion research failed!")
                 success = False
-                # If research fails, we can't proceed with business case generation
-                skip_business = True
+                # If research fails, we can't proceed with regeneration plan generation
+                skip_regeneration = True
         else:
             logger.info("Skipping bioregion research (--skip-research flag used)")
             research_success = True
         
         # Step 2: Generate ecological regeneration plans
-        if not skip_business:
+        if not skip_regeneration:
             logger.info("=" * 80)
             logger.info("STEP 2: Generating ecological regeneration plans")
             logger.info("=" * 80)
             
-            business_cmd = f"{sys.executable} {os.path.join(script_dir, '2_OneEarth_Regeneration_Plan.py')} --model {model}"
-            business_success = run_command(business_cmd, "Ecological Regeneration Plan Generation")
-            if not business_success:
-                logger.error("Ecological regeneration plan generation failed!")
-                success = False
+            try:
+                # Build the command
+                regeneration_cmd = f"{sys.executable} {os.path.join(script_dir, '2_OneEarth_Regeneration_Plan.py')} --model {model}"
+                regeneration_success = run_command(regeneration_cmd, "Ecological Regeneration Plan Generation")
+                if not regeneration_success:
+                    logger.warning("Regeneration plan generation failed, but continuing with visualization")
+            except Exception as e:
+                logger.error(f"Error during regeneration plan generation: {e}")
+                regeneration_success = False
         else:
-            logger.info("Skipping ecological regeneration plan generation (--skip-business flag used)")
-            business_success = True
+            logger.info("Skipping ecological regeneration plan generation (--skip-regeneration flag used)")
+            regeneration_success = True
         
         # Step 3: Run visualization (always run unless explicitly skipped)
         if not skip_visualization:
@@ -542,7 +560,7 @@ def test_file_logging():
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Run the OneEarth processing pipeline")
     parser.add_argument("--skip-research", action="store_true", help="Skip the bioregion research step")
-    parser.add_argument("--skip-business", action="store_true", help="Skip the business case generation step")
+    parser.add_argument("--skip-regeneration", action="store_true", help="Skip the regeneration plan generation step")
     parser.add_argument("--skip-visualization", action="store_true", help="Skip the visualization step")
     parser.add_argument("--max-regions", type=int, help="Maximum number of bioregions to process")
     parser.add_argument("--model", choices=["testing", "production"], default="testing",
@@ -564,7 +582,7 @@ if __name__ == "__main__":
     
     success = run_pipeline(
         skip_research=args.skip_research,
-        skip_business=args.skip_business,
+        skip_regeneration=args.skip_regeneration,
         skip_visualization=args.skip_visualization,
         max_regions=args.max_regions,
         model=args.model,

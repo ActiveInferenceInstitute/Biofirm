@@ -173,7 +173,7 @@ python run_pipeline.py --model production
 python run_pipeline.py --max-regions 2
 
 # Skip specific stages
-python run_pipeline.py --skip-research --skip-business
+python run_pipeline.py --skip-research --skip-regeneration
 ```
 
 ### Running Individual Components

@@ -4,10 +4,10 @@ This document provides a detailed explanation of the OneEarth system architectur
 
 ## System Overview
 
-The OneEarth system is designed to analyze bioregions from the OneEarth framework, generate business cases for sustainable ventures, and visualize insights to inform decision-making. The system follows a sequential pipeline architecture with three main stages:
+The OneEarth system is designed to analyze bioregions from the OneEarth framework, generate regeneration plans for sustainable ecosystems, and visualize insights to inform decision-making. The system follows a sequential pipeline architecture with three main stages:
 
 1. **Bioregion Research**: Analyzes bioregions through multiple expert perspectives
-2. **Business Case Generation**: Creates comprehensive business proposals based on research
+2. **Regeneration Plan Generation**: Creates comprehensive regeneration plans based on research
 3. **Visualization & Analysis**: Generates visual insights and comparisons across regions
 
 ## System Architecture Diagram
@@ -21,13 +21,13 @@ graph TD
     end
 
     subgraph "Processing Pipeline"
-        P1[1. OneEarth_Bioregions.py] --> P2[2. OneEarth_Business_Pitch.py]
+        P1[1. OneEarth_Bioregions.py] --> P2[2. OneEarth_Regeneration_Plan.py]
         P2 --> P3[3. OneEarth_Vizualization.py]
     end
 
     subgraph "Outputs"
         P1 --> B1[Bioregion Research Reports]
-        P2 --> B2[Business Case Documents]
+        P2 --> B2[Regeneration Plan Documents]
         P3 --> B3[Visualizations]
     end
 
@@ -57,10 +57,9 @@ graph TD
 - **Structure**:
   - Collection of role definitions with specialized expertise:
     - Ecological Researcher
-    - Market Analyst
-    - Supply Chain Strategist
-    - Regulatory Compliance Expert
-    - Business Case Manager
+    - Human Intelligence Officer
+    - Dataset Specialist
+    - Regeneration Planner
   - Each role includes detailed system prompts to guide AI analysis
 
 ### 2. Processing Components
@@ -74,18 +73,18 @@ graph TD
   - `research_bioregion()`: Orchestrates multi-perspective research
   - `save_consolidated_markdown()`: Consolidates insights into reports
 
-#### 2_OneEarth_Business_Pitch.py
-- **Purpose**: Generates business cases from research data
+#### 2_OneEarth_Regeneration_Plan.py
+- **Purpose**: Generates regeneration plans from research data
 - **Key Functions**:
   - `load_research_reports()`: Loads research data from previous stage
-  - `generate_business_case_prompt()`: Creates business case generation prompt
-  - `process_region_business_case()`: Orchestrates business case creation
-  - `save_business_case()`: Saves business proposals in markdown and JSON
+  - `generate_regeneration_prompt()`: Creates regeneration plan generation prompt
+  - `process_region_regeneration_plan()`: Orchestrates regeneration plan creation
+  - `save_regeneration_plan()`: Saves regeneration plans in markdown and JSON
 
 #### 3_OneEarth_Vizualization.py
-- **Purpose**: Analyzes and visualizes research and business data
+- **Purpose**: Analyzes and visualizes research and regeneration plan data
 - **Key Functions**:
-  - `collect_regional_files()`: Aggregates all research and business documents
+  - `collect_regional_files()`: Aggregates all research and regeneration plan documents
   - `analyze_regional_research()`: Applies NLP and visual analytics
   - Uses various visualization methods from Visualization_Methods.py
 
@@ -103,30 +102,28 @@ graph TD
 sequenceDiagram
     participant User
     participant BioRegions as 1_OneEarth_Bioregions.py
-    participant BusinessPitch as 2_OneEarth_Business_Pitch.py
+    participant RegenerationPlan as 2_OneEarth_Regeneration_Plan.py
     participant Visualization as 3_OneEarth_Vizualization.py
     participant PerplexityAPI as Perplexity API
     
     User->>BioRegions: Run research process
     BioRegions->>PerplexityAPI: Request ecological research
     PerplexityAPI-->>BioRegions: Return research data
-    BioRegions->>PerplexityAPI: Request market analysis
-    PerplexityAPI-->>BioRegions: Return market data
-    BioRegions->>PerplexityAPI: Request supply chain analysis
-    PerplexityAPI-->>BioRegions: Return supply chain data
-    BioRegions->>PerplexityAPI: Request regulatory analysis
-    PerplexityAPI-->>BioRegions: Return regulatory data
+    BioRegions->>PerplexityAPI: Request human intelligence mapping
+    PerplexityAPI-->>BioRegions: Return intelligence data
+    BioRegions->>PerplexityAPI: Request dataset specialist analysis
+    PerplexityAPI-->>BioRegions: Return dataset data
     BioRegions->>User: Save research reports
     
-    User->>BusinessPitch: Run business case generation
-    BusinessPitch->>BioRegions: Load research reports
-    BusinessPitch->>PerplexityAPI: Generate business case
-    PerplexityAPI-->>BusinessPitch: Return business case
-    BusinessPitch->>User: Save business case report
+    User->>RegenerationPlan: Run regeneration plan generation
+    RegenerationPlan->>BioRegions: Load research reports
+    RegenerationPlan->>PerplexityAPI: Generate regeneration plan
+    PerplexityAPI-->>RegenerationPlan: Return regeneration plan
+    RegenerationPlan->>User: Save regeneration plan report
     
     User->>Visualization: Run visualization
     Visualization->>BioRegions: Load research reports
-    Visualization->>BusinessPitch: Load business cases
+    Visualization->>RegenerationPlan: Load regeneration plans
     Visualization->>User: Generate visualizations
 ```
 
@@ -135,7 +132,7 @@ sequenceDiagram
 ```
 OneEarth/
 ├── 1_OneEarth_Bioregions.py             # Research generation script
-├── 2_OneEarth_Business_Pitch.py         # Business case generation script
+├── 2_OneEarth_Regeneration_Plan.py      # Regeneration plan generation script
 ├── 3_OneEarth_Vizualization.py          # Visualization script
 ├── OneEarth_README.md                   # Project README
 ├── OneEarth_Architecture.md             # This architecture documentation
@@ -144,14 +141,13 @@ OneEarth/
 ├── Visualization_Methods.py             # Visualization utility functions
 ├── requirements.txt                     # Project dependencies
 ├── RR_LLM_keys.key                      # API keys (not included in repo)
-├── Outputs/                             # Generated research and business cases
+├── Outputs/                             # Generated research and regeneration plans
 │   └── Region_State_County/             # Organized by region
-│       ├── region_ecological_researcher_report_*.md
-│       ├── region_market_analyst_report_*.md
-│       ├── region_supply_chain_strategist_report_*.md
-│       ├── region_regulatory_compliance_expert_report_*.md
+│       ├── region_ecological_researcher_*.md
+│       ├── region_human_intelligence_officer_*.md
+│       ├── region_dataset_specialist_*.md
 │       ├── region_consolidated_research_*.md
-│       └── region_business_case_*.md
+│       └── region_regeneration_plan_*.md
 └── Visualizations/                      # Generated visualizations
     ├── regional/                        # Region-specific visualizations
     ├── comparative/                     # Cross-region comparisons
