@@ -123,7 +123,19 @@ def setup_logging(debug=False):
     # Create a filter to ensure emoji messages are logged at INFO level
     class EmojiFilter(logging.Filter):
         """Filter to ensure messages with emoji are logged at INFO level."""
-        EMOJI_CHARS = ['⏳', '✅', '📊', '📂', '🕒', '─', '═', '🔄', '💾', '🔢', '📝', '⏱️', '🌍', '📁', '⚡']
+        EMOJI_CHARS = [
+            # Progress indicators
+            '⏳', '✅', '⏭️', '🔄', '⏱️',
+            
+            # Information indicators
+            '📊', '📂', '🕒', '💾', '🔢', '📝',
+            '🌍', '📁', '⚡', 'ℹ️', '⚠️', '❌',
+            
+            # Visual separators
+            '─', '═', '│', '┌', '┐', '└', '┘',
+            '┬', '┴', '┼', '├', '┤', '╔', '╗',
+            '╚', '╝', '╠', '╣', '╦', '╩', '╬'
+        ]
         
         def filter(self, record):
             # Check if the message contains any emoji characters or separator patterns

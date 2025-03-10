@@ -8,7 +8,8 @@ import pandas as pd  # Ensure pandas is imported at the top level
 # Remove automatic spaCy installation and import
 # Use minimal NLP implementation instead
 spacy = None  # Set spaCy to None to indicate it's not available
-logging.info("Using minimal NLP processing (spaCy not required)")
+logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
+logger = logging.getLogger(__name__)
 
 from pathlib import Path
 import re
@@ -16,8 +17,14 @@ from run_pipeline import log_file_operation
 import glob
 
 # Set up logging first to capture import errors
-logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
-logger = logging.getLogger(__name__)
+logger.info("Starting visualization script")
+
+# Define dependency flags with default values
+SKLEARN_AVAILABLE = False
+WORDCLOUD_AVAILABLE = False
+NETWORKX_AVAILABLE = False
+PLOTLY_AVAILABLE = False
+VISUALIZATION_METHODS_AVAILABLE = False
 
 # Import scikit-learn components with try/except to handle missing dependencies
 try:
@@ -25,11 +32,11 @@ try:
     from sklearn.decomposition import PCA, TruncatedSVD
     from sklearn.manifold import TSNE
     SKLEARN_AVAILABLE = True
+    logger.info("scikit-learn is available")
 except ImportError:
     logger.warning("scikit-learn not available. Some visualization features will be limited.")
-    SKLEARN_AVAILABLE = False
 
-# Import with try/except to handle missing dependencies
+# Import visualization methods with try/except to handle missing dependencies
 try:
     from Visualization_Methods import (
         read_markdown_files, preprocess_text, perform_tfidf_and_dim_reduction,
@@ -42,13 +49,60 @@ try:
         WORDCLOUD_AVAILABLE, NETWORKX_AVAILABLE, PLOTLY_AVAILABLE
     )
     VISUALIZATION_METHODS_AVAILABLE = True
+    logger.info("Visualization methods imported successfully")
 except ImportError as e:
     logger.warning(f"Error importing visualization methods: {str(e)}")
     VISUALIZATION_METHODS_AVAILABLE = False
-    # Define constants as False if import fails
-    WORDCLOUD_AVAILABLE = False
-    NETWORKX_AVAILABLE = False
-    PLOTLY_AVAILABLE = False
+    # Define fallback functions for visualization methods
+    def read_markdown_files(file_paths):
+        """Fallback function for reading markdown files."""
+        contents = []
+        for file_path in file_paths:
+            try:
+                with open(file_path, 'r', encoding='utf-8') as file:
+                    contents.append(file.read())
+            except Exception as e:
+                logger.error(f"Error reading file {file_path}: {str(e)}")
+                contents.append("")
+        return contents
+    
+    def preprocess_text(text, nlp):
+        """Fallback function for text preprocessing."""
+        text = text.lower()
+        text = re.sub(r'[^\w\s]', '', text)
+        text = re.sub(r'\d+', '', text)
+        words = text.split()
+        return ' '.join([w for w in words if len(w) > 1])
+    
+    def perform_tfidf_and_dim_reduction(*args, **kwargs):
+        """Fallback function for TF-IDF and dimension reduction."""
+        logger.warning("Visualization methods not available. Dimension reduction skipped.")
+        return None, None, None, None, None, None, None
+    
+    # Define empty fallback functions for all visualization methods
+    def empty_plot(*args, **kwargs):
+        """Empty fallback function for visualization methods."""
+        logger.warning("Visualization method not available.")
+        return None
+    
+    # Assign empty function to all visualization methods
+    plot_dimension_reduction = empty_plot
+    plot_word_importance = empty_plot
+    plot_pca_eigen_terms = empty_plot
+    create_word_cloud = empty_plot
+    plot_prompt_distribution = empty_plot
+    plot_topic_modeling = empty_plot
+    plot_heatmap = empty_plot
+    plot_confidence_intervals = empty_plot
+    plot_system_prompt_comparison = empty_plot
+    plot_term_frequency_distribution = empty_plot
+    plot_term_network = empty_plot
+    extract_prompt_info = empty_plot
+    plot_pca_scree = empty_plot
+    plot_pca_cumulative_variance = empty_plot
+    plot_pca_loadings_heatmap = empty_plot
+    save_pca_top_features = empty_plot
+    plot_pca_3d = empty_plot
 
 def collect_regional_files(base_dir: str) -> Dict[str, Dict[str, List[str]]]:
     """
@@ -424,9 +478,19 @@ def process_regional_data(regional_files, output_dir, nlp):
     os.makedirs(os.path.join(output_dir, "general"), exist_ok=True)
     os.makedirs(os.path.join(output_dir, "regions"), exist_ok=True)
     os.makedirs(os.path.join(output_dir, "comparisons"), exist_ok=True)
+    os.makedirs(os.path.join(output_dir, "network_analysis"), exist_ok=True)
+    os.makedirs(os.path.join(output_dir, "topic_analysis"), exist_ok=True)
+    os.makedirs(os.path.join(output_dir, "comparative"), exist_ok=True)
     
     # Access global dependency flags
-    global VISUALIZATION_METHODS_AVAILABLE, WORDCLOUD_AVAILABLE, NETWORKX_AVAILABLE, SKLEARN_AVAILABLE
+    global VISUALIZATION_METHODS_AVAILABLE, WORDCLOUD_AVAILABLE, NETWORKX_AVAILABLE, SKLEARN_AVAILABLE, PLOTLY_AVAILABLE
+    
+    # Log available visualization libraries
+    logger.info("Visualization libraries available:")
+    logger.info(f"- sklearn: {SKLEARN_AVAILABLE}")
+    logger.info(f"- wordcloud: {WORDCLOUD_AVAILABLE}")
+    logger.info(f"- networkx: {NETWORKX_AVAILABLE}")
+    logger.info(f"- plotly: {PLOTLY_AVAILABLE}")
     
     # Collect all documents for analysis
     all_docs = []
@@ -514,7 +578,7 @@ def process_regional_data(regional_files, output_dir, nlp):
                     # Perform TF-IDF and dimension reduction
                     try:
                         results = perform_tfidf_and_dim_reduction(
-                            preprocessed_docs, n_components=min(2, len(preprocessed_docs)))
+                            preprocessed_docs, min(2, len(preprocessed_docs)))
                         
                         if results:
                             pca_result, lsa_result, tsne_result, vectorizer, pca, lsa, tsne = results
@@ -529,6 +593,18 @@ def process_regional_data(regional_files, output_dir, nlp):
                                     f"PCA of {region} Documents", "pca_plot.png", "PCA",
                                     vectorizer, pca, region_dir
                                 )
+                                
+                                # Add PCA scree plot
+                                plot_pca_scree(pca, region_dir)
+                                
+                                # Add PCA cumulative variance plot
+                                plot_pca_cumulative_variance(pca, region_dir)
+                                
+                                # Add PCA loadings heatmap
+                                plot_pca_loadings_heatmap(pca, vectorizer, region_dir)
+                                
+                                # Save PCA top features
+                                save_pca_top_features(pca, vectorizer, region_dir)
                             
                             if tsne_result is not None and tsne is not None:
                                 plot_dimension_reduction(
@@ -548,6 +624,24 @@ def process_regional_data(regional_files, output_dir, nlp):
                                 vectorizer, tfidf_matrix, region_filenames,
                                 f"Document-Term Heatmap for {region}", "term_heatmap.png", region_dir
                             )
+                            
+                            # Add topic modeling visualization
+                            plot_topic_modeling(
+                                vectorizer, tfidf_matrix,
+                                f"Topic Analysis for {region}", "topic_analysis.png", region_dir
+                            )
+                            
+                            # Add network analysis if available
+                            if NETWORKX_AVAILABLE:
+                                try:
+                                    plot_term_network(
+                                        vectorizer, tfidf_matrix,
+                                        f"Term Co-occurrence Network for {region}", 
+                                        "term_network.png", region_dir
+                                    )
+                                except Exception as net_error:
+                                    logger.error(f"Error creating term network for {region}: {str(net_error)}")
+                            
                         else:
                             logger.warning(f"Dimension reduction returned no results for region {region}")
                     except Exception as e:
@@ -588,7 +682,7 @@ def process_regional_data(regional_files, output_dir, nlp):
             # Perform TF-IDF and dimension reduction
             try:
                 results = perform_tfidf_and_dim_reduction(
-                    all_preprocessed, n_components=min(2, len(all_preprocessed)))
+                    all_preprocessed, min(2, len(all_preprocessed)))
                 
                 if results and len(results) >= 7:
                     pca_result, lsa_result, tsne_result, vectorizer, pca, lsa, tsne = results
@@ -630,6 +724,16 @@ def process_regional_data(regional_files, output_dir, nlp):
                             "Important Terms Across All Documents", "overall_important_terms.png", general_dir
                         )
                     
+                    # Create word cloud if available
+                    if WORDCLOUD_AVAILABLE:
+                        try:
+                            create_word_cloud(
+                                all_preprocessed, "Word Cloud for All Documents",
+                                "overall_word_cloud.png", general_dir
+                            )
+                        except Exception as wc_error:
+                            logger.error(f"Error creating overall word cloud: {str(wc_error)}")
+                    
                     # Create comparison visualizations
                     comparisons_dir = os.path.join(output_dir, "comparisons")
                     
@@ -642,22 +746,55 @@ def process_regional_data(regional_files, output_dir, nlp):
                     # Network analysis if networkx is available
                     if NETWORKX_AVAILABLE:
                         try:
+                            # Save to network_analysis directory as well
+                            network_dir = os.path.join(output_dir, "network_analysis")
                             plot_term_network(
                                 vectorizer, tfidf_matrix,
                                 "Term Co-occurrence Network", "term_network.png", comparisons_dir
                             )
+                            # Create a more detailed network for the dedicated directory
+                            plot_term_network(
+                                vectorizer, tfidf_matrix,
+                                "Detailed Term Co-occurrence Network", "detailed_term_network.png", network_dir
+                            )
                         except Exception as net_error:
                             logger.error(f"Error creating term network: {str(net_error)}")
                     
-                    # Create word cloud if available
-                    if WORDCLOUD_AVAILABLE:
-                        try:
-                            create_word_cloud(
-                                all_preprocessed, "Word Cloud for All Documents",
-                                "overall_word_cloud.png", general_dir
+                    # Topic analysis
+                    try:
+                        topic_dir = os.path.join(output_dir, "topic_analysis")
+                        plot_topic_modeling(
+                            vectorizer, tfidf_matrix,
+                            "Topic Analysis Across All Documents", "all_topics.png", topic_dir
+                        )
+                    except Exception as topic_error:
+                        logger.error(f"Error creating topic analysis: {str(topic_error)}")
+                    
+                    # Comparative analysis
+                    try:
+                        comparative_dir = os.path.join(output_dir, "comparative")
+                        
+                        # Add confidence intervals by document type
+                        plot_confidence_intervals(
+                            vectorizer, tfidf_matrix, all_doc_types,
+                            "Term Frequency Confidence Intervals by Document Type", 
+                            "confidence_by_type.png", comparative_dir
+                        )
+                        
+                        # Add confidence intervals by region
+                        plot_confidence_intervals(
+                            vectorizer, tfidf_matrix, all_regions,
+                            "Term Frequency Confidence Intervals by Region", 
+                            "confidence_by_region.png", comparative_dir
+                        )
+                        
+                        # PCA 3D visualization if available
+                        if PLOTLY_AVAILABLE and pca_result.shape[1] >= 3:
+                            plot_pca_3d(
+                                pca_result, all_regions, comparative_dir
                             )
-                        except Exception as wc_error:
-                            logger.error(f"Error creating overall word cloud: {str(wc_error)}")
+                    except Exception as comp_error:
+                        logger.error(f"Error creating comparative visualizations: {str(comp_error)}")
                 else:
                     logger.warning("Dimension reduction returned incomplete results for overall analysis")
             except Exception as e:
@@ -722,10 +859,10 @@ def create_documents_summary(documents, filenames, regions, doc_types, output_di
 def perform_tfidf_and_dim_reduction_fallback(texts, region=None):
     """Fallback implementation that returns empty results but doesn't crash."""
     logger.warning("scikit-learn is not available. Cannot perform TF-IDF and dimension reduction.")
-    return None, None, None, None, None, None
+    return None, None, None, None, None, None, None
 
 # Main TF-IDF and dimension reduction function
-def perform_tfidf_and_dim_reduction(texts, region=None, min_df=2, max_df=0.95):
+def perform_tfidf_and_dim_reduction(texts, region=None, min_df=1, max_df=1.0):
     """
     Perform TF-IDF vectorization and dimension reduction.
     
@@ -737,37 +874,43 @@ def perform_tfidf_and_dim_reduction(texts, region=None, min_df=2, max_df=0.95):
         
     Returns:
         Tuple of (pca_result, lsa_result, tsne_result, vectorizer, pca, lsa, tsne)
-        or None if an error occurs.
+        or (None, None, None, None, None, None, None) if an error occurs.
     """
     try:
         # Check if scikit-learn is available
         if not SKLEARN_AVAILABLE:
             logger.warning("scikit-learn is not available. Cannot perform TF-IDF and dimension reduction.")
-            return None, None, None, None, None, None
+            return None, None, None, None, None, None, None
             
         # Check if we have enough documents
         if len(texts) < 2:
             logger.warning("Need at least 2 documents for TF-IDF analysis")
-            return None, None, None, None, None, None
+            return None, None, None, None, None, None, None
             
-        # Create TF-IDF vectorizer
-        vectorizer = TfidfVectorizer(max_features=1000, min_df=min_df, max_df=max_df)
+        # Create TF-IDF vectorizer with more lenient parameters for small document sets
+        vectorizer = TfidfVectorizer(
+            max_features=1000,
+            min_df=min_df,  # Allow terms that appear in just one document
+            max_df=max_df   # Allow terms that appear in all documents
+        )
         
         # Fit and transform documents
         try:
             tfidf_matrix = vectorizer.fit_transform(texts)
         except ValueError as e:
             logger.error(f"Error in TF-IDF vectorization: {str(e)}")
-            return None, None, None, None, None, None
+            return None, None, None, None, None, None, None
             
         # Check if we have any features
         if tfidf_matrix.shape[1] == 0:
             logger.warning("No features extracted in TF-IDF vectorization")
-            return None, None, None, None, None, None
+            return None, None, None, None, None, None, None
             
         # Perform PCA
         try:
-            pca = PCA(n_components=min(2, tfidf_matrix.shape[1], len(texts)-1))
+            n_components = min(2, tfidf_matrix.shape[1], len(texts)-1)
+            n_components = max(2, n_components)  # Ensure at least 2 components
+            pca = PCA(n_components=n_components)
             pca_result = pca.fit_transform(tfidf_matrix.toarray())
         except (ValueError, RuntimeWarning) as e:
             logger.error(f"Error in PCA: {str(e)}")
@@ -776,17 +919,20 @@ def perform_tfidf_and_dim_reduction(texts, region=None, min_df=2, max_df=0.95):
             
         # Perform LSA (Truncated SVD)
         try:
-            lsa = TruncatedSVD(n_components=min(2, tfidf_matrix.shape[1], len(texts)-1))
+            n_components = min(2, tfidf_matrix.shape[1], len(texts)-1)
+            n_components = max(2, n_components)  # Ensure at least 2 components
+            lsa = TruncatedSVD(n_components=n_components)
             lsa_result = lsa.fit_transform(tfidf_matrix)
         except (ValueError, RuntimeWarning) as e:
             logger.error(f"Error in LSA: {str(e)}")
             lsa = None
             lsa_result = None
             
-        # Perform t-SNE if we have enough documents
+        # Perform t-SNE with adjusted perplexity for small datasets
         try:
             if len(texts) >= 3:
-                tsne = TSNE(n_components=min(2, 2), random_state=42)
+                perplexity = min(30, max(2, len(texts) - 1))
+                tsne = TSNE(n_components=2, perplexity=perplexity, random_state=42)
                 tsne_result = tsne.fit_transform(tfidf_matrix.toarray())
             else:
                 logger.warning("Need at least 3 documents for t-SNE")
@@ -801,7 +947,7 @@ def perform_tfidf_and_dim_reduction(texts, region=None, min_df=2, max_df=0.95):
         
     except Exception as e:
         logger.error(f"Error in dimension reduction: {str(e)}")
-        return None, None, None, None, None, None
+        return None, None, None, None, None, None, None
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Analyze regional research outputs.")
@@ -816,4 +962,37 @@ if __name__ == "__main__":
     input_dir = os.path.join(script_dir, args.input)
     output_dir = os.path.join(script_dir, args.output)
     
+    # Set up visualization-specific logging
+    viz_log_path = os.path.join(script_dir, "visualization.log")
+    viz_handler = logging.FileHandler(viz_log_path, mode='w')
+    viz_handler.setFormatter(logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s'))
+    viz_handler.setLevel(logging.INFO)
+    logger.addHandler(viz_handler)
+    
+    # Log available visualization libraries
+    logger.info("Visualization libraries available:")
+    logger.info(f"- sklearn: {SKLEARN_AVAILABLE}")
+    logger.info(f"- wordcloud: {WORDCLOUD_AVAILABLE}")
+    logger.info(f"- networkx: {NETWORKX_AVAILABLE}")
+    logger.info(f"- plotly: {PLOTLY_AVAILABLE}")
+    
+    # Check if required packages are installed for additional visualizations
+    # Instead of trying to install packages automatically, just log their availability
+    try:
+        import networkx
+        logger.info("networkx is available for network analysis")
+        NETWORKX_AVAILABLE = True
+    except ImportError:
+        logger.warning("networkx is not available. Network analysis will be limited.")
+        NETWORKX_AVAILABLE = False
+    
+    try:
+        import plotly.express
+        logger.info("plotly is available for interactive visualizations")
+        PLOTLY_AVAILABLE = True
+    except ImportError:
+        logger.warning("plotly is not available. Interactive visualizations will be limited.")
+        PLOTLY_AVAILABLE = False
+    
+    # Run the main function
     main(input_dir, output_dir)

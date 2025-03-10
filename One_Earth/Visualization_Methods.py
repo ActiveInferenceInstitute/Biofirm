@@ -128,7 +128,7 @@ def preprocess_text(text, nlp):
     
     return ' '.join(filtered_words)
 
-def perform_tfidf_and_dim_reduction(preprocessed_docs, n_components=10):
+def perform_tfidf_and_dim_reduction(preprocessed_docs, n_components=10, min_df=1, max_df=1.0):
     """Perform TF-IDF vectorization and dimension reduction."""
     if len(preprocessed_docs) < 2:
         logger.warning("Need at least 2 documents for dimension reduction")
@@ -141,12 +141,18 @@ def perform_tfidf_and_dim_reduction(preprocessed_docs, n_components=10):
         return dummy_matrix, dummy_matrix, dummy_matrix, dummy_vec, None, None, None
     
     try:
-        # TF-IDF Vectorization
-        vectorizer = TfidfVectorizer(max_features=5000, ngram_range=(1, 2))
+        # TF-IDF Vectorization with more lenient parameters for small document sets
+        vectorizer = TfidfVectorizer(
+            max_features=5000,
+            ngram_range=(1, 2),
+            min_df=min_df,  # Allow terms that appear in just one document
+            max_df=max_df   # Allow terms that appear in all documents
+        )
         tfidf_matrix = vectorizer.fit_transform(preprocessed_docs)
         
         # Adjust n_components if needed
         n_components = min(n_components, min(tfidf_matrix.shape) - 1)
+        n_components = max(2, n_components)  # Ensure at least 2 components
         
         # PCA
         pca = PCA(n_components=n_components)
@@ -156,8 +162,9 @@ def perform_tfidf_and_dim_reduction(preprocessed_docs, n_components=10):
         lsa = TruncatedSVD(n_components=n_components)
         lsa_result = lsa.fit_transform(tfidf_matrix)
         
-        # t-SNE
-        tsne = TSNE(n_components=2, perplexity=min(30, len(preprocessed_docs) - 1))
+        # t-SNE with adjusted perplexity for small datasets
+        perplexity = min(30, max(2, len(preprocessed_docs) - 1))
+        tsne = TSNE(n_components=2, perplexity=perplexity)
         tsne_result = tsne.fit_transform(tfidf_matrix.toarray())
         
         return pca_result, lsa_result, tsne_result, vectorizer, pca, lsa, tsne

@@ -1,232 +1,266 @@
-# OneEarth Quickstart Guide
+# One Earth: Quickstart Guide
 
-This document provides quick reference commands for setting up and running the OneEarth processing pipeline.
+This guide will help you quickly set up and start using the One Earth Bioregion Analysis System. Follow these steps to get started with analyzing bioregions and generating visualizations.
 
-## Setup
+## Table of Contents
+- [Prerequisites](#prerequisites)
+- [Installation](#installation)
+- [Basic Usage](#basic-usage)
+- [Visualization Guide](#visualization-guide)
+- [Troubleshooting](#troubleshooting)
+- [Next Steps](#next-steps)
 
-### 1. Install Dependencies
+## Prerequisites
+
+Before you begin, ensure you have the following:
+
+- Python 3.7+ installed on your system
+- Git for accessing the repository
+- 2GB+ of free disk space
+- Internet connection for initial setup and API access
+
+## Installation
+
+### Step 1: Clone the Repository
 
 ```bash
-# Install required Python packages
+git clone https://github.com/username/OneEarth.git
+cd OneEarth
+```
+
+### Step 2: Set Up a Virtual Environment (Recommended)
+
+```mermaid
+flowchart LR
+    A[Install Python] --> B[Create Virtual Environment]
+    B --> C[Activate Environment]
+    C --> D[Install Dependencies]
+    D --> E[Configure API Keys]
+    E --> F[Run Setup Verification]
+```
+
+Creating a virtual environment is strongly recommended to avoid dependency conflicts:
+
+```bash
+# Create a virtual environment
+python3 -m venv oneearth_env
+
+# Activate the environment
+# On macOS/Linux:
+source oneearth_env/bin/activate
+# On Windows:
+# oneearth_env\Scripts\activate
+
+# Verify activation
+which python  # Should point to your virtual environment
+```
+
+### Step 3: Install Dependencies
+
+```bash
+# Install required packages
 pip install -r requirements.txt
 
-# Download spaCy model (required for visualization)
+# Install optional visualization dependencies
+pip install scikit-learn matplotlib seaborn networkx wordcloud plotly spacy
 python -m spacy download en_core_web_sm
 ```
 
-### 2. Set Up API Key
+### Step 4: Configure API Keys (if needed)
 
-The system uses the Perplexity API for generating research content and business cases.
+If you plan to use the research generation features, you'll need to set up API keys:
 
-```bash
-# The project includes a default API key in OneEarth_Perplexity_keys.key
-# To use your own key, edit this file or create a new one:
-echo "PERPLEXITY_API_KEY=your_key_here" > OneEarth_Perplexity_keys.key
+1. Create a file named `OneEarth_Perplexity_keys.key` in the project root
+2. Add your API key in the following format:
+   ```
+   PERPLEXITY_API_KEY=your_api_key_here
+   ```
+
+## Basic Usage
+
+The One Earth system workflow consists of three main steps:
+
+```mermaid
+graph TD
+    A[1. Bioregion Selection] --> B[2. Research Generation]
+    B --> C[3. Visualization & Analysis]
+    C --> D[Outputs Directory]
+    D --> E[Explore Results]
 ```
 
-### 3. Create Directory Structure
+### Step 1: Select Bioregions for Analysis
+
+Run the bioregion selection script to choose which areas to analyze:
 
 ```bash
-# Create required directories
-python create_dirs.py
+python 1_OneEarth_Bioregions.py
 ```
 
-## Running the Pipeline
+This will:
+- Display available bioregions
+- Allow you to select specific regions or use default selections
+- Create initial directory structure for outputs
 
-### Run Complete Pipeline
+**Quick Tip**: For your first run, accept the default selections to process a manageable number of regions.
+
+### Step 2: Generate Research Reports
+
+Run the research generation script to collect and analyze information about the selected bioregions:
 
 ```bash
-# Process all bioregions using the default model (testing)
-python3 run_pipeline.py
-
-# Process all bioregions using the cheapest model (explicitly for testing)
-python3 run_pipeline.py --model testing
-
-# Process limited number of bioregions (for testing)
-python3 run_pipeline.py --max-regions 2 --model testing
-
-# Process bioregions with the best research model (more expensive)
-python3 run_pipeline.py --model production
+python 2_OneEarth_Research.py
 ```
 
-### Model Options
+This will:
+- Query information sources for each selected bioregion
+- Generate comprehensive research reports
+- Save raw data and processed reports in the output directories
 
-The system supports different Perplexity API models:
+**Note**: This step requires internet access and may take 10-30 minutes per bioregion.
 
-| Mode | Model | Description | Cost |
-|------|-------|-------------|------|
-| `testing` | `sonar` | Cheapest option, suitable for testing | $1/$1 per million tokens (input/output) |
-| `production` | `sonar-deep-research` | Best for detailed research | $2/$8 per million tokens (input/output) |
+### Step 3: Create Visualizations
 
-### Run Individual Steps
+Run the visualization script to generate insights from the research data:
 
 ```bash
-# Run only bioregion research with specific model
-python3 1_OneEarth_Bioregions.py --model testing
-python3 1_OneEarth_Bioregions.py --model production
-
-# Run only business case generation with specific model
-python3 2_OneEarth_Business_Pitch.py --model testing
-python3 2_OneEarth_Business_Pitch.py --model production
-
-# Run only visualization (model choice not applicable)
-python3 3_OneEarth_Vizualization.py
+python 3_OneEarth_Vizualization.py
 ```
 
-### Control Bioregion Processing
+This will:
+- Process the research reports
+- Generate various visualizations
+- Create summary insights
+- Save all outputs to the visualization directories
 
-```bash
-# Process only a specific number of bioregions
-python3 1_OneEarth_Bioregions.py --max-regions 3 --model testing
+## Visualization Guide
 
-# Run full pipeline with limited bioregions
-python3 run_pipeline.py --max-regions 2 --model testing
+After running the pipeline, you'll find visualizations organized by type in the output directories:
+
+```
+Outputs/
+├── [Bioregion_Name]/
+│   ├── Research/
+│   │   └── [research reports]
+│   └── Visualizations/
+│       ├── general/
+│       ├── regions/
+│       ├── comparisons/
+│       ├── network_analysis/
+│       ├── topic_analysis/
+│       └── comparative/
 ```
 
-### Skip Specific Steps
+### Key Visualization Types
+
+1. **General Visualizations**: Overview statistics and summary insights
+2. **Regional Visualizations**: Bioregion-specific analyses
+3. **Comparison Visualizations**: Cross-bioregion comparisons
+4. **Network Analysis**: Relationship mappings between entities
+5. **Topic Analysis**: Topic distribution and keyword analysis
+6. **Comparative Analysis**: Side-by-side bioregion comparisons
+
+## Quick Examples
+
+### Run the Complete Pipeline
+
+To run the entire pipeline in sequence:
 
 ```bash
-# Skip research (use existing research data)
-python3 run_pipeline.py --skip-research
-
-# Skip business case generation
-python3 run_pipeline.py --skip-business
-
-# Skip visualization
-python3 run_pipeline.py --skip-visualization
-
-# Combine skip options as needed
-python3 run_pipeline.py --skip-research --skip-business
+python run_pipeline.py
 ```
 
-## Checking Results
+### Process a Single Bioregion
 
-### Research Reports
+To focus on a specific bioregion:
 
 ```bash
-# List bioregion folders
-ls -la Outputs/
-
-# Check research reports for a specific bioregion
-ls -la Outputs/<BioregionName>/
-
-# View a specific research report
-cat Outputs/<BioregionName>/<report_filename>.md
+python run_pipeline.py --region "Amazon Rainforest"
 ```
 
-### Visualizations
+### Generate Only Visualizations
+
+If you've already generated research and want to create new visualizations:
 
 ```bash
-# List visualization directories
-ls -la Visualizations/
-
-# Check regional visualizations
-ls -la Visualizations/regional/
-
-# Check comparative visualizations
-ls -la Visualizations/comparative/
-
-# Check topic analysis
-ls -la Visualizations/topic_analysis/
-
-# Check network analysis
-ls -la Visualizations/network_analysis/
+python 3_OneEarth_Vizualization.py
 ```
 
 ## Troubleshooting
 
-### Check Log Files
+### Common Issues
 
-```bash
-# Check main pipeline log
-cat pipeline.log
+#### Missing Dependencies
 
-# Check for error messages
-grep ERROR pipeline.log
+If you see warnings about missing libraries:
 
-# Follow log in real-time during pipeline execution
-tail -f pipeline.log
+```
+WARNING: sklearn is not installed. Some visualization features will be limited.
+WARNING: networkx is not installed. Network visualization will be disabled.
 ```
 
-### API Key Issues
+Solution: Install the missing dependencies in your virtual environment:
 
 ```bash
-# Verify API key file exists
-ls -la OneEarth_Perplexity_keys.key
-
-# Check API key format (should show PERPLEXITY_API_KEY=xxx)
-grep -v "^#" OneEarth_Perplexity_keys.key
+pip install scikit-learn networkx wordcloud plotly spacy
 ```
 
-### Directory Structure
+#### Externally-Managed Environment Error
 
-```bash
-# Reset directory structure
-rm -rf Outputs/ Visualizations/
-python create_dirs.py
+If you see this error when the script tries to install dependencies:
+
+```
+error: externally-managed-environment
+× This environment is externally managed
 ```
 
-### Common Errors
+Solution: This is common on macOS with Homebrew Python. Use a virtual environment as described in the installation section.
 
-1. **Missing dependencies**: Run `pip install -r requirements.txt` again
-2. **API key errors**: Check that your API key is valid and correctly formatted
-3. **Missing spaCy model**: Run `python -m spacy download en_core_web_sm`
-4. **Directory access issues**: Ensure you have write permissions to the current directory
+#### Script Not Found
 
-## Example End-to-End Workflows
+If you get a "file not found" error:
 
-### Quick Test (Cheap)
-
-```bash
-# Test pipeline with minimal cost
-pip install -r requirements.txt
-python -m spacy download en_core_web_sm
-# Ensure OneEarth_Perplexity_keys.key exists with valid API key
-python create_dirs.py
-python run_pipeline.py --max-regions 1 --model testing
+```
+No such file or directory: '3_OneEarth_Vizualization.py'
 ```
 
-### Full Production Run (Best Quality)
+Solution: Make sure you're in the correct directory:
 
 ```bash
-# Run full pipeline with best quality
-pip install -r requirements.txt
-python -m spacy download en_core_web_sm
-# Ensure OneEarth_Perplexity_keys.key exists with valid API key
-python create_dirs.py
-python run_pipeline.py --model production
+cd /path/to/OneEarth
+ls *.py  # Verify the script exists
 ```
 
-### Sequential Testing
+### Additional Help
 
-```bash
-# Run each step separately for testing
-pip install -r requirements.txt
-python -m spacy download en_core_web_sm
-# Ensure OneEarth_Perplexity_keys.key exists with valid API key
-python create_dirs.py
+For more detailed troubleshooting:
+- Check the `TROUBLESHOOTING.md` document for in-depth solutions
+- Review log files (`pipeline.log`, `visualization.log`)
+- See the full documentation in `README.md`
 
-# Step 1: Test with one bioregion
-python 1_OneEarth_Bioregions.py --max-regions 1 --model testing
+## Next Steps
 
-# Step 2: Generate business case
-python 2_OneEarth_Business_Pitch.py --model testing
+Once you've successfully run the basic pipeline:
 
-# Step 3: Run visualization
-python 3_OneEarth_Vizualization.py
-```
+1. **Explore the Visualizations**:
+   - Open the HTML and PNG files in the visualization directories
+   - Review the summary reports for key insights
 
-### Processing Specific Regions
+2. **Customize Your Analysis**:
+   - Edit the configuration files to focus on specific aspects
+   - Adjust visualization parameters for different outputs
 
-To focus on specific regions or limit processing:
+3. **Learn Advanced Features**:
+   - Explore comparative analysis between multiple bioregions
+   - Try the network analysis for stakeholder mapping
+   - Use the topic analysis for thematic exploration
 
-```bash
-# Process just 3 regions with testing model
-python run_pipeline.py --max-regions 3 --model testing
+4. **Contribute**:
+   - Share your insights and results
+   - Suggest improvements to the visualization methods
+   - Contribute additional bioregion data
 
-# Skip research if already done, just generate business cases
-python run_pipeline.py --skip-research --model testing
+For more information on advanced usage and features, see the full documentation in `README.md` and `VISUALIZATION.md`.
 
-# Generate just visualizations from existing data
-python run_pipeline.py --skip-research --skip-business
-``` 
+---
+
+*For detailed visualization interpretation guidance, see `VISUALIZATION_INTERPRETATION.md`* 

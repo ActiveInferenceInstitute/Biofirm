@@ -230,7 +230,8 @@ def research_bioregion(client, bioregion, system_prompts, model_name, max_tokens
         json_path = os.path.join(output_dir, json_filename)
         
         if os.path.exists(json_path):
-            logging.info(f"⏭️ [{progress_percent:.1f}%] Skipping persona: {persona_name} ({idx}/{total_personas}) - output already exists")
+            # Explicitly use INFO level for skipping messages - even if emoji is not in filter list
+            logging.info(f"ℹ️ [{progress_percent:.1f}%] Skipping persona: {persona_name} ({idx}/{total_personas}) - output already exists")
             
             try:
                 with open(json_path, 'r', encoding='utf-8') as f:
@@ -238,7 +239,7 @@ def research_bioregion(client, bioregion, system_prompts, model_name, max_tokens
                     
                 logging.info(f"✅ SUCCESS: Loaded existing research for {bioregion_name} with {persona_name}")
             except Exception as e:
-                logging.error(f"❌ FAILED: Error loading existing result {json_path}: {e}")
+                logging.warning(f"⚠️ ISSUE: Error loading existing result {json_path}: {e} - continuing without this data")
             
             continue
             
