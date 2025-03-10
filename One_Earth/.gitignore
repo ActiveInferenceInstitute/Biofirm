@@ -83,6 +83,7 @@ Visualizations/**/*.gz
 !Visualizations/**/*.md
 !Visualizations/**/*.txt
 !Visualizations/**/*.csv
+!Visualizations/**/*.png
 !Visualizations/**/*.json
 
 # API keys and sensitive information
