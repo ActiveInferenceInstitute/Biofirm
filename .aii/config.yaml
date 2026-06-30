@@ -1,0 +1,36 @@
+# AII sidecar — InstituteOS metadata. Schema: instituteos.platform.aii_sidecar
+meta:
+  updated: '2026-06-30'
+repo:
+  name: Biofirm
+  slug: biofirm
+  full_name: ActiveInferenceInstitute/Biofirm
+  description: A framework for ecological system control using Active Inference agents.
+institute:
+  category: research-software
+  maturity: released
+  steward: Active Inference Institute
+ecosystem:
+  links:
+    github: https://github.com/ActiveInferenceInstitute/Biofirm
+    website: https://www.activeinference.org
+artifacts:
+- path: README.md
+  kind: doc
+  description: Repository overview.
+- path: LICENSE
+  kind: doc
+  description: License.
+provenance:
+  license: MIT
+instituteos:
+  tags:
+  - biofirm
+  - framework
+  - ecological
+  - system
+  - control
+  - python
+capabilities:
+- tested
+- notebooks
