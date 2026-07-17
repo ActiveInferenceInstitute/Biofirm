@@ -14,7 +14,7 @@ dependencies = [
   "numpy==2.2.6",
   "requests==2.32.4",
   "inferactively-pymdp==1.0.3",
-  "jax==0.8.0",
+  "jax==0.10.2",
 ]
 
 [project.optional-dependencies]
