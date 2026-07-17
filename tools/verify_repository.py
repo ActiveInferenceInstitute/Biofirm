@@ -21,7 +21,9 @@ def main() -> int:
     sys.path.insert(0, str(ROOT / "src"))
     import biofirm
 
-    assert biofirm.__version__
+    if not biofirm.__version__:
+        print("biofirm.__version__ is empty", file=sys.stderr)
+        return 1
     for notebook in (ROOT / "Documentation" / "Notebooks").glob("*.ipynb"):
         try:
             import nbformat

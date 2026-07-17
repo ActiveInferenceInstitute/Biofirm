@@ -6,13 +6,17 @@ from dataclasses import dataclass
 from typing import Any
 
 import numpy as np
+from numpy.typing import NDArray
 
 
 class MatrixValidationError(ValueError):
     """Raised when a generative matrix is not a finite probability object."""
 
 
-def validate_probability_matrix(matrix: Any, *, axis: int, name: str) -> np.ndarray:
+FloatArray = NDArray[np.floating[Any]]
+
+
+def validate_probability_matrix(matrix: Any, *, axis: int, name: str) -> FloatArray:
     """Validate non-negative finite probabilities normalized along ``axis``."""
 
     if isinstance(axis, bool) or not isinstance(axis, int):
@@ -37,10 +41,10 @@ def validate_probability_matrix(matrix: Any, *, axis: int, name: str) -> np.ndar
 class ActiveInferenceMatrices:
     """A valid three-state ecological PyMDP generative model."""
 
-    A: np.ndarray
-    B: np.ndarray
-    C: np.ndarray
-    D: np.ndarray
+    A: FloatArray
+    B: FloatArray
+    C: FloatArray
+    D: FloatArray
 
     def __post_init__(self) -> None:
         for field_name in ("A", "B", "C", "D"):

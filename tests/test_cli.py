@@ -38,10 +38,15 @@ def test_offline_cli_commands(tmp_path, capsys) -> None:  # type: ignore[no-unty
 
 def test_business_cli(tmp_path) -> None:  # type: ignore[no-untyped-def]
     state = tmp_path / "state.json"
+    output = tmp_path / "business.json"
     state.write_text(
         json.dumps({"biodiversity": 40, "soil_moisture": 40, "water_quality": 40}), encoding="utf-8"
     )
-    assert main(["business-evaluate", "--state", str(state)]) == 0
+    assert main(["business-evaluate", "--state", str(state), "--output", str(output)]) == 0
+    document = json.loads(output.read_text(encoding="utf-8"))
+    assert output.stat().st_size > 0
+    assert document["action"]
+    assert document["rationale"]
 
 
 def test_analysis_and_visualization_reject_empty_artifact(tmp_path, capsys) -> None:  # type: ignore[no-untyped-def]

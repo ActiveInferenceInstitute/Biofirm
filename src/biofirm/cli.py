@@ -84,6 +84,7 @@ def build_parser() -> argparse.ArgumentParser:
     _config_argument(business)
     business.add_argument("--state", type=Path, required=True)
     business.add_argument("--committee", type=Path)
+    business.add_argument("--output", type=Path)
 
     return parser
 
@@ -170,7 +171,7 @@ def _dispatch(args: argparse.Namespace) -> Any:
         config = load_config(args.config)
         committee = load_committee(args.committee, config) if args.committee else None
         decision = BusinessCommittee(config, committee).evaluate(_load_state(args.state))
-        return {
+        business_result = {
             "action": decision.action,
             "score": decision.score,
             "cost": decision.cost,
@@ -178,6 +179,9 @@ def _dispatch(args: argparse.Namespace) -> Any:
             "votes": dict(decision.votes),
             "rationale": list(decision.rationale),
         }
+        if args.output:
+            atomic_write_json(args.output, business_result)
+        return business_result
     raise AssertionError(f"unhandled command {args.command}")
 
 
