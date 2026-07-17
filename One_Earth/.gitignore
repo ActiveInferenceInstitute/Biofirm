@@ -1,93 +1,16 @@
-# API keys
-RR_LLM_keys.key
-OneEarth_Perplexity_keys.key
-
-# Output directories
+# Runtime research and visualization artifacts
 /Outputs/
 /Visualizations/
 
-# Python artifacts
-__pycache__/
-*.py[cod]
-*$py.class
-*.so
-.Python
-env/
-build/
-develop-eggs/
-dist/
-downloads/
-eggs/
-.eggs/
-lib/
-lib64/
-parts/
-sdist/
-var/
-*.egg-info/
-.installed.cfg
-*.egg
-
-# Virtual environment
-venv/
-ENV/
-
-# OS-specific files
-.DS_Store
-Thumbs.db
-
-# IDE-specific files
-.idea/
-.vscode/
-*.swp
-*.swo
-
-# IDE files
-.sublime-project
-.sublime-workspace
-
-# Jupyter Notebook
-.ipynb_checkpoints
-
-# Data files
-*.db
-*.sqlite3
-
-# Large binary files in output directories
-Outputs/**/*.png
-Outputs/**/*.jpg
-Outputs/**/*.jpeg
-Outputs/**/*.gif
-Outputs/**/*.pdf
-Outputs/**/*.zip
-Outputs/**/*.tar
-Outputs/**/*.gz
-
-Visualizations/**/*.png
-Visualizations/**/*.jpg
-Visualizations/**/*.jpeg
-Visualizations/**/*.gif
-Visualizations/**/*.pdf
-Visualizations/**/*.zip
-Visualizations/**/*.tar
-Visualizations/**/*.gz
-
-# But keep the directories themselves and text-based files
-!Outputs/
-!Outputs/**/*.md
-!Outputs/**/*.txt
-!Outputs/**/*.csv
-!Outputs/**/*.json
-
-!Visualizations/
-!Visualizations/**/*.md
-!Visualizations/**/*.txt
-!Visualizations/**/*.csv
-!Visualizations/**/*.png
-!Visualizations/**/*.json
-
-# API keys and sensitive information
+# Credentials and local state
+*.key
 .env
 credentials.json
-*.pem
-*.key 
+
+# Python and editor artifacts
+__pycache__/
+*.py[cod]
+.ipynb_checkpoints/
+.DS_Store
+.idea/
+.vscode/

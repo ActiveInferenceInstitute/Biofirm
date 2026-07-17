@@ -1,0 +1,49 @@
+{
+  "name": "biofirm-default-ecosystem",
+  "seed": 7,
+  "variables": {
+    "biodiversity": {
+      "initial": 50.0,
+      "target": 50.0,
+      "minimum": 0.0,
+      "maximum": 100.0,
+      "trend": 0.0,
+      "noise": 0.5,
+      "control_strength": 2.0,
+      "unit": "index"
+    },
+    "soil_moisture": {
+      "initial": 50.0,
+      "target": 50.0,
+      "minimum": 0.0,
+      "maximum": 100.0,
+      "trend": 0.0,
+      "noise": 0.5,
+      "control_strength": 2.0,
+      "unit": "%"
+    },
+    "water_quality": {
+      "initial": 50.0,
+      "target": 50.0,
+      "minimum": 0.0,
+      "maximum": 100.0,
+      "trend": 0.0,
+      "noise": 0.5,
+      "control_strength": 2.0,
+      "unit": "index"
+    }
+  },
+  "relationships": {
+    "biodiversity": {"dependencies": {"soil_moisture": 0.15, "water_quality": 0.1}}
+  },
+  "controller": {
+    "name": "active-inference",
+    "stochastic": false,
+    "response_rate": 0.5,
+    "damping": 0.2
+  },
+  "output": {
+    "directory": "artifacts",
+    "write_by_default": false
+  }
+}

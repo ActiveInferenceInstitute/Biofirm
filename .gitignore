@@ -1,4 +1,21 @@
+# Credentials and local configuration
 *.key
+.env
+.env.*
+!.env.example
+
+# Runtime artifacts
+artifacts/
+outputs/
+One_Earth/Outputs/
+One_Earth/Visualizations/
+Bio_Perplexity/*_Outputs/
+Bio_Perplexity/Visualizations/
+*.png
+*.jpg
+*.jpeg
+*.pdf
+*.log
 
 # Byte-compiled / optimized / DLL files
 __pycache__/
@@ -124,7 +141,6 @@ celerybeat.pid
 *.sage.py
 
 # Environments
-.env
 .venv
 env/
 venv/
@@ -162,9 +178,6 @@ cython_debug/
 #  and can be added to the global gitignore or merged into this file.  For a more nuclear
 #  option (not recommended) you can uncomment the following to ignore the entire idea folder.
 #.idea/
-
-.key
-Methods/llm_keys.key
 
 # Virtual Environment
 venv/

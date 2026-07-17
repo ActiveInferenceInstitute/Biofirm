@@ -1,73 +1,81 @@
 # Biofirm
 
-A framework for ecological system control using Active Inference agents.
+Biofirm is an installable Python package for reproducible ecological control,
+bioregion research, deterministic text extraction, analysis, and auditable
+business decisions.
 
-## Overview
+## Install
 
-Biofirm consists of two main components:
+Biofirm supports Python 3.11 and 3.12.
 
-1. **Ecosystem Control System**
-   - Active Inference-based multi-agent control framework
-   - Homeostatic regulation of ecological parameters
-   - Comparative analysis between random and controlled dynamics
-
-2. **BioPerplexity Analysis** 
-   - California county-level bioregion research using Perplexity.ai API
-   - Business case generation and pitch development
-   - Cross-document visualization and analysis
-
-## System Architecture
-
-### Active Inference Framework
-- Multi-agent POMDP (Partially Observable Markov Decision Process) implementation
-- Each agent controls one ecological modality through free energy minimization
-- Collective homeostatic regulation through distributed control
-
-Key Components:
-- `Ecosystem_Simulation.py`: Main simulator comparing random vs. active inference control
-- `Biofirm_Agent.py`: PyMDP-based active inference agent implementation
-- `POMDP_ABCD.py`: Generative model matrix generation (A,B,C,D matrices)
-- `utils/`: Ecological configuration files and parameters
-
-### Analysis Tools
-- `Free_Energy_Minimization.py`: Analysis of control performance
-- `Noise_Control_ActiveInference_Sweep.py`: Parameter sweep across noise and control levels
-
-### BioPerplexity Pipeline
-1. `1_Research_Bioregions.py`: County-level data collection
-2. `2_Biofirm_Business_Pitch.py`: Business case generation
-3. `3_Biofirm_Visualization.py`: Data visualization
-
-## Getting Started
-
-1. Environment Setup:
 ```bash
-python Startup.py  # Creates PyMDP virtual environment
-source venv/bin/activate
+python -m venv .venv
+source .venv/bin/activate
+python -m pip install -e ".[dev,analysis,visualization,documents]"
+biofirm validate
 ```
 
-2. Configuration:
-- Adjust ecological parameters in `utils/ecosystem_config.json`
-- Configure agent parameters in generative model files
+For a hash-locked development environment, install `uv` and run
+`uv sync --frozen --all-extras`; the committed `uv.lock` and
+`requirements.lock` cover Python 3.11 and 3.12 with platform markers.
 
-3. Run Simulations:
+All offline commands use the packaged configuration unless `--config` is
+provided. Live research is the only network-enabled path and requires both an
+explicit `--live` flag and `PERPLEXITY_API_KEY` in the environment. Copy
+`.env.example` as a reminder, but never put a key in a file tracked by git.
+
+## Commands
+
 ```bash
-python Scripts/Ecosystem_Simulation.py
+biofirm validate
+biofirm simulate --steps 25 --seed 11 --controller active-inference --output run.json
+biofirm sweep --steps 10 --seeds 1 2 3 --controller slide-rule
+biofirm analyze --input run.json
+biofirm visualize --input run.json --output artifacts/trajectory.png
+biofirm parse-description --input region.txt
+biofirm business-evaluate --state state.json
+biofirm research --live --source regions.json --persona ecologist --output artifacts/research
 ```
 
-## Technical Details
+`simulate` records every transition: values, observations, controls, action
+IDs, controller beliefs, variational free energy, expected free energy, policy
+distributions, metrics, and transition diagnostics. Seeded runs are
+reproducible. Invalid configuration, unavailable optional dependencies,
+malformed provider responses, and failed controller calls produce errors;
+they do not create empty success artifacts.
 
-See `Biofirm_Generative_Model.md` for comprehensive documentation of:
-- POMDP framework implementation
-- Generative model architecture
-- Free energy minimization approach
-- Control system dynamics
+## Configuration
 
-## Project Structure
+The packaged JSON schema is available at `src/biofirm/data/ecosystem.json`.
+Each variable declares its initial and target values, physical limits, trend,
+noise, control strength, and unit. Relationships are directed linear effects
+between variables. Validation rejects unknown fields and dependencies,
+non-finite values, invalid ranges, and cycles.
+
+The transition equation is:
+
+```text
+next = clip(current + trend + relationship_effect + control + bounded_noise,
+            minimum, maximum)
 ```
-├── Bio_Perplexity/          # Business analysis tools
-├── Scripts/                 # Core simulation code
-│   ├── utils/              # Configuration files
-│   └── Outputs/            # Simulation results
-└── Stream/                 # Documentation
+
+The active-inference controller uses the installed PyMDP 1.x API with JAX
+arrays, explicit empirical priors, explicit policy inference, and deterministic
+action selection unless stochastic selection is configured.
+
+## Development checks
+
+```bash
+pytest
+ruff check src tests tools
+mypy --python-version 3.12 src/biofirm
+bandit -q -r src
+python tools/verify_repository.py
+uv lock --check
+python -m build
 ```
+
+Generated research, simulation, report, plot, log, and cache files belong in
+`artifacts/` or another ignored runtime directory. Authoritative source data
+under `One_Earth/` and `Bio_Perplexity/` remains input data rather than a
+generated output contract.

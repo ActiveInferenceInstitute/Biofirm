@@ -1,1 +1,0 @@
-# Visualization directory for OneEarth
