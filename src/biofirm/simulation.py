@@ -199,9 +199,10 @@ def _record(
         abs(value - config.variables[name].target) / config.variables[name].span
         for name, value in values.items()
     ]
+    homeostatic_error = float(np.mean(errors))
     metrics = {
-        "homeostatic_error": float(np.mean(errors)),
-        "homeostatic_score": float(max(0.0, 1.0 - np.mean(errors))),
+        "homeostatic_error": homeostatic_error,
+        "homeostatic_score": max(0.0, 1.0 - homeostatic_error),
         "control_effort": float(np.sum(np.abs(list(decision.controls.values())))),
         "bounded": 1.0,
     }
