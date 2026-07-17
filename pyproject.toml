@@ -11,7 +11,7 @@ requires-python = ">=3.11,<3.13"
 license = { text = "MIT" }
 authors = [{ name = "Active Inference Institute" }]
 dependencies = [
-  "numpy==2.2.6",
+  "numpy==2.4.6",
   "requests==2.32.4",
   "inferactively-pymdp==1.0.3",
   "jax==0.8.0",
