@@ -28,8 +28,10 @@ explicit `--live` flag and `PERPLEXITY_API_KEY` in the environment. Copy
 
 ```bash
 biofirm validate
+biofirm validate-data
 biofirm simulate --steps 25 --seed 11 --controller active-inference --output run.json
 biofirm sweep --steps 10 --seeds 1 2 3 --controller slide-rule
+biofirm compare --steps 10 --seeds 1 2 3 --controllers slide-rule random
 biofirm analyze --input run.json
 biofirm visualize --input run.json --output artifacts/trajectory.png
 biofirm parse-description --input region.txt
@@ -40,9 +42,17 @@ biofirm research --live --source regions.json --persona ecologist --output artif
 `simulate` records every transition: values, observations, controls, action
 IDs, controller beliefs, variational free energy, expected free energy, policy
 distributions, metrics, and transition diagnostics. Seeded runs are
-reproducible. Invalid configuration, unavailable optional dependencies,
-malformed provider responses, and failed controller calls produce errors;
-they do not create empty success artifacts.
+reproducible. New simulation artifacts include a schema version, configuration
+snapshot, configuration hash, controller identity, and package version. Invalid
+configuration, unavailable optional dependencies, malformed provider responses,
+and failed controller calls produce errors; they do not create empty success
+artifacts.
+
+Live research writes a JSON/Markdown pair for each region/persona plus a
+manifest containing integrity hashes. Resume is allowed only when both files,
+their hashes, the prompt version/hash, and the source hash agree. Structural
+validation establishes artifact integrity; it never certifies the factual
+quality of citations or research claims.
 
 ## Configuration
 
@@ -79,3 +89,18 @@ Generated research, simulation, report, plot, log, and cache files belong in
 `artifacts/` or another ignored runtime directory. Authoritative source data
 under `One_Earth/` and `Bio_Perplexity/` remains input data rather than a
 generated output contract.
+
+Live research requires both `--live` and `PERPLEXITY_API_KEY`. The default
+endpoint is the official HTTPS provider endpoint. Custom endpoints require
+`--allow-custom-endpoint` and are intended only for trusted HTTPS-compatible
+providers; credentials are never sent over insecure HTTP by the CLI.
+
+See [DOCUMENTATION_INDEX.md](DOCUMENTATION_INDEX.md) for the boundary between
+implemented contracts, source data, and historical design material. Current
+work is scoped in [TODO.md](TODO.md); completed items remain in Git history.
+
+Schema compatibility is explicit: consumers must validate simulation schema
+version `1`, and future breaking changes require a new schema version and
+migration notes. The public package exports stable configuration, simulation,
+data-validation, and comparison entry points; internal modules remain
+implementation details.

@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import hashlib
 import json
 import math
 from collections.abc import Mapping
@@ -14,6 +15,27 @@ from typing import Any
 
 class ConfigError(ValueError):
     """Raised when a configuration cannot describe a valid ecosystem."""
+
+
+def canonical_json(value: Any) -> str:
+    """Serialize JSON data deterministically without accepting non-finite numbers."""
+
+    try:
+        return json.dumps(
+            value,
+            sort_keys=True,
+            separators=(",", ":"),
+            ensure_ascii=False,
+            allow_nan=False,
+        )
+    except (TypeError, ValueError) as exc:
+        raise ConfigError("value cannot be represented as canonical JSON") from exc
+
+
+def sha256_json(value: Any) -> str:
+    """Return the SHA-256 digest of canonical JSON data."""
+
+    return hashlib.sha256(canonical_json(value).encode("utf-8")).hexdigest()
 
 
 def _finite(value: Any, name: str) -> float:
@@ -109,6 +131,11 @@ class VariableConfig:
             not isinstance(alias, str) or not alias.strip() for alias in self.aliases
         ):
             raise ConfigError(f"variables.{self.name}.aliases cannot contain empty values")
+        normalised_aliases = [alias.strip().casefold() for alias in self.aliases]
+        if len(normalised_aliases) != len(set(normalised_aliases)):
+            raise ConfigError(f"variables.{self.name}.aliases must be unique ignoring case")
+        if self.name.strip().casefold() in normalised_aliases:
+            raise ConfigError(f"variables.{self.name}.aliases cannot repeat the variable name")
         if self.minimum >= self.maximum:
             raise ConfigError(f"variables.{self.name}: minimum must be below maximum")
         if not self.minimum <= self.initial <= self.maximum:
@@ -133,6 +160,8 @@ class RelationshipConfig:
     dependencies: Mapping[str, float]
 
     def __post_init__(self) -> None:
+        if not isinstance(self.dependencies, Mapping):
+            raise ConfigError("relationship dependencies must be an object")
         object.__setattr__(self, "dependencies", MappingProxyType(dict(self.dependencies)))
         if not isinstance(self.target, str) or not self.target.strip():
             raise ConfigError("relationship targets must be non-empty strings")
@@ -234,6 +263,8 @@ class OutputConfig:
     def __post_init__(self) -> None:
         if not isinstance(self.directory, str) or not self.directory.strip():
             raise ConfigError("output.directory must be a non-empty string")
+        if "\x00" in self.directory:
+            raise ConfigError("output.directory cannot contain NUL characters")
         if not isinstance(self.write_by_default, bool):
             raise ConfigError("output.write_by_default must be boolean")
 
@@ -267,6 +298,10 @@ class BiofirmConfig:
     seed: int = 7
 
     def __post_init__(self) -> None:
+        if not isinstance(self.variables, Mapping):
+            raise ConfigError("configuration.variables must be an object")
+        if not isinstance(self.relationships, Mapping):
+            raise ConfigError("configuration.relationships must be an object")
         object.__setattr__(self, "variables", MappingProxyType(dict(self.variables)))
         object.__setattr__(self, "relationships", MappingProxyType(dict(self.relationships)))
         self.validate()
@@ -332,6 +367,19 @@ class BiofirmConfig:
             if name != variable.name:
                 raise ConfigError(f"variable key {name!r} does not match its name")
             variable.validate()
+        names = {name.casefold() for name in self.variables}
+        if len(names) != len(self.variables):
+            raise ConfigError("variable names must be unique ignoring case")
+        aliases: dict[str, str] = {}
+        for name, variable in self.variables.items():
+            for alias in (name, *variable.aliases):
+                key = alias.strip().casefold()
+                owner = aliases.get(key)
+                if owner is not None and owner != name:
+                    raise ConfigError(
+                        f"variable alias {alias!r} is shared by {owner!r} and {name!r}"
+                    )
+                aliases[key] = name
         for target, relationship in self.relationships.items():
             if not isinstance(target, str) or not isinstance(relationship, RelationshipConfig):
                 raise ConfigError(
@@ -406,6 +454,12 @@ class BiofirmConfig:
                 "write_by_default": self.output.write_by_default,
             },
         }
+
+    @property
+    def sha256(self) -> str:
+        """Stable identity for this validated configuration."""
+
+        return sha256_json(self.to_dict())
 
 
 def load_config(path: str | Path | None = None) -> BiofirmConfig:

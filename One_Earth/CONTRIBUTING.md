@@ -1,5 +1,9 @@
 # Contributing to One Earth
 
+> Status: Historical contribution guide for the broader One Earth system. For
+> current Biofirm development commands and contracts, use the repository root
+> `README.md`.
+
 Thank you for your interest in contributing to the One Earth Bioregion Analysis System! This guide provides information on how you can contribute to this project and help improve our understanding and regeneration of Earth's bioregions.
 
 ## Table of Contents
@@ -331,4 +335,4 @@ Your contributions help make the One Earth Bioregion Analysis System a more powe
 
 ---
 
-*This document was last updated: March, 2024* 
+*This document was last updated: March, 2024*

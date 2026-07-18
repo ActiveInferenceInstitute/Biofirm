@@ -49,3 +49,9 @@ biofirm simulate --steps 20 --seed 7 --controller active-inference --output run.
 
 The same configuration, seed, and controller produce the same JSON history.
 Runtime files are written only when an output path is explicitly supplied.
+
+Serialized simulation results use schema version `1` and include the canonical
+configuration snapshot and SHA-256 hash, controller name, package version, seed,
+summary, and immutable transition records. Consumers must validate the complete
+document before analysis or visualization; missing, extra, non-finite, or
+tampered fields are errors.

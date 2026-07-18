@@ -13,9 +13,16 @@ from typing import Any
 from .analysis import summarize_records
 from .business import BusinessCommittee, load_committee
 from .config import ConfigError, load_config
+from .data_validation import validate_repository_data
 from .io import atomic_write_json
 from .research import PerplexityClient, ResearchService, load_regions
-from .simulation import parameter_sweep, simulate, validate_result_document, write_result
+from .simulation import (
+    compare_controllers,
+    parameter_sweep,
+    simulate,
+    validate_result_document,
+    write_result,
+)
 from .text import BioregionTextProcessor, extract_text
 from .visualization import visualize_documents
 
@@ -65,6 +72,11 @@ def build_parser() -> argparse.ArgumentParser:
     research.add_argument("--output", type=Path, required=True)
     research.add_argument("--model", default="sonar")
     research.add_argument("--base-url", default="https://api.perplexity.ai")
+    research.add_argument(
+        "--allow-custom-endpoint",
+        action="store_true",
+        help="allow a non-default HTTPS research endpoint (use only with a trusted provider)",
+    )
     research.add_argument("--timeout", type=float, default=30.0)
     research.add_argument("--retries", type=int, default=3)
     research.add_argument("--backoff", type=float, default=0.5)
@@ -85,6 +97,38 @@ def build_parser() -> argparse.ArgumentParser:
     business.add_argument("--state", type=Path, required=True)
     business.add_argument("--committee", type=Path)
     business.add_argument("--output", type=Path)
+
+    compare = subparsers.add_parser(
+        "compare", help="compare seeded controller runs with aggregate metrics"
+    )
+    _config_argument(compare)
+    compare.add_argument("--steps", type=int, default=20)
+    compare.add_argument("--seeds", type=int, nargs="+", default=[7, 8, 9])
+    compare.add_argument(
+        "--controllers",
+        nargs="+",
+        choices=["active-inference", "slide-rule", "random", "business"],
+        default=["active-inference", "slide-rule", "random", "business"],
+    )
+    compare.add_argument("--output", type=Path)
+
+    data = subparsers.add_parser(
+        "validate-data", help="validate authoritative repository JSON data"
+    )
+    data.add_argument(
+        "--one-earth", type=Path, default=Path("One_Earth/oneearth_bioregion_ecoregions.json")
+    )
+    data.add_argument("--regions", type=Path, default=Path("Bio_Perplexity/Biofirm_Regions.json"))
+    data.add_argument(
+        "--california", type=Path, default=Path("Bio_Perplexity/CA_Biofirm_Regions.json")
+    )
+    data.add_argument(
+        "--bio-prompts", type=Path, default=Path("Bio_Perplexity/Biofirm_System_Prompts.json")
+    )
+    data.add_argument(
+        "--one-earth-prompts", type=Path, default=Path("One_Earth/OneEarth_System_Prompts.json")
+    )
+    data.add_argument("--output", type=Path)
 
     return parser
 
@@ -148,6 +192,7 @@ def _dispatch(args: argparse.Namespace) -> Any:
             timeout=args.timeout,
             retries=args.retries,
             backoff=args.backoff,
+            allow_custom_endpoint=args.allow_custom_endpoint,
         )
         service = ResearchService(client)
         paths = service.run(
@@ -160,6 +205,23 @@ def _dispatch(args: argparse.Namespace) -> Any:
             max_tokens=args.max_tokens,
         )
         return {"written": [str(path) for path in paths]}
+    if args.command == "compare":
+        config = load_config(args.config)
+        comparison = compare_controllers(config, args.steps, args.seeds, args.controllers)
+        if args.output:
+            atomic_write_json(args.output, comparison)
+        return comparison
+    if args.command == "validate-data":
+        report = validate_repository_data(
+            one_earth_path=args.one_earth,
+            biofirm_regions_path=args.regions,
+            california_regions_path=args.california,
+            biofirm_prompts_path=args.bio_prompts,
+            one_earth_prompts_path=args.one_earth_prompts,
+        ).to_dict()
+        if args.output:
+            atomic_write_json(args.output, report)
+        return report
     if args.command == "parse-description":
         config = load_config(args.config)
         processor = BioregionTextProcessor(config)

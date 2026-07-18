@@ -1,5 +1,8 @@
 # One Earth Bioregion Analysis: Case Studies
 
+> Status: Historical design note. These case studies are not validated outputs
+> of the current Biofirm package and must not be treated as current evidence.
+
 This document presents case studies demonstrating how the One Earth Bioregion Analysis System has been applied to different bioregions around the world. Each case study highlights the research process, key insights gained, and regeneration plans developed.
 
 ## Case Study 1: Andean Mountain Forests & Valleys (NT11)
@@ -155,23 +158,23 @@ flowchart TD
     A[Land-Sea Regeneration Approach] --> B[Watershed Restoration]
     A --> C[Coastal Ecosystem Protection]
     A --> D[Marine Restoration]
-    
+
     B --> B1[Riparian Reforestation]
     B --> B2[Sustainable Agriculture]
     B --> B3[Erosion Control]
-    
+
     C --> C1[Mangrove Restoration]
     C --> C2[Wetland Protection]
     C --> C3[Coastal Buffer Zones]
-    
+
     D --> D1[Coral Restoration]
     D --> D2[Seagrass Meadows]
     D --> D3[Marine Protected Areas]
-    
+
     B1 & B2 & B3 --> E[Improved Water Quality]
     C1 & C2 & C3 --> F[Coastal Resilience]
     D1 & D2 & D3 --> G[Marine Biodiversity]
-    
+
     E & F & G --> H[Integrated Ecosystem Health]
 ```
 
@@ -326,18 +329,18 @@ flowchart TD
     A[Community-Led Implementation] --> B[Village Resource Management Committees]
     A --> C[Women's Restoration Groups]
     A --> D[Youth Innovation Teams]
-    
+
     B & C & D --> E[Local Restoration Plans]
     E --> F[Implementation]
     F --> G[Monitoring]
     G --> H[Adaptation]
     H --> F
-    
+
     I[Knowledge Sharing Network] --- B
     I --- C
     I --- D
     I --- J[Cross-Regional Learning]
-    
+
     K[Technical Support] --- F
     L[Financial Mechanisms] --- F
     M[Policy Advocacy] --- F
@@ -384,19 +387,19 @@ graph TD
     A --> C[Social-Cultural Context]
     A --> D[Economic Context]
     A --> E[Governance Context]
-    
+
     B --> B1[Andean: High-altitude ecosystem focus]
     B --> B2[Great Barrier Reef: Land-sea integration]
     B --> B3[Sahel: Water-centric approach]
-    
+
     C --> C1[Andean: Indigenous territorial rights]
     C --> C2[Great Barrier Reef: Tourism-conservation balance]
     C --> C3[Sahel: Pastoral-agricultural integration]
-    
+
     D --> D1[Andean: Ecotourism development]
     D --> D2[Great Barrier Reef: Reef economy transformation]
     D --> D3[Sahel: Climate-resilient value chains]
-    
+
     E --> E1[Andean: Cross-border cooperation]
     E --> E2[Great Barrier Reef: Multi-level governance]
     E --> E3[Sahel: Community resource management]
@@ -406,4 +409,4 @@ graph TD
 
 These case studies demonstrate the power of the One Earth Bioregion Analysis System to generate comprehensive, place-based regeneration plans tailored to the unique ecological, social, and economic contexts of different bioregions. By combining specialized research personas, internet-enabled research, and structured regeneration planning, the system provides actionable frameworks for ecological restoration and sustainable development across diverse global landscapes.
 
-The comparative analysis across case studies reveals both universal principles for successful ecological regeneration and the importance of bioregion-specific adaptations. This balanced approach of applying common methodologies while respecting local contexts offers a powerful model for scaling ecological regeneration efforts worldwide. 
+The comparative analysis across case studies reveals both universal principles for successful ecological regeneration and the importance of bioregion-specific adaptations. This balanced approach of applying common methodologies while respecting local contexts offers a powerful model for scaling ecological regeneration efforts worldwide.

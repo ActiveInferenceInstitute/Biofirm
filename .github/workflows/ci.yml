@@ -23,7 +23,7 @@ jobs:
           diff -u requirements.lock "$RUNNER_TEMP/requirements.lock"
           uv sync --frozen --all-extras
       - name: Test suite
-        run: uv run pytest --cov=biofirm --cov-report=term-missing
+        run: uv run pytest --cov=biofirm --cov-report=term-missing --cov-fail-under=90
       - name: Ruff
         run: uv run ruff check src tests tools && uv run ruff format --check src tests tools
       - name: Mypy
@@ -33,7 +33,9 @@ jobs:
       - name: Syntax and import scan
         run: uv run python tools/verify_repository.py
       - name: Documentation command
-        run: uv run biofirm validate
+        run: |
+          uv run biofirm validate
+          uv run biofirm validate-data
       - name: Build wheel
         run: uv run python -m build
       - name: Install and run outside checkout

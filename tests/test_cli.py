@@ -55,3 +55,29 @@ def test_analysis_and_visualization_reject_empty_artifact(tmp_path, capsys) -> N
     assert main(["analyze", "--input", str(empty)]) == 2
     assert "non-empty records" in capsys.readouterr().err
     assert main(["visualize", "--input", str(empty), "--output", str(tmp_path / "plot.png")]) == 2
+
+
+def test_data_validation_and_controller_comparison_cli(tmp_path) -> None:  # type: ignore[no-untyped-def]
+    data_output = tmp_path / "data.json"
+    comparison_output = tmp_path / "comparison.json"
+    assert main(["validate-data", "--output", str(data_output)]) == 0
+    assert json.loads(data_output.read_text(encoding="utf-8"))["valid"] is True
+    assert (
+        main(
+            [
+                "compare",
+                "--steps",
+                "1",
+                "--seeds",
+                "1",
+                "2",
+                "--controllers",
+                "slide-rule",
+                "random",
+                "--output",
+                str(comparison_output),
+            ]
+        )
+        == 0
+    )
+    assert len(json.loads(comparison_output.read_text(encoding="utf-8"))["rows"]) == 4

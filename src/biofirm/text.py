@@ -53,13 +53,19 @@ DEFAULT_RESOURCE_LEXICON: Mapping[str, tuple[str, ...]] = {
     "agriculture": ("crop", "crops", "farmland", "agriculture", "pasture"),
 }
 
-_NUMBER = r"(?:\d+(?:\.\d+)?)"
+_NUMBER = r"[+-]?(?:\d+(?:\.\d+)?|\.\d+)"
 _RANGE_PATTERNS = (
     re.compile(rf"(?P<low>{_NUMBER})\s*(?:-|to|–)\s*(?P<high>{_NUMBER})\s*(?P<unit>[a-zA-Z%°/]+)?"),
     re.compile(
         rf"between\s+(?P<low>{_NUMBER})\s+and\s+(?P<high>{_NUMBER})\s*(?P<unit>[a-zA-Z%°/]+)?"
     ),
 )
+
+
+def _alias_pattern(alias: str) -> str:
+    """Match configured snake-case aliases in natural-language spacing too."""
+
+    return re.escape(alias).replace("_", r"[\s_-]+")
 
 
 class BioregionTextProcessor:
@@ -73,7 +79,7 @@ class BioregionTextProcessor:
         self.config = config
         self.resource_lexicon = resource_lexicon or DEFAULT_RESOURCE_LEXICON
         self._aliases = {
-            alias.lower(): name
+            alias.casefold(): name
             for name, variable in config.variables.items()
             for alias in (name, *variable.aliases)
         }
@@ -104,17 +110,19 @@ class BioregionTextProcessor:
             sentence = sentence_match.group(0)
             sentence_start = sentence_match.start()
             aliases = [
-                (alias, variable)
+                (alias, variable, alias_match)
                 for alias, variable in self._aliases.items()
-                if re.search(rf"\b{re.escape(alias)}\b", sentence.lower())
+                for alias_match in re.finditer(rf"\b{_alias_pattern(alias)}\b", sentence.casefold())
             ]
             ranges: list[re.Match[str]] = []
             for pattern in _RANGE_PATTERNS:
                 ranges.extend(pattern.finditer(sentence))
-            for alias, variable in aliases:
+            for alias, variable, alias_match in aliases:
                 if not ranges:
                     continue
-                selected = ranges[0]
+                selected = min(
+                    ranges, key=lambda candidate: abs(candidate.start() - alias_match.start())
+                )
                 low = float(selected.group("low"))
                 high = float(selected.group("high"))
                 if low > high:

@@ -1,5 +1,8 @@
 # Active InferAnt Stream #006.1: Towards (Open Source, Active Inference) Bioregional Models
 
+> Status: Historical discussion note. It contains exploratory ideas and does
+> not define implemented Biofirm behavior or scientific evidence.
+
 Previous Active InferAnt streams
 <https://www.youtube.com/playlist?list=PLNm0u2n1IwdpcuXO_NfcLoQXcAkkGYVUD>
 

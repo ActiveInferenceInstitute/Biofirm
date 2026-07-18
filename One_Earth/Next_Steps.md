@@ -2,6 +2,9 @@ Note that we are running the full pipeline on March 8, with the cheaper Sonor mo
 
 # OE Expert Network Tool - Next Steps
 
+> Status: Historical roadmap. Active Biofirm work is tracked only in the
+> repository-root `TODO.md`; this document describes an unimplemented system.
+
 ## Project Overview
 The OE Expert Network Tool aims to largely automate One Earth's process of identifying and engaging with subject matter experts across all 185 bioregions. The tool serves as a key component of One Earth's Knowledge Management system, enabling the organization to build a comprehensive expert network organized by topical expertise within specific geographic boundaries.
 

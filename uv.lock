@@ -41,7 +41,6 @@ wheels = [
 
 [[package]]
 name = "biofirm"
-version = "0.1.0"
 source = { editable = "." }
 dependencies = [
     { name = "inferactively-pymdp" },
@@ -123,7 +122,7 @@ requires-dist = [
     { name = "wordcloud", marker = "extra == 'all'", specifier = ">=1.9,<2" },
     { name = "wordcloud", marker = "extra == 'visualization'", specifier = ">=1.9,<2" },
 ]
-provides-extras = ["analysis", "visualization", "documents", "dev", "all"]
+provides-extras = ["all", "analysis", "dev", "documents", "visualization"]
 
 [[package]]
 name = "build"

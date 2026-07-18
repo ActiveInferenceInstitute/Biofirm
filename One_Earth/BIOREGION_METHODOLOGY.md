@@ -1,5 +1,9 @@
 # One Earth Bioregion Methodology
 
+> Status: Historical design note. It describes a broader One Earth analysis
+> system, not an implemented Biofirm package contract. Use the repository root
+> README and `TODO.md` for current behavior and work.
+
 This document explains the methodology used by the One Earth Bioregion Analysis System for researching, analyzing, and developing regeneration plans for Earth's bioregions.
 
 ## Overview of the Bioregion Approach
@@ -51,23 +55,23 @@ flowchart TD
     B --> C[Data Collection]
     C --> D[Analysis & Synthesis]
     D --> E[Regeneration Planning]
-    
+
     B --> B1[Ecological Research]
     B --> B2[Human Intelligence Mapping]
     B --> B3[Dataset Analysis]
     B --> B4[Regeneration Planning]
-    
+
     C --> C1[Scientific Literature]
     C --> C2[Indigenous Knowledge]
     C --> C3[Government Reports]
     C --> C4[Case Studies]
     C --> C5[Remote Sensing Data]
-    
+
     D --> D1[Cross-Validation]
     D --> D2[Gap Analysis]
     D --> D3[Pattern Recognition]
     D --> D4[Systems Mapping]
-    
+
     E --> E1[Priority Setting]
     E --> E2[Intervention Design]
     E --> E3[Implementation Framework]
@@ -163,22 +167,22 @@ The One Earth system employs four specialized research personas to ensure compre
 ```mermaid
 graph TD
     A[Bioregion Selection] --> B[Research Framework]
-    
+
     B --> C1[Ecological<br>Research]
     B --> C2[Human Intelligence<br>Mapping]
     B --> C3[Dataset<br>Analysis]
     B --> C4[Regeneration<br>Planning]
-    
+
     C1 --> D[Data Collection]
     C2 --> D
     C3 --> D
     C4 --> D
-    
+
     D --> E[Analysis & Synthesis]
     E --> F[Cross-Persona<br>Integration]
     F --> G[Comprehensive<br>Bioregion Report]
     G --> H[Regeneration Plan]
-    
+
     I[Feedback Loop] --> B
     H --> I
 ```
@@ -235,23 +239,23 @@ graph TD
     B --> D[Social-Ecological Analysis]
     B --> E[Vulnerability Assessment]
     B --> F[Opportunity Mapping]
-    
+
     C --> C1[Ecosystem Health]
     C --> C2[Biodiversity Status]
     C --> C3[Ecological Processes]
-    
+
     D --> D1[Human-Nature Relationships]
     D --> D2[Governance Systems]
     D --> D3[Economic Activities]
-    
+
     E --> E1[Climate Vulnerability]
     E --> E2[Development Pressures]
     E --> E3[Resource Depletion]
-    
+
     F --> F1[Restoration Potential]
     F --> F2[Sustainable Use Options]
     F --> F3[Governance Innovations]
-    
+
     C & D & E & F --> G[Integrated Bioregion Profile]
     G --> H[Regeneration Strategy]
 ```
@@ -304,20 +308,20 @@ flowchart TD
     B --> C[Strategy Formulation]
     C --> D[Implementation Planning]
     D --> E[Monitoring Framework]
-    
+
     B --> B1[Ecological Vision]
     B --> B2[Social Vision]
     B --> B3[Economic Vision]
-    
+
     C --> C1[Restoration Strategies]
     C --> C2[Protection Strategies]
     C --> C3[Sustainable Use Strategies]
     C --> C4[Governance Strategies]
-    
+
     D --> D1[Short-term Actions]
     D --> D2[Medium-term Actions]
     D --> D3[Long-term Actions]
-    
+
     E --> E1[Ecological Indicators]
     E --> E2[Social Indicators]
     E --> E3[Economic Indicators]
@@ -403,23 +407,23 @@ The One Earth system enables comparative analysis across bioregions to identify 
 ```mermaid
 graph TD
     A[Bioregion Database] --> B[Comparative Analysis Framework]
-    
+
     B --> C[Typology-Based Comparison]
     B --> D[Threat-Based Comparison]
     B --> E[Intervention-Based Comparison]
-    
+
     C --> C1[Similar Ecosystem Types]
     C --> C2[Similar Social Contexts]
     C --> C3[Similar Development Stages]
-    
+
     D --> D1[Climate Vulnerability Patterns]
     D --> D2[Development Pressure Patterns]
     D --> D3[Resource Depletion Patterns]
-    
+
     E --> E1[Restoration Success Patterns]
     E --> E2[Governance Innovation Patterns]
     E --> E3[Economic Transition Patterns]
-    
+
     C & D & E --> F[Cross-Bioregion Learning]
     F --> G[Scalable Solutions]
     F --> H[Global Patterns]
@@ -513,4 +517,4 @@ This living methodology provides a robust framework while maintaining adaptabili
 
 ---
 
-*For more detailed information on specific methodological components, please refer to the technical appendices and case studies.* 
+*For more detailed information on specific methodological components, please refer to the technical appendices and case studies.*

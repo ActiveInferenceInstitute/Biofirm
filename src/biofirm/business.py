@@ -27,10 +27,30 @@ class ActionDefinition:
     ecological_effects: Mapping[str, float]
 
     def __post_init__(self) -> None:
+        if not isinstance(self.controls, Mapping) or not isinstance(
+            self.ecological_effects, Mapping
+        ):
+            raise BusinessDecisionError("action controls and ecological_effects must be objects")
         object.__setattr__(self, "controls", MappingProxyType(dict(self.controls)))
         object.__setattr__(
             self, "ecological_effects", MappingProxyType(dict(self.ecological_effects))
         )
+        if not isinstance(self.name, str) or not self.name.strip():
+            raise BusinessDecisionError("action.name must be a non-empty string")
+        _number(self.cost, "cost")
+        _number(self.risk, "risk")
+        if self.cost < 0 or not 0 <= self.risk <= 1:
+            raise BusinessDecisionError(
+                "action cost must be non-negative and risk must be in [0, 1]"
+            )
+        for label, mapping in (
+            ("controls", self.controls),
+            ("ecological_effects", self.ecological_effects),
+        ):
+            for key, value in mapping.items():
+                if not isinstance(key, str) or not key.strip():
+                    raise BusinessDecisionError(f"{label} keys must be non-empty strings")
+                _number(value, f"{label}.{key}")
 
     @classmethod
     def from_dict(cls, raw: Mapping[str, Any], config: BiofirmConfig) -> ActionDefinition:
@@ -46,8 +66,10 @@ class ActionDefinition:
         name = raw["name"]
         if not isinstance(name, str) or not name.strip():
             raise BusinessDecisionError("action.name must be a non-empty string")
-        controls = _variable_mapping(raw["controls"], config, "controls")
-        effects = _variable_mapping(raw["ecological_effects"], config, "ecological_effects")
+        controls = _variable_mapping(raw["controls"], config, "controls", require_complete=True)
+        effects = _variable_mapping(
+            raw["ecological_effects"], config, "ecological_effects", require_complete=True
+        )
         cost = _number(raw["cost"], "cost")
         risk = _number(raw["risk"], "risk")
         if cost < 0 or not 0 <= risk <= 1:
@@ -69,7 +91,18 @@ class CommitteeRole:
     priorities: Mapping[str, float]
 
     def __post_init__(self) -> None:
+        if not isinstance(self.priorities, Mapping):
+            raise BusinessDecisionError("role priorities must be an object")
         object.__setattr__(self, "priorities", MappingProxyType(dict(self.priorities)))
+        if not isinstance(self.name, str) or not self.name.strip():
+            raise BusinessDecisionError("role.name must be a non-empty string")
+        _number(self.weight, f"role {self.name}.weight")
+        if self.weight < 0:
+            raise BusinessDecisionError("role weights must be non-negative")
+        for key, value in self.priorities.items():
+            if not isinstance(key, str) or not key.strip():
+                raise BusinessDecisionError("role priority keys must be non-empty strings")
+            _number(value, f"role {self.name}.priorities.{key}")
 
 
 @dataclass(frozen=True)
@@ -77,6 +110,23 @@ class CommitteeConfig:
     budget: float
     roles: tuple[CommitteeRole, ...]
     actions: tuple[ActionDefinition, ...]
+
+    def __post_init__(self) -> None:
+        _number(self.budget, "budget")
+        if self.budget < 0:
+            raise BusinessDecisionError("budget cannot be negative")
+        if not self.roles or not self.actions:
+            raise BusinessDecisionError("committee requires roles and actions")
+        if any(not isinstance(role, CommitteeRole) for role in self.roles):
+            raise BusinessDecisionError("committee roles must be CommitteeRole values")
+        if any(not isinstance(action, ActionDefinition) for action in self.actions):
+            raise BusinessDecisionError("committee actions must be ActionDefinition values")
+        if len({role.name for role in self.roles}) != len(self.roles):
+            raise BusinessDecisionError("role names must be unique")
+        if len({action.name for action in self.actions}) != len(self.actions):
+            raise BusinessDecisionError("action names must be unique")
+        if sum(role.weight for role in self.roles) <= 0:
+            raise BusinessDecisionError("committee role weights must have a positive sum")
 
     @classmethod
     def from_dict(cls, raw: Mapping[str, Any], config: BiofirmConfig) -> CommitteeConfig:
@@ -134,7 +184,20 @@ class BusinessDecision:
     rationale: tuple[str, ...]
 
     def __post_init__(self) -> None:
+        if not isinstance(self.votes, Mapping):
+            raise BusinessDecisionError("decision votes must be an object")
         object.__setattr__(self, "votes", MappingProxyType(dict(self.votes)))
+        if not isinstance(self.action, str) or not self.action.strip():
+            raise BusinessDecisionError("decision action must be non-empty")
+        _number(self.score, "decision score")
+        _number(self.cost, "decision cost")
+        _number(self.risk, "decision risk")
+        if self.cost < 0 or not 0 <= self.risk <= 1:
+            raise BusinessDecisionError(
+                "decision cost must be non-negative and risk must be in [0, 1]"
+            )
+        if not isinstance(self.rationale, tuple) or not self.rationale:
+            raise BusinessDecisionError("decision rationale must be non-empty")
 
 
 def default_committee(config: BiofirmConfig, budget: float = 10.0) -> CommitteeConfig:
@@ -144,17 +207,29 @@ def default_committee(config: BiofirmConfig, budget: float = 10.0) -> CommitteeC
             [
                 {
                     "name": f"increase_{name}",
-                    "controls": {name: variable.control_strength},
+                    "controls": {
+                        other: (variable.control_strength if other == name else 0.0)
+                        for other in config.variables
+                    },
                     "cost": 1.0,
                     "risk": 0.1,
-                    "ecological_effects": {name: variable.control_strength},
+                    "ecological_effects": {
+                        other: (variable.control_strength if other == name else 0.0)
+                        for other in config.variables
+                    },
                 },
                 {
                     "name": f"decrease_{name}",
-                    "controls": {name: -variable.control_strength},
+                    "controls": {
+                        other: (-variable.control_strength if other == name else 0.0)
+                        for other in config.variables
+                    },
                     "cost": 1.0,
                     "risk": 0.1,
-                    "ecological_effects": {name: -variable.control_strength},
+                    "ecological_effects": {
+                        other: (-variable.control_strength if other == name else 0.0)
+                        for other in config.variables
+                    },
                 },
             ]
         )
@@ -283,12 +358,23 @@ def _number(value: Any, name: str) -> float:
     return float(value)
 
 
-def _variable_mapping(value: Any, config: BiofirmConfig, name: str) -> dict[str, float]:
+def _variable_mapping(
+    value: Any,
+    config: BiofirmConfig,
+    name: str,
+    *,
+    require_complete: bool = False,
+) -> dict[str, float]:
     if not isinstance(value, Mapping):
         raise BusinessDecisionError(f"{name} must be an object")
     unknown = set(value) - set(config.variables)
     if unknown:
         raise BusinessDecisionError(f"{name} has unknown variables: {sorted(unknown)}")
+    if require_complete and set(value) != set(config.variables):
+        missing = sorted(set(config.variables) - set(value))
+        raise BusinessDecisionError(
+            f"{name} must define every configured variable; missing={missing}"
+        )
     return {str(key): _number(item, f"{name}.{key}") for key, item in value.items()}
 
 

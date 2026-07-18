@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import warnings
 from collections.abc import Mapping
 from dataclasses import dataclass, field
 from typing import Any, Protocol
@@ -146,17 +147,23 @@ class ActiveInferenceController:
         self._jax_key = jax.random.PRNGKey(seed)
         matrices = build_active_inference_matrices()
         for name, variable in self.config.variables.items():
-            self._agents[name] = Agent(
-                A=[jnp.asarray(matrices.A, dtype=jnp.float32)],
-                B=[jnp.asarray(matrices.B, dtype=jnp.float32)],
-                C=[jnp.asarray(matrices.C, dtype=jnp.float32)],
-                D=[jnp.asarray(matrices.D, dtype=jnp.float32)],
-                control_fac_idx=[0],
-                inference_algo="fpi",
-                action_selection="stochastic"
-                if self.config.controller.stochastic
-                else "deterministic",
-            )
+            with warnings.catch_warnings():
+                warnings.filterwarnings(
+                    "ignore",
+                    message=r"A JAX array is being set as static!.*",
+                    category=UserWarning,
+                )
+                self._agents[name] = Agent(
+                    A=[jnp.asarray(matrices.A, dtype=jnp.float32)],
+                    B=[jnp.asarray(matrices.B, dtype=jnp.float32)],
+                    C=[jnp.asarray(matrices.C, dtype=jnp.float32)],
+                    D=[jnp.asarray(matrices.D, dtype=jnp.float32)],
+                    control_fac_idx=[0],
+                    inference_algo="fpi",
+                    action_selection="stochastic"
+                    if self.config.controller.stochastic
+                    else "deterministic",
+                )
             del variable
 
     @staticmethod

@@ -29,3 +29,16 @@ def test_probability_matrices_are_read_only() -> None:
     matrices = build_active_inference_matrices()
     with pytest.raises(ValueError):
         matrices.A[0, 0] = 0.0
+
+
+def test_probability_validation_rejects_bad_shapes_and_preferences() -> None:
+    with pytest.raises(MatrixValidationError, match="axis must"):
+        validate_probability_matrix([[1.0]], axis=True, name="A")  # type: ignore[arg-type]
+    with pytest.raises(MatrixValidationError, match="numeric"):
+        validate_probability_matrix([["bad"]], axis=0, name="A")
+    with pytest.raises(MatrixValidationError, match="invalid"):
+        validate_probability_matrix([[1.0]], axis=2, name="A")
+    with pytest.raises(MatrixValidationError, match="one-dimensional"):
+        from biofirm.pymdp import ActiveInferenceMatrices
+
+        ActiveInferenceMatrices(np.eye(3), np.eye(3), np.zeros((3, 1)), np.ones(3) / 3)

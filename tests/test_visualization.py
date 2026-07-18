@@ -18,3 +18,12 @@ def test_visualization_contract_produces_non_empty_artifact(tmp_path) -> None:  
         tmp_path / "plot.png",
     )
     assert path.stat().st_size > 0
+
+
+def test_visualization_supports_two_documents_and_rejects_empty_text(tmp_path) -> None:  # type: ignore[no-untyped-def]
+    pytest.importorskip("matplotlib")
+    pytest.importorskip("sklearn")
+    path = visualize_documents(["river forest", "dry grassland"], ["a", "b"], tmp_path / "two.png")
+    assert path.stat().st_size > 0
+    with pytest.raises(ValueError, match="non-empty strings"):
+        visualize_documents([""], ["a"], tmp_path / "empty.png")

@@ -47,9 +47,10 @@ class SurpriseTracker:
         observation = float(observation)
         if not math.isfinite(observation):
             raise ValueError("observation must be finite")
+        prior_mean = self._mean
+        empirical = 0.5 * ((observation - prior_mean) ** 2 / self.prior_variance)
         self._count += 1
         self._mean += (observation - self._mean) / self._count
-        empirical = 0.5 * ((observation - self._mean) ** 2 / self.prior_variance)
         preference = (
             self.strength * 0.5 * ((observation - self.preference) ** 2 / self.prior_variance)
         )
