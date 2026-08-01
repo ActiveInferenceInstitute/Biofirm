@@ -115,6 +115,25 @@ def test_configuration_helpers_and_nested_type_errors(tmp_path) -> None:  # type
         load_config(bad)
 
 
+def test_observation_bins_validation_and_symmetric_indexing() -> None:
+    from biofirm.config import observation_index
+
+    assert observation_index(0.0, 3) == 1
+    assert observation_index(-0.1, 3) == 0
+    assert observation_index(0.1, 3) == 2
+    assert observation_index(0.0, 5) == 2
+    assert observation_index(-0.1, 5) == 1
+    assert observation_index(0.1, 5) == 3
+
+    raw = load_config().to_dict()
+    raw["variables"]["biodiversity"]["observation_bins"] = 5
+    config = type(load_config()).from_dict(raw)
+    assert config.variables["biodiversity"].observation_bins == 5
+    raw["variables"]["biodiversity"]["observation_bins"] = 4
+    with pytest.raises(ConfigError, match="observation_bins"):
+        type(load_config()).from_dict(raw)
+
+
 @pytest.mark.parametrize(
     ("kwargs", "message"),
     [

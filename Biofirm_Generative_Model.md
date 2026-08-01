@@ -17,21 +17,26 @@ x[t + 1] = clip(x[t] + trend + relationship(x[t]) + control[t] + noise[t],
 
 Relationship effects are directed linear contributions from normalized source
 deviations. Configuration validation rejects missing fields, unknown variables,
-non-finite numbers, invalid ranges, and cycles.
+non-finite numbers, invalid ranges, and cycles. Each variable may configure a
+symmetric `observation_bins` count (an odd number >= 3); the default of 3
+preserves the below/at/above observation model, while larger odd counts (e.g. 5)
+discretize the state around the target more finely.
 
 ## Active inference
 
-The active-inference controller discretizes each variable into below-target,
-target, and above-target observations. It constructs the PyMDP `A`, `B`, `C`,
-and `D` matrices with JAX-compatible arrays, uses an empirical prior, performs
-state inference followed by policy inference, and records the selected action.
-Deterministic action selection is the default. Stochastic selection requires a
-configured seed and uses a JAX PRNG key.
+The active-inference controller discretizes each variable into observation
+states around the target using the variable's configured `observation_bins`. It
+constructs the PyMDP `A`, `B`, `C`, and `D` matrices with JAX-compatible arrays,
+uses an empirical prior, performs state inference followed by policy inference,
+and records the selected action. The action space is the three-step
+decrease/hold/increase contract. Deterministic action selection is the default.
+Stochastic selection requires a configured seed and uses a JAX PRNG key.
 
 The simulation history contains the observed state, controls, action IDs,
 beliefs, variational free energy, expected free energy, policy distributions,
-metrics, and the individual transition terms. A failure in matrix operations
-or controller inference is surfaced with variable context.
+metrics (including a `posterior_entropy` uncertainty term derived from
+controller beliefs), and the individual transition terms. A failure in matrix
+operations or controller inference is surfaced with variable context.
 
 ## Other controllers
 

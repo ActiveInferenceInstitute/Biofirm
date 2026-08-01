@@ -11,7 +11,7 @@ from typing import Any
 import numpy as np
 
 from ._version import __version__
-from .config import BiofirmConfig, ConfigError, VariableConfig, sha256_json
+from .config import BiofirmConfig, ConfigError, VariableConfig, observation_index, sha256_json
 from .controllers import ControlDecision, Controller, build_controller
 from .immutability import freeze, thaw
 from .io import atomic_write_json
@@ -173,7 +173,13 @@ def simulate(
         next_values, diagnostics = _transition(config, values, decision, rng)
         records.append(_record(config, timestep, next_values, decision, diagnostics))
         values = next_values
-    selected_name = controller_name or config.controller.name
+    if controller_name is not None:
+        selected_name = controller_name
+    else:
+        # Report the identity of the controller actually used, so a raw
+        # controller instance passed directly is never mislabeled with the
+        # configured default's name.
+        selected_name = getattr(selected_controller, "name", config.controller.name)
     return SimulationResult(
         config.name,
         run_seed,
@@ -260,6 +266,9 @@ def _record(
         "homeostatic_score": max(0.0, 1.0 - homeostatic_error),
         "control_effort": float(np.sum(np.abs(list(decision.controls.values())))),
         "bounded": 1.0,
+        "posterior_entropy": float(
+            np.mean([_belief_entropy(decision.beliefs.get(name, ())) for name in config.variables])
+        ),
     }
     return TransitionRecord(
         timestep=timestep,
@@ -284,11 +293,7 @@ def _record(
 
 def _observation(value: float, variable: VariableConfig) -> int:
     normalised = (value - variable.target) / variable.span
-    if normalised < -0.05:
-        return 0
-    if normalised > 0.05:
-        return 2
-    return 1
+    return observation_index(normalised, variable.observation_bins)
 
 
 def _action_id(control: float) -> int:
@@ -297,6 +302,18 @@ def _action_id(control: float) -> int:
     if control < -1e-12:
         return 0
     return 1
+
+
+def _belief_entropy(values: tuple[float, ...]) -> float:
+    """Shannon entropy of a belief distribution (0 for an empty/known state)."""
+    if not values:
+        return 0.0
+    total = float(sum(values))
+    if total <= 0:
+        return 0.0
+    return float(
+        -sum(prob * math.log(prob) for prob in (value / total for value in values if value > 0))
+    )
 
 
 def write_result(result: SimulationResult, output: str | Path) -> Path:
@@ -390,7 +407,13 @@ def validate_result_document(document: Any) -> dict[str, Any]:
         "policy_distributions",
         "diagnostics",
     }
-    metric_names = {"homeostatic_error", "homeostatic_score", "control_effort", "bounded"}
+    metric_names = {
+        "homeostatic_error",
+        "homeostatic_score",
+        "control_effort",
+        "bounded",
+        "posterior_entropy",
+    }
     timesteps: list[int] = []
     for index, record in enumerate(records):
         if not isinstance(record, dict) or not required.issubset(record):
@@ -459,8 +482,10 @@ def validate_result_document(document: Any) -> dict[str, Any]:
         ):
             raise ResultSchemaError(f"record {index} has non-finite variational_free_energy")
         if not all(
-            isinstance(value, int) and not isinstance(value, bool) and value in {0, 1, 2}
-            for value in record["observations"].values()
+            isinstance(value, int)
+            and not isinstance(value, bool)
+            and 0 <= value < validated_config.variables[name].observation_bins
+            for name, value in record["observations"].items()
         ):
             raise ResultSchemaError(f"record {index} has invalid observations")
         if not all(
@@ -660,3 +685,60 @@ def _finite_json_number(value: Any) -> bool:
         and not isinstance(value, bool)
         and math.isfinite(float(value))
     )
+
+
+def run_scenarios(
+    configs: list[BiofirmConfig],
+    steps: int,
+    seeds: list[int],
+    controller_name: str | None = None,
+) -> dict[str, Any]:
+    """Run independent seeded simulations across ecosystem scenario variants.
+
+    Each scenario is a distinct validated configuration; the report exposes
+    per-scenario/per-seed summaries plus a per-scenario mean uncertainty
+    estimate so scenarios can be compared without making calibrated ecological
+    performance claims.
+    """
+    if not configs:
+        raise SimulationError("at least one scenario configuration is required")
+    names = [config.name for config in configs]
+    if any(not isinstance(name, str) or not name.strip() for name in names) or len(
+        set(names)
+    ) != len(names):
+        raise SimulationError("scenario configurations must have unique non-empty names")
+    if isinstance(steps, bool) or not isinstance(steps, int) or steps < 0:
+        raise SimulationError("steps must be a non-negative integer")
+    if not seeds or any(isinstance(seed, bool) or not isinstance(seed, int) for seed in seeds):
+        raise SimulationError("seeds must be a non-empty list of integers")
+    rows: list[dict[str, float | int | str]] = []
+    for config in configs:
+        for seed in seeds:
+            result = simulate(config, steps=steps, seed=seed, controller_name=controller_name)
+            final_uncertainty = float(
+                np.mean(
+                    [
+                        _belief_entropy(
+                            tuple(float(item) for item in result.records[-1].beliefs[variable])
+                        )
+                        for variable in config.variables
+                    ]
+                )
+            )
+            rows.append(
+                {
+                    "scenario": config.name,
+                    "seed": seed,
+                    "controller": controller_name or config.controller.name,
+                    **result.summary,
+                    "final_uncertainty": final_uncertainty,
+                }
+            )
+    return {
+        "schema_version": 1,
+        "steps": steps,
+        "seeds": list(seeds),
+        "scenarios": names,
+        "controller": controller_name,
+        "rows": rows,
+    }

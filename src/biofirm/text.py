@@ -33,6 +33,7 @@ class BioregionProfile:
     resources: Mapping[str, tuple[EvidenceSpan, ...]]
     variables: Mapping[str, Mapping[str, Any]]
     evidence: tuple[EvidenceSpan, ...]
+    ambiguities: tuple[tuple[int, str], ...] = ()
 
     def to_dict(self) -> dict[str, Any]:
         return {
@@ -42,6 +43,7 @@ class BioregionProfile:
             },
             "variables": {key: dict(value) for key, value in self.variables.items()},
             "evidence": [span.__dict__ for span in self.evidence],
+            "ambiguities": [{"offset": offset, "text": text} for offset, text in self.ambiguities],
         }
 
 
@@ -60,6 +62,9 @@ _RANGE_PATTERNS = (
         rf"between\s+(?P<low>{_NUMBER})\s+and\s+(?P<high>{_NUMBER})\s*(?P<unit>[a-zA-Z%°/]+)?"
     ),
 )
+# Character-position epsilon used to decide when a numeric range is equidistant
+# from two different configured variables (i.e., attribution is ambiguous).
+_AMBIGUITY_EPS = 5
 
 
 def _alias_pattern(alias: str) -> str:
@@ -105,6 +110,7 @@ class BioregionTextProcessor:
                     resources[category].append(span)
                     evidence.append(span)
         variables: dict[str, Mapping[str, Any]] = {}
+        ambiguities: list[tuple[int, str]] = []
         sentences = list(re.finditer(r"[^.!?]+[.!?]?", description))
         for sentence_match in sentences:
             sentence = sentence_match.group(0)
@@ -117,32 +123,61 @@ class BioregionTextProcessor:
             ranges: list[re.Match[str]] = []
             for pattern in _RANGE_PATTERNS:
                 ranges.extend(pattern.finditer(sentence))
-            for alias, variable, alias_match in aliases:
-                if not ranges:
-                    continue
-                selected = min(
-                    ranges, key=lambda candidate: abs(candidate.start() - alias_match.start())
+            if not aliases or not ranges:
+                continue
+            # Attribute every range to the single nearest variable alias so one
+            # bare numeric range is never silently reused for several variables.
+            range_assignments: list[tuple[re.Match[str], str, str, int]] = []
+            for matched_range in ranges:
+                candidates = sorted(
+                    (
+                        (abs(matched_range.start() - alias_match.start()), variable, alias)
+                        for alias, variable, alias_match in aliases
+                    ),
+                    key=lambda item: item[0],
                 )
-                low = float(selected.group("low"))
-                high = float(selected.group("high"))
+                nearest = candidates[0]
+                second: tuple[int, str, str] | None = None
+                for distance, variable, _alias in candidates[1:]:
+                    if variable != nearest[1]:
+                        second = (distance, variable, "")
+                        break
+                if second is not None and abs(second[0] - nearest[0]) <= _AMBIGUITY_EPS:
+                    ambiguities.append(
+                        (sentence_start + matched_range.start(), matched_range.group(0))
+                    )
+                    continue
+                range_assignments.append((matched_range, nearest[1], nearest[2], nearest[0]))
+            # Keep only the closest range per variable, preserving the
+            # one-entry-per-variable profile shape for unambiguous matches.
+            best_by_variable: dict[str, tuple[re.Match[str], str, str, int]] = {}
+            for matched_range, variable, alias, distance in range_assignments:
+                current = best_by_variable.get(variable)
+                if current is None or distance < current[3]:
+                    best_by_variable[variable] = (matched_range, variable, alias, distance)
+            for variable, (matched_range, _variable, alias, distance) in best_by_variable.items():
+                low = float(matched_range.group("low"))
+                high = float(matched_range.group("high"))
                 if low > high:
                     low, high = high, low
-                unit = selected.group("unit") or self.config.variables[variable].unit
+                unit = matched_range.group("unit") or self.config.variables[variable].unit
+                confidence = max(0.0, min(1.0, 1.0 - distance / 60.0))
                 variables[variable] = {
                     "minimum": low,
                     "maximum": high,
                     "unit": unit,
                     "source_alias": alias,
-                    "confidence": 1.0,
+                    "confidence": confidence,
+                    "ambiguous": False,
                 }
-                start = sentence_start + selected.start()
+                start = sentence_start + matched_range.start()
                 span = EvidenceSpan(
                     "variable-range",
                     variable,
                     start,
-                    sentence_start + selected.end(),
+                    sentence_start + matched_range.end(),
                     sentence.strip(),
-                    1.0,
+                    confidence,
                 )
                 evidence.append(span)
         return BioregionProfile(
@@ -152,6 +187,7 @@ class BioregionTextProcessor:
             evidence=tuple(
                 sorted(evidence, key=lambda span: (span.start, span.end, span.category))
             ),
+            ambiguities=tuple(ambiguities),
         )
 
     def to_configuration(self, profile: BioregionProfile) -> dict[str, Any]:

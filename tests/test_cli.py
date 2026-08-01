@@ -81,3 +81,93 @@ def test_data_validation_and_controller_comparison_cli(tmp_path) -> None:  # typ
         == 0
     )
     assert len(json.loads(comparison_output.read_text(encoding="utf-8"))["rows"]) == 4
+
+
+def test_scenarios_cli(tmp_path) -> None:  # type: ignore[no-untyped-def]
+    scenario_a = tmp_path / "a.json"
+    scenario_b = tmp_path / "b.json"
+    scenario_output = tmp_path / "scenarios.json"
+    base_variable = {
+        "initial": 50.0,
+        "target": 50.0,
+        "minimum": 0.0,
+        "maximum": 100.0,
+        "trend": 0.0,
+        "noise": 0.5,
+        "control_strength": 2.0,
+        "unit": "index",
+    }
+    controller = {
+        "name": "slide-rule",
+        "stochastic": False,
+        "response_rate": 0.5,
+        "damping": 0.2,
+    }
+    scenario_a.write_text(
+        json.dumps(
+            {
+                "name": "scenario-a",
+                "seed": 7,
+                "variables": {"biodiversity": dict(base_variable)},
+                "controller": dict(controller),
+            }
+        ),
+        encoding="utf-8",
+    )
+    scenario_b.write_text(
+        json.dumps(
+            {
+                "name": "scenario-b",
+                "seed": 8,
+                "variables": {"biodiversity": dict(base_variable)},
+                "controller": dict(controller),
+            }
+        ),
+        encoding="utf-8",
+    )
+    assert (
+        main(
+            [
+                "scenarios",
+                "--config",
+                str(scenario_a),
+                "--config",
+                str(scenario_b),
+                "--steps",
+                "1",
+                "--seeds",
+                "1",
+                "2",
+                "--controller",
+                "slide-rule",
+                "--output",
+                str(scenario_output),
+            ]
+        )
+        == 0
+    )
+    report = json.loads(scenario_output.read_text(encoding="utf-8"))
+    assert len(report["rows"]) == 4
+    assert set(report["scenarios"]) == {"scenario-a", "scenario-b"}
+
+
+def test_graph_cli(tmp_path) -> None:  # type: ignore[no-untyped-def]
+    graph_output = tmp_path / "graph.json"
+    assert (
+        main(
+            [
+                "graph",
+                "--regions",
+                "Bio_Perplexity/Biofirm_Regions.json",
+                "--label",
+                "experimental",
+                "--output",
+                str(graph_output),
+            ]
+        )
+        == 0
+    )
+    report = json.loads(graph_output.read_text(encoding="utf-8"))
+    assert report["node_count"] == 67
+    assert report["experimental"] is True
+    assert "acceptance" in report

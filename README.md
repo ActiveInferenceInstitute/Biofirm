@@ -36,23 +36,38 @@ biofirm analyze --input run.json
 biofirm visualize --input run.json --output artifacts/trajectory.png
 biofirm parse-description --input region.txt
 biofirm business-evaluate --state state.json
+biofirm scenarios --config baseline.json --config disturbed.json --steps 10 --seeds 1 2 3
+biofirm graph --regions Bio_Perplexity/Biofirm_Regions.json
 biofirm research --live --source regions.json --persona ecologist --output artifacts/research
 ```
 
 `simulate` records every transition: values, observations, controls, action
 IDs, controller beliefs, variational free energy, expected free energy, policy
-distributions, metrics, and transition diagnostics. Seeded runs are
-reproducible. New simulation artifacts include a schema version, configuration
-snapshot, configuration hash, controller identity, and package version. Invalid
-configuration, unavailable optional dependencies, malformed provider responses,
-and failed controller calls produce errors; they do not create empty success
-artifacts.
+distributions, metrics (including a posterior-entropy uncertainty term), and
+transition diagnostics. Variables can configure a symmetric observation
+binning (`observation_bins`, an odd number >= 3; the default 3 preserves the
+below/at/above model). Seeded runs are reproducible. New simulation artifacts
+include a schema version, configuration snapshot, configuration hash,
+controller identity, and package version. Invalid configuration, unavailable
+optional dependencies, malformed provider responses, and failed controller
+calls produce errors; they do not create empty success artifacts.
+
+`scenarios` runs the same seeds across multiple validated ecosystem
+configurations and reports per-scenario summaries plus a final-uncertainty
+estimate, so scenario variants can be compared without asserting calibrated
+ecological performance. `graph` builds an experimental regional interaction
+graph from a region source; graph summaries and acceptance checks are
+explicitly descriptive, not validated ecological evidence.
 
 Live research writes a JSON/Markdown pair for each region/persona plus a
-manifest containing integrity hashes. Resume is allowed only when both files,
+manifest containing integrity hashes. Every artifact records the request
+hash, prompt version, source hash, a provider-cost estimate, a human review
+state, and a set of structured findings extracted verbatim from the provider
+response (with hedge-aware confidence). Resume is allowed only when both files,
 their hashes, the prompt version/hash, and the source hash agree. Structural
 validation establishes artifact integrity; it never certifies the factual
-quality of citations or research claims.
+quality of citations or research claims. Research execution is split into
+independently rerunnable acquire/prepare/execute/parse/render stages.
 
 ## Configuration
 
@@ -79,7 +94,7 @@ action selection unless stochastic selection is configured.
 pytest
 ruff check src tests tools
 mypy --python-version 3.12 src/biofirm
-bandit -q -r src
+bandit -q -r src tools
 python tools/verify_repository.py
 uv lock --check
 python -m build

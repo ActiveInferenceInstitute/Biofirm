@@ -319,6 +319,8 @@ class BusinessCommittee:
 class BusinessController:
     """Use committee decisions as a simulation controller."""
 
+    name = "business"
+
     def __init__(self, config: BiofirmConfig, committee: CommitteeConfig | None = None):
         self.committee = BusinessCommittee(config, committee)
 
@@ -379,4 +381,11 @@ def _variable_mapping(
 
 
 def _action_id(control: float) -> int:
-    return 2 if control > 0 else 0 if control < 0 else 1
+    # Keep the zero-crossing tolerance aligned with the simulation and
+    # controller contracts so recorded action IDs always match the values
+    # the serialized-result validator recomputes.
+    if control > 1e-12:
+        return 2
+    if control < -1e-12:
+        return 0
+    return 1

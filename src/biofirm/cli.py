@@ -14,11 +14,13 @@ from .analysis import summarize_records
 from .business import BusinessCommittee, load_committee
 from .config import ConfigError, load_config
 from .data_validation import validate_repository_data
+from .graph import acceptance_report, descriptive_summary, empty_regional_graph, nodes_from_json
 from .io import atomic_write_json
 from .research import PerplexityClient, ResearchService, load_regions
 from .simulation import (
     compare_controllers,
     parameter_sweep,
+    run_scenarios,
     simulate,
     validate_result_document,
     write_result,
@@ -112,6 +114,19 @@ def build_parser() -> argparse.ArgumentParser:
     )
     compare.add_argument("--output", type=Path)
 
+    scenarios = subparsers.add_parser(
+        "scenarios", help="compare seeded runs across ecosystem scenario variants"
+    )
+    scenarios.add_argument(
+        "--config", type=Path, action="append", required=True, help="scenario JSON (repeatable)"
+    )
+    scenarios.add_argument("--steps", type=int, default=20)
+    scenarios.add_argument("--seeds", type=int, nargs="+", default=[7, 8, 9])
+    scenarios.add_argument(
+        "--controller", choices=["active-inference", "slide-rule", "random", "business"]
+    )
+    scenarios.add_argument("--output", type=Path)
+
     data = subparsers.add_parser(
         "validate-data", help="validate authoritative repository JSON data"
     )
@@ -129,6 +144,14 @@ def build_parser() -> argparse.ArgumentParser:
         "--one-earth-prompts", type=Path, default=Path("One_Earth/OneEarth_System_Prompts.json")
     )
     data.add_argument("--output", type=Path)
+
+    graph = subparsers.add_parser(
+        "graph",
+        help="build an experimental regional graph and print its descriptive summary",
+    )
+    graph.add_argument("--regions", type=Path, default=Path("Bio_Perplexity/Biofirm_Regions.json"))
+    graph.add_argument("--label", default="experimental-regions")
+    graph.add_argument("--output", type=Path)
 
     return parser
 
@@ -211,6 +234,12 @@ def _dispatch(args: argparse.Namespace) -> Any:
         if args.output:
             atomic_write_json(args.output, comparison)
         return comparison
+    if args.command == "scenarios":
+        configs = [load_config(path) for path in args.config]
+        report = run_scenarios(configs, args.steps, args.seeds, args.controller)
+        if args.output:
+            atomic_write_json(args.output, report)
+        return report
     if args.command == "validate-data":
         report = validate_repository_data(
             one_earth_path=args.one_earth,
@@ -222,6 +251,14 @@ def _dispatch(args: argparse.Namespace) -> Any:
         if args.output:
             atomic_write_json(args.output, report)
         return report
+    if args.command == "graph":
+        nodes = nodes_from_json(args.regions, args.label)
+        graph = empty_regional_graph(args.label, nodes)
+        graph_result = descriptive_summary(graph)
+        graph_result["acceptance"] = acceptance_report(graph, min_edges=0)
+        if args.output:
+            atomic_write_json(args.output, graph_result)
+        return graph_result
     if args.command == "parse-description":
         config = load_config(args.config)
         processor = BioregionTextProcessor(config)

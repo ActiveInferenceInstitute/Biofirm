@@ -1,107 +1,121 @@
 # Biofirm current backlog
 
-This is the sole current backlog for the repository. Completed work is recorded
-in Git history; this file contains only planned work. Ignored local directories
-are outside the project scope.
+Status: Open — maintained
+Owner: Active Inference Institute
+Last reviewed: 2026-08-01
 
-Priority order: P0 release and correctness gates, P1 architecture and usable
-workflows, P2 documentation and repository coherence, then P3 experimental
-scientific and product expansion. Every item must land with tests, documentation,
+This is the sole current backlog for the repository. Completed work is recorded
+in an explicit "Completed/Closed" section below; the "Scoped (deferred)"
+section holds the remaining large-scale work that is intentionally not
+implemented yet. Ignored local directories are outside the project scope.
+
+Priority framing: P0 release and correctness gates, P1 architecture and usable
+workflows, P2 documentation and repository coherence, P3 experimental
+scientific and product expansion. Every item lands with tests, documentation,
 and an explicit acceptance check before it is marked complete.
 
-## P0 — Release and correctness gates
+## Completed/Closed
 
-- [ ] **BF-001 — Versioned simulation artifact contract**
-  - Add `schema_version`, canonical configuration hash, configuration snapshot, controller identity, package version, seed, and validated summary metadata.
-  - Strengthen result validation to enforce exact variable keys, contiguous records, finite values, recomputed summaries, valid observations/actions, and consistent diagnostics.
-  - Writers always emit the new schema; legacy unversioned artifacts require explicit compatibility handling.
+Implemented in source, tests, and CI. Preserved here for auditability; do not
+re-open without evidence that their acceptance criteria regressed.
 
-- [ ] **BF-002 — Research safety and provenance**
-  - Fix the duplicated `Bioregion:` payload in `build_prompt`.
-  - Canonicalize prompt/source hashing and add prompt-version metadata.
-  - Reject arbitrary API-key exfiltration by default: official HTTPS endpoint only; custom endpoints require explicit opt-in, and insecure HTTP is never allowed for normal CLI use.
-  - Validate citation URLs, response usage metadata, retry bounds, and provider response schemas.
-  - Make JSON/Markdown artifact pairs resumable only when both files and their hashes agree; add a manifest for complete research runs.
+- **BF-001 — Versioned simulation artifact contract** — Implemented.
+  `schema_version`, canonical configuration hash + snapshot, controller
+  identity, package version, seed, validated summary; exact key sets,
+  contiguous timesteps, finite values, recomputed summaries, valid
+  observations/actions, and consistent diagnostics are enforced.
+- **BF-002 — Research safety and provenance** — Implemented. Single
+  `<bioregion>` payload; prompt/source/configuration hashing with
+  prompt-version metadata; official HTTPS endpoint only, custom endpoints and
+  insecure transport require explicit opt-in; citation-URL, usage, retry-bound,
+  and provider-schema validation; JSON/Markdown pairs resumable only when both
+  files and hashes agree, backed by a manifest. API keys never written into
+  artifacts.
+- **BF-003 — Strict configuration and policy invariants** — Implemented.
+  Direct construction validates as strictly as `from_dict`; alias collisions,
+  duplicate normalized names, incomplete action vectors, invalid effects,
+  unsafe committees, and cycles rejected; canonical JSON serialization;
+  consolidated public error types and documented stable exports.
+- **BF-004 — Packaging and CI reliability** — Implemented. Single-sourced
+  version; clean-environment wheel install + offline command exercise; lock/
+  export consistency; 90% coverage floor; Python 3.11/3.12 matrix.
+- **BF-005 — Boundary and regression test expansion** — Implemented and
+  extended this pass with committee tie-breaking, action-ID contract, graph
+  boundary, observation-bin, scenario, and evidence-pipeline coverage (102
+  tests; 90% coverage). The JAX static-array warning is suppressed at the
+  active-inference boundary as explicit compatibility handling.
+- **BF-006 — Controller and model contract** — Implemented. PyMDP/JAX behind
+  the tested `pymdp` boundary; deterministic/stochastic runs, matrix
+  dimensions, normalized beliefs/policies, seed behavior validated;
+  `biofirm compare` across active-inference, slide-rule, random, business.
+  Raw controllers report their actual identity.
+- **BF-007 — Source-data validation and provenance** — Implemented.
+  `validate-data` validates the 185 One Earth leaves, unique IDs/names, region
+  schemas, prompt structure, and source hashes; `NE_Biofirm_Regions.json`
+  removed and recorded in `DATA_PROVENANCE.md`; structural validation is
+  documented as not certifying factual quality.
+- **BF-008 — Text, business, and analysis semantics** — Implemented.
+  `BioregionTextProcessor` now attributes each numeric range to a single
+  nearest variable, computes proximity-based confidence, and reports
+  ambiguous (near-equidistant) ranges instead of guessing; negative values,
+  units, aliases, and sentence-local evidence preserved. `TokenLedger` field
+  semantics and the before/after posterior-update timing of `SurpriseTracker`
+  empirical surprise are documented and explicitly tested.
+- **BF-009 — CLI and API ergonomics** — Implemented and extended with
+  `biofirm scenarios` and `biofirm graph` this pass. Structured `--help`,
+  consistent JSON output/error contract (exit code 2 on failure),
+  atomic non-empty artifacts, documented stable exports.
+- **BF-010 — Canonical documentation** — Implemented. README, generative-model
+  contract, installation guide, and GNN status documents are maintained and
+  refreshed this pass.
+- **BF-011 — Legacy-document reconciliation** — Implemented. One Earth and
+  Stream documents marked historical in `DOCUMENTATION_INDEX.md`; index
+  distinguishes implemented behavior, source data, historical notes, and
+  speculative research; `tools/verify_repository.py` checks broken local links,
+  empty required documents, stale commands, and credential patterns.
+- **BF-012 — Executable examples and notebook validation** — Implemented.
+  Walkthrough notebook uses current APIs and executes offline in the test
+  suite; CI clean-environment job runs deterministic offline examples; live
+  research stays out of normal tests.
+- **BF-013 (delivered parts) — Richer ecological model** — Implemented:
+  configurable symmetric `observation_bins` (odd >= 3, default 3) generalized
+  across observation, result validation, and the active-inference PyMDP
+  matrices; a `posterior_entropy` uncertainty metric on every transition record;
+  `run_scenarios` + `biofirm scenarios` for scenario comparison.
+- **BF-014 — Evidence-aware research pipeline** — Implemented. Structured
+  verbatim `ResearchFinding` claims with hedge-aware confidence; provider-cost
+  estimation and per-run `cost_usd_total` in the manifest; human review states
+  (`set_review_status`); independently rerunnable
+  prepare/execute/build/parse/render stages. Raw provider responses are
+  preserved; no synthetic or fallback evidence is introduced.
+- **BF-015 (delivered part) — Network/GNN data model** — Implemented the
+  experimental interface: `RegionalNode`/`RegionalEdge`/`RegionalGraph` with
+  per-node/per-edge provenance, uncertainty, and a `calibrated` flag;
+  `nodes_from_json`; `empty_regional_graph`/`with_candidate_edge`;
+  `descriptive_summary` (explicitly descriptive-only); `acceptance_report`;
+  `biofirm graph`. Every output is labelled experimental and never framed as
+  validated ecological evidence.
 
-- [ ] **BF-003 — Strict configuration and policy invariants**
-  - Validate direct dataclass construction as strictly as `from_dict`.
-  - Detect case-insensitive alias collisions, duplicate normalized names, invalid output paths, incomplete action vectors, invalid ecological effects, and unsafe committee definitions.
-  - Introduce canonical JSON serialization for configuration hashing.
-  - Consolidate public error types and document stable public APIs.
+## Scoped (deferred) — future work
 
-- [ ] **BF-004 — Packaging and CI reliability**
-  - Make project version metadata single-sourced.
-  - Add clean-environment wheel/sdist tests proving packaged JSON resources and CLI operation outside the checkout.
-  - Keep lock/export consistency checks and add an explicit coverage floor, targeting 90% after boundary tests land.
-  - Preserve Python 3.11/3.12 CI coverage and make the build gate reproducible on a clean runner.
+Substantial, intentionally unimplemented work. Any item that would assert
+scientific validity requires benchmark fixtures and uncertainty reporting
+before it is added.
 
-- [ ] **BF-005 — Boundary and regression test expansion**
-  - Add tests for malformed result documents, missing/extra keys, summary tampering, NaN/Infinity, partial artifacts, invalid paths, and atomic-write failures.
-  - Cover visualization with one document, two documents, one feature, empty tokens, and failed saves.
-  - Cover research prompt hashes, endpoint policy, tampered resume artifacts, partial JSON/Markdown pairs, retry caps, and secret non-disclosure.
-  - Cover configuration aliases, direct constructors, relationships, committee ties, budget exhaustion, token-ledger conservation, and Shapley edge cases.
-  - Treat the current JAX static-array warning as a regression requiring resolution or an explicit compatibility suppression test.
-
-## P1 — Architecture, data, and usable workflows
-
-- [ ] **BF-006 — Controller and model contract**
-  - Isolate the PyMDP/JAX adapter behind a tested compatibility boundary.
-  - Verify deterministic and stochastic active-inference runs, matrix dimensions, normalized beliefs/policies, action semantics, and seed behavior.
-  - Make initial and transition diagnostics use one consistent schema.
-  - Add a controller comparison workflow, preferably `biofirm compare`, covering active inference, slide-rule, random, and business controllers with per-seed and aggregate metrics.
-  - Do not make scientific performance claims until benchmark fixtures and uncertainty reporting exist.
-
-- [ ] **BF-007 — Source-data validation and provenance**
-  - Add deterministic validation for the 185 One Earth leaf bioregions, unique IDs/names/parents, Bio_Perplexity region schemas, prompt-set structure, UTF-8/JSON validity, and stable source hashes.
-  - Make `Biofirm_Regions.json` canonical and remove or explicitly mark the byte-identical `NE_Biofirm_Regions.json` after consumer verification.
-  - Add provenance, licensing, source-date, and generated-versus-authoritative-data documentation.
-  - Never certify research outputs merely because they passed structural validation.
-
-- [ ] **BF-008 — Text, business, and analysis semantics**
-  - Improve text extraction for multiple variables/ranges, negative values, units, sentence-local evidence, aliases, and ambiguity.
-  - Preserve source spans and confidence without inventing missing measurements.
-  - Clarify and test whether empirical surprise is calculated before or after posterior update.
-  - Make token-ledger fields accurately describe requested, reserved, allocated, and remainder quantities.
-  - Enforce complete business control vectors and deterministic tie-breaking.
-
-- [ ] **BF-009 — CLI and API ergonomics**
-  - Add structured `--help` examples and consistent output/error contracts.
-  - Add `validate-data` and `compare` commands only after their schemas and tests are defined.
-  - Ensure all generated artifacts are atomic, non-empty, schema-valid, and written only when explicitly requested.
-  - Add stable public exports and a documented compatibility policy.
-
-## P2 — Documentation and repository coherence
-
-- [ ] **BF-010 — Canonical documentation**
-  - Make `README.md` the authoritative installation, command, safety, artifact, and development guide.
-  - Expand `Biofirm_Generative_Model.md` with the exact transition, observation, controller, reproducibility, and artifact contracts.
-  - Populate or redirect the empty installation guide.
-  - Turn `GNN.md` into either a real contract/design document or an explicit deferred placeholder.
-
-- [ ] **BF-011 — Legacy-document reconciliation**
-  - Mark old One Earth and Stream documents as historical design notes where they describe systems not implemented here.
-  - Extract still-valid future work into this file and remove duplicate or stale active roadmaps from documentation.
-  - Add a repository documentation index distinguishing implemented package behavior, source data, historical notes, and speculative research.
-  - Add checks for broken local links, empty required documents, stale commands, and contradictory dependency instructions.
-
-- [ ] **BF-012 — Executable examples and notebook validation**
-  - Update the notebook to use current APIs and validate it offline in CI.
-  - Add deterministic examples for simulation, analysis, visualization, text extraction, business decisions, and safe live-research invocation.
-  - Keep live research out of normal tests and notebook execution.
-
-## P3 — Ambitious future capabilities
-
-- [ ] **BF-013 — Richer ecological model**
-  - Add configurable observation bins, multi-variable observation models, richer action spaces, calibrated relationships, uncertainty propagation, and scenario configuration.
-  - Extend the current model toward DPSIR only after the bounded-state contract and controller benchmarks are stable.
-  - Separate illustrative simulations from empirically calibrated ecological claims.
-
-- [ ] **BF-014 — Evidence-aware research pipeline**
-  - Add structured claim/evidence records, citation validation, source freshness, provider-cost accounting, cache manifests, and human review states.
-  - Support independently rerunnable acquisition, preparation, provider execution, parsing, and rendering stages.
-  - Preserve raw provider responses and never substitute synthetic or fallback evidence.
-
-- [ ] **BF-015 — Network/GNN and multi-region integration**
-  - Define the data model and scientific purpose before implementing graph analytics.
-  - Add regional interaction graphs only when source relationships, evaluation criteria, and provenance are explicit.
-  - Keep graph/network work behind a separate experimental interface until validated.
+- **BF-013 (deferred) — Multi-variable observation models and calibrated
+  relationships.** Observation currently depends on one variable; relationships
+  are illustrative linear coefficients. Extend observation models to depend on
+  multiple variables and calibrate relationship coefficients only against an
+  authoritative source with uncertainty, not as validated ecological claims.
+- **BF-016 — Richer action spaces.** The action space is the fixed three-step
+  decrease/hold/increase contract. Add configurable fine-grained action spaces
+  with the same typed controller/validator contract, keeping backward
+  compatibility and full validation.
+- **BF-017 — Source-freshness and citation reachability.** Citation URLs are
+  validated structurally (HTTP(S)); online freshness/reachability checking is
+  not part of offline tests. Add an opt-in, clearly-labelled freshness check
+  that never blocks or fabricates evidence.
+- **BF-018 — GNN / predictive graph analytics.** No GNN or predictive analytics
+  until an authoritative edge dataset with per-edge provenance and acceptance
+  criteria exists; the experimental `graph` interface already enforces the
+  `experimental` label and descriptive-only framing.

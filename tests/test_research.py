@@ -10,11 +10,15 @@ import pytest
 from biofirm.research import (
     PerplexityClient,
     ResearchError,
+    ResearchFinding,
     ResearchRequest,
     ResearchService,
     _parse_response,
     build_prompt,
+    estimate_cost,
     load_regions,
+    parse_findings,
+    set_review_status,
     stable_region_id,
 )
 
@@ -331,3 +335,82 @@ def test_research_service_rejects_invalid_requests(tmp_path, server, monkeypatch
         service.run([{"_id": "r"}], ["ecologist", "ecologist"], output_dir=tmp_path, live=True)
     with pytest.raises(ResearchError, match="temperature"):
         service.run([{"_id": "r"}], ["ecologist"], output_dir=tmp_path, live=True, temperature=3)
+
+
+def test_findings_are_verbatim_with_hedge_confidence() -> None:
+    findings = parse_findings(
+        "Wetlands store carbon. Their area may be declining.", ("https://example.test/s",)
+    )
+    assert isinstance(findings, tuple)
+    assert isinstance(findings[0], ResearchFinding)
+    assert findings[0].claim == "Wetlands store carbon."
+    assert findings[0].confidence == 1.0
+    assert findings[1].confidence == 0.7
+    with pytest.raises(ResearchError, match="non-empty"):
+        parse_findings("", ())
+
+
+def test_cost_estimate_uses_documented_rates() -> None:
+    assert estimate_cost({"prompt_tokens": 1_000_000, "completion_tokens": 1_000_000}) == 3.0
+    assert estimate_cost({"prompt_tokens": 0, "completion_tokens": 0}) == 0.0
+    with pytest.raises(ResearchError, match="finite"):
+        estimate_cost({"prompt_tokens": -1, "completion_tokens": 0})
+
+
+def test_research_stages_are_independently_rerunnable(tmp_path, server, monkeypatch) -> None:  # type: ignore[no-untyped-def]
+    monkeypatch.setenv("PERPLEXITY_API_KEY", "test-secret")
+    client = PerplexityClient(
+        live=True,
+        base_url=f"http://127.0.0.1:{server.server_port}",
+        backoff=0,
+        allow_custom_endpoint=True,
+        allow_insecure_transport=True,
+    )
+    service = ResearchService(client)
+    regions = [{"_id": "R1", "name": "Region", "description": "water"}]
+    jobs, manifest_entries = service.prepare(regions, ["ecologist"], output_dir=tmp_path, live=True)
+    assert isinstance(manifest_entries, dict)
+    job = jobs[0]
+    response = service.execute(job.request)
+    document = service.build_document(job, response)
+    findings = service.parse(document)
+    rendered = service.render(document)
+    assert findings
+    assert "Prompt hash:" in rendered
+    assert document["review"]["status"] == "unreviewed"
+    assert document["cost"]["usd_estimate"] >= 0.0
+
+
+def test_manifest_records_cost_total_findings_and_review(tmp_path, server, monkeypatch) -> None:  # type: ignore[no-untyped-def]
+    monkeypatch.setenv("PERPLEXITY_API_KEY", "test-secret")
+    client = PerplexityClient(
+        live=True,
+        base_url=f"http://127.0.0.1:{server.server_port}",
+        backoff=0,
+        allow_custom_endpoint=True,
+        allow_insecure_transport=True,
+    )
+    service = ResearchService(client)
+    paths = service.run(
+        [{"_id": "R1", "name": "Region", "content": "water"}],
+        ["ecologist"],
+        output_dir=tmp_path,
+        live=True,
+    )
+    document = json.loads(paths[0].read_text(encoding="utf-8"))
+    assert document["findings"]
+    assert document["review"]["status"] == "unreviewed"
+    assert "usd_estimate" in document["cost"]
+    manifest = json.loads((tmp_path / "manifest.json").read_text(encoding="utf-8"))
+    assert "cost_usd_total" in manifest
+    assert manifest["cost_usd_total"] >= 0.0
+    approved = set_review_status(
+        document, "approved", reviewer="dr-friedman", reviewed_at="2026-01-01T00:00:00Z"
+    )
+    assert approved["review"] == {
+        "status": "approved",
+        "reviewed_at": "2026-01-01T00:00:00Z",
+        "reviewer": "dr-friedman",
+    }
+    with pytest.raises(ResearchError, match="review status"):
+        set_review_status(document, "unknown")

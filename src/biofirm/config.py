@@ -53,6 +53,47 @@ def _mapping(value: Any, name: str) -> Mapping[str, Any]:
     return value
 
 
+def observation_edges(observation_bins: int, half_width: float = 0.05) -> list[float]:
+    """Return ascending positive-side bin boundaries for a symmetric binning.
+
+    ``observation_bins`` must be an odd integer >= 3. With three bins the single
+    boundary is ``half_width``, reproducing the default below/at/above model.
+    """
+    if (
+        isinstance(observation_bins, bool)
+        or not isinstance(observation_bins, int)
+        or observation_bins < 3
+        or observation_bins % 2 == 0
+    ):
+        raise ConfigError("observation_bins must be an odd integer >= 3")
+    if not _finite(half_width, "observation half_width") or not 0 < half_width < 0.5:
+        raise ConfigError("observation half_width must be in (0, 0.5)")
+    center = (observation_bins - 1) // 2
+    if center == 1:
+        return [half_width]
+    step = (0.5 - half_width) / (center - 1)
+    return [half_width + index * step for index in range(center)]
+
+
+def observation_index(normalized_deviation: float, observation_bins: int) -> int:
+    """Map a normalized deviation (in [-0.5, 0.5]) to a symmetric observation bin."""
+    try:
+        value = float(normalized_deviation)
+    except (TypeError, ValueError) as exc:
+        raise ConfigError("normalized_deviation must be numeric") from exc
+    if not math.isfinite(value):
+        raise ConfigError("normalized_deviation must be finite")
+    edges = observation_edges(observation_bins)
+    center = (observation_bins - 1) // 2
+    for offset in range(center, 0, -1):
+        edge = edges[offset - 1]
+        if value >= edge:
+            return center + offset
+        if value <= -edge:
+            return center - offset
+    return center
+
+
 @dataclass(frozen=True)
 class VariableConfig:
     """A bounded state variable and its transition parameters."""
@@ -65,6 +106,7 @@ class VariableConfig:
     trend: float = 0.0
     noise: float = 0.0
     control_strength: float = 1.0
+    observation_bins: int = 3
     unit: str = "index"
     aliases: tuple[str, ...] = ()
 
@@ -83,6 +125,7 @@ class VariableConfig:
             "trend",
             "noise",
             "control_strength",
+            "observation_bins",
             "unit",
             "aliases",
         }
@@ -97,6 +140,9 @@ class VariableConfig:
             raise ConfigError(f"variables.{name}.unit must be a non-empty string")
         if len(set(aliases)) != len(aliases):
             raise ConfigError(f"variables.{name}.aliases must be unique")
+        observation_bins = raw.get("observation_bins", 3)
+        if isinstance(observation_bins, bool) or not isinstance(observation_bins, int):
+            raise ConfigError(f"variables.{name}.observation_bins must be an integer")
         return cls(
             name=name,
             initial=_finite(raw.get("initial"), f"variables.{name}.initial"),
@@ -108,6 +154,7 @@ class VariableConfig:
             control_strength=_finite(
                 raw.get("control_strength", 1.0), f"variables.{name}.control_strength"
             ),
+            observation_bins=observation_bins,
             unit=unit,
             aliases=tuple(aliases),
         )
@@ -146,6 +193,7 @@ class VariableConfig:
             raise ConfigError(f"variables.{self.name}.noise cannot be negative")
         if self.control_strength < 0:
             raise ConfigError(f"variables.{self.name}.control_strength cannot be negative")
+        observation_edges(self.observation_bins)
 
     @property
     def span(self) -> float:
@@ -433,6 +481,7 @@ class BiofirmConfig:
                     "trend": variable.trend,
                     "noise": variable.noise,
                     "control_strength": variable.control_strength,
+                    "observation_bins": variable.observation_bins,
                     "unit": variable.unit,
                     "aliases": list(variable.aliases),
                 }

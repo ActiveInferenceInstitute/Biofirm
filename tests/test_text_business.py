@@ -15,6 +15,32 @@ from biofirm.text import (
 )
 
 
+def test_single_range_is_never_attributed_to_two_variables() -> None:
+    config = load_config()
+    processor = BioregionTextProcessor(config)
+    profile = processor.process("biodiversity and soil_moisture between 40 and 80 index.")
+    # The bare range is owned by the single nearest variable, not both.
+    assert len(profile.variables) == 1
+    assert "biodiversity" not in profile.variables or "soil_moisture" not in profile.variables
+    assert not profile.ambiguities
+
+
+def test_ambiguous_range_is_reported_and_not_assigned() -> None:
+    config = load_config()
+    profile = BioregionTextProcessor(config).process("soil_moisture 40 to 50 biodiversity")
+    # Nearly equidistant from two variables -> attributed to neither, reported.
+    assert profile.ambiguities
+    assert profile.variables == {}
+
+
+def test_nearby_range_gets_high_confidence_span() -> None:
+    config = load_config()
+    profile = BioregionTextProcessor(config).process("biodiversity between 40 and 80 index.")
+    assert profile.variables["biodiversity"]["confidence"] > 0.5
+    range_spans = [span for span in profile.evidence if span.category == "variable-range"]
+    assert range_spans
+
+
 def test_text_extraction_has_hashes_ranges_and_evidence() -> None:
     config = load_config()
     processor = BioregionTextProcessor(config)
@@ -88,3 +114,54 @@ def test_business_policy_rejects_extra_state_and_invalid_action_schema() -> None
             },
             config,
         )
+
+
+def test_committee_ties_break_deterministically_by_name() -> None:
+    config = load_config()
+    zero = {name: 0.0 for name in config.variables}
+    committee = CommitteeConfig.from_dict(
+        {
+            "budget": 1.0,
+            "roles": [
+                {
+                    "name": "role",
+                    "weight": 1.0,
+                    "priorities": {name: 1.0 for name in config.variables},
+                }
+            ],
+            "actions": [
+                {
+                    "name": "alpha",
+                    "controls": zero,
+                    "cost": 0.0,
+                    "risk": 0.0,
+                    "ecological_effects": zero,
+                },
+                {
+                    "name": "beta",
+                    "controls": zero,
+                    "cost": 0.0,
+                    "risk": 0.0,
+                    "ecological_effects": zero,
+                },
+            ],
+        },
+        config,
+    )
+    # Zero-effect, zero-cost actions all score identically; the equality rule is
+    # max((score, name)), so ties resolve deterministically to the
+    # lexicographically greatest name.
+    first = BusinessCommittee(config, committee).evaluate({name: 50.0 for name in config.variables})
+    second = BusinessCommittee(config, committee).evaluate(
+        {name: 50.0 for name in config.variables}
+    )
+    assert first.action == "beta"
+    assert second.action == first.action
+
+
+def test_business_action_id_matches_simulation_contract() -> None:
+    import biofirm.business as business
+    import biofirm.simulation as simulation
+
+    for control in (0.0, 1e-13, -1e-13, 1.5, -1.5):
+        assert business._action_id(control) == simulation._action_id(control)

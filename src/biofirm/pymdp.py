@@ -57,30 +57,45 @@ class ActiveInferenceMatrices:
         self.validate()
 
     def validate(self) -> ActiveInferenceMatrices:
+        num_states = self.A.shape[0]
         validate_probability_matrix(self.A, axis=0, name="A")
         validate_probability_matrix(self.B, axis=0, name="B")
         validate_probability_matrix(self.D, axis=0, name="D")
         c = np.asarray(self.C, dtype=float)
         if c.ndim != 1 or not np.all(np.isfinite(c)):
             raise MatrixValidationError("C must be a finite one-dimensional preference vector")
-        if c.size != 3:
-            raise MatrixValidationError("C must contain three preferences")
+        if c.size != num_states:
+            raise MatrixValidationError("C must contain one preference per observation state")
         return self
 
 
-def build_active_inference_matrices() -> ActiveInferenceMatrices:
-    """Build and validate the bounded decrease/hold/increase model."""
+def build_active_inference_matrices(num_bins: int = 3) -> ActiveInferenceMatrices:
+    """Build and validate the bounded decrease/hold/increase model.
 
-    A = np.eye(3, dtype=np.float32)
-    B = np.zeros((3, 3, 3), dtype=np.float32)
+    ``num_bins`` is the (odd, >= 3) number of symmetric observation states
+    around the target; the action space stays the three-step
+    decrease/hold/increase contract that shifts the state by one bin.
+    """
+    if (
+        isinstance(num_bins, bool)
+        or not isinstance(num_bins, int)
+        or num_bins < 3
+        or num_bins % 2 == 0
+    ):
+        raise MatrixValidationError("num_bins must be an odd integer >= 3")
+    center = (num_bins - 1) // 2
+    A = np.eye(num_bins, dtype=np.float32)
+    B = np.zeros((num_bins, num_bins, 3), dtype=np.float32)
     for action in range(3):
-        for state in range(3):
-            next_state = int(np.clip(state + action - 1, 0, 2))
+        for state in range(num_bins):
+            next_state = int(np.clip(state + action - 1, 0, num_bins - 1))
             B[next_state, state, action] = 1.0
+    preferences = np.full(num_bins, -1.0, dtype=np.float32)
+    preferences[center] = 2.0
     matrices = ActiveInferenceMatrices(
         A=A,
         B=B,
-        C=np.array([-1.0, 2.0, -1.0], dtype=np.float32),
-        D=np.full(3, 1 / 3, dtype=np.float32),
+        C=preferences,
+        D=np.full(num_bins, 1 / num_bins, dtype=np.float32),
     )
     return matrices.validate()

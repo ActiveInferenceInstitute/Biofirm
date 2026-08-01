@@ -7,9 +7,11 @@ import json
 import logging
 import math
 import os
+import re
 import time
 from collections.abc import Mapping
 from dataclasses import dataclass
+from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any, Protocol
 from urllib.parse import urlparse
@@ -27,6 +29,27 @@ class ResearchError(RuntimeError):
 RESEARCH_PROMPT_VERSION = "biofirm-research-v1"
 RESEARCH_MANIFEST_VERSION = 1
 OFFICIAL_PROVIDER_URL = "https://api.perplexity.ai"
+
+# Documented token-pricing heuristic for cost estimates. These are illustrative
+# `sonar` rates (USD per 1M tokens) used only for rough accounting; the estimate
+# is labelled as such and never treated as a billed figure.
+SONAR_INPUT_RATE_PER_1M = 1.0
+SONAR_OUTPUT_RATE_PER_1M = 2.0
+
+# Hedge phrases that lower the confidence of a verbatim extracted claim.
+_HEDGES = (
+    "may",
+    "might",
+    "could",
+    "possibly",
+    "probably",
+    "uncertain",
+    "suggests",
+    "suggested",
+    "appears",
+    "estimated",
+    "approximately",
+)
 
 
 @dataclass(frozen=True)
@@ -90,6 +113,68 @@ class ResearchResponse:
             "usage": dict(self.usage),
             "provider_request_id": self.provider_request_id,
         }
+
+    def cost_usd_estimate(self) -> float:
+        """Estimate provider cost in USD from token usage (an estimate, not a bill)."""
+        return estimate_cost(self.usage)
+
+
+@dataclass(frozen=True)
+class ResearchFinding:
+    """One verbatim, structured claim extracted from a provider response."""
+
+    claim: str
+    citations: tuple[str, ...]
+    confidence: float
+    sentence_index: int
+
+    def to_dict(self) -> dict[str, Any]:
+        return {
+            "claim": self.claim,
+            "citations": list(self.citations),
+            "confidence": self.confidence,
+            "sentence_index": self.sentence_index,
+        }
+
+
+def estimate_cost(usage: Mapping[str, Any]) -> float:
+    """Estimate USD cost from provider token usage using documented rates."""
+    try:
+        prompt = float(usage.get("prompt_tokens", 0))
+        completion = float(usage.get("completion_tokens", 0))
+    except (TypeError, ValueError) as exc:
+        raise ResearchError("usage tokens must be numeric") from exc
+    if not math.isfinite(prompt) or not math.isfinite(completion) or prompt < 0 or completion < 0:
+        raise ResearchError("usage tokens must be finite and non-negative")
+    return round(
+        (prompt * SONAR_INPUT_RATE_PER_1M + completion * SONAR_OUTPUT_RATE_PER_1M) / 1_000_000,
+        10,
+    )
+
+
+def parse_findings(
+    content: str,
+    citations: tuple[str, ...] | list[str],
+) -> tuple[ResearchFinding, ...]:
+    """Split provider content into verbatim sentence claims with linked citations.
+
+    Findings are extracted deterministically from the provider's own words; no
+    synthetic evidence or fallback content is ever introduced.
+    """
+    if not isinstance(content, str) or not content.strip():
+        raise ResearchError("findings require non-empty provider content")
+    citation_tuple = tuple(citations)
+    findings: list[ResearchFinding] = []
+    for index, sentence in enumerate(re.split(r"(?<=[.!?])\s+", content.strip())):
+        cleaned = sentence.strip()
+        if not cleaned:
+            continue
+        lowered = cleaned.lower()
+        confidence = 0.7 if any(hedge in lowered for hedge in _HEDGES) else 1.0
+        findings.append(ResearchFinding(cleaned, citation_tuple, confidence, index))
+    if not findings:
+        raise ResearchError("provider content produced no extractable findings")
+    return tuple(findings)
 
 
 class ResearchProvider(Protocol):
@@ -199,13 +284,52 @@ class PerplexityClient:
         time.sleep(delay)
 
 
+REVIEW_STATUSES = {"unreviewed", "approved", "rejected"}
+
+
+def set_review_status(
+    document: Mapping[str, Any],
+    status: str,
+    reviewer: str | None = None,
+    reviewed_at: str | None = None,
+) -> dict[str, Any]:
+    """Return a copy of a research document with a human review state recorded."""
+    if status not in REVIEW_STATUSES:
+        raise ResearchError(f"review status must be one of {sorted(REVIEW_STATUSES)}")
+    if reviewer is not None and (not isinstance(reviewer, str) or not reviewer.strip()):
+        raise ResearchError("reviewer must be a non-empty string or null")
+    updated = dict(document)
+    updated["review"] = {
+        "status": status,
+        "reviewed_at": reviewed_at if reviewed_at is not None else _utc_now_iso(),
+        "reviewer": reviewer,
+    }
+    return updated
+
+
+@dataclass(frozen=True)
+class ResearchJob:
+    """A single prepared, ready-to-answer research task."""
+
+    region: Mapping[str, Any]
+    region_id: str
+    region_name: str
+    persona: str
+    safe_persona: str
+    request: ResearchRequest
+    source_hash: str
+    target: Path
+    relative_json: str
+    resumable: bool
+
+
 class ResearchService:
-    """Run research requests only in explicit live mode and resume by content hash."""
+    """Run research in explicit live mode through independently rerunnable stages."""
 
     def __init__(self, provider: ResearchProvider):
         self.provider = provider
 
-    def run(
+    def prepare(
         self,
         regions: list[Mapping[str, Any]],
         personas: list[str],
@@ -215,7 +339,8 @@ class ResearchService:
         model: str = "sonar",
         temperature: float = 0.2,
         max_tokens: int = 1500,
-    ) -> list[Path]:
+    ) -> tuple[list[ResearchJob], dict[str, Mapping[str, Any]]]:
+        """Validate inputs and build the list of resumable-aware research jobs."""
         if not live:
             raise ResearchError("research execution requires explicit live=True")
         if not regions or not personas:
@@ -244,9 +369,8 @@ class ResearchService:
             raise ResearchError("max_tokens must be an integer in [1, 100000]")
         destination = Path(output_dir)
         destination.mkdir(parents=True, exist_ok=True)
-        manifest_path = destination / "manifest.json"
-        manifest_entries = _load_manifest(manifest_path)
-        written: list[Path] = []
+        manifest_entries = _load_manifest(destination / "manifest.json")
+        jobs: list[ResearchJob] = []
         for region, region_id in zip(regions, region_ids, strict=True):
             region_name = str(region.get("name", region_id))
             for persona, safe_persona in zip(personas, safe_personas, strict=True):
@@ -257,37 +381,122 @@ class ResearchService:
                 target = destination / region_id / f"{safe_persona}.json"
                 source_hash = sha256_json(region)
                 relative_json = str(target.relative_to(destination))
-                if _is_resumable(target, request, source_hash, manifest_entries.get(relative_json)):
-                    written.append(target)
-                    continue
-                response = self.provider.complete(request)
-                document = {
-                    "request": {
-                        "region_id": region_id,
-                        "region_name": region_name,
-                        "persona": persona,
-                        "model": model,
-                        "temperature": temperature,
-                        "max_tokens": max_tokens,
-                        "prompt_version": request.prompt_version,
-                        "prompt_hash": request.prompt_hash,
-                        "configuration_hash": request.configuration_hash,
-                        "source_hash": source_hash,
-                    },
-                    "response": response.to_dict(),
-                    "provenance": {"provider": "perplexity", "live": True},
-                }
-                _atomic_json(target, document)
-                written.append(target)
-                _atomic_text(target.with_suffix(".md"), _render_markdown(document))
-                manifest_entries[relative_json] = _artifact_entry(destination, target, source_hash)
+                resumable = _is_resumable(
+                    target, request, source_hash, manifest_entries.get(relative_json)
+                )
+                jobs.append(
+                    ResearchJob(
+                        region,
+                        region_id,
+                        region_name,
+                        persona,
+                        safe_persona,
+                        request,
+                        source_hash,
+                        target,
+                        relative_json,
+                        resumable,
+                    )
+                )
+        return jobs, manifest_entries
+
+    def execute(self, request: ResearchRequest) -> ResearchResponse:
+        """Execute a single provider request (the network call stage)."""
+        return self.provider.complete(request)
+
+    def build_document(self, job: ResearchJob, response: ResearchResponse) -> dict[str, Any]:
+        """Assemble one structured, provenance-preserving document from a response."""
+        request = job.request
+        return {
+            "request": {
+                "region_id": request.region_id,
+                "region_name": request.region_name,
+                "persona": request.persona,
+                "model": request.model,
+                "temperature": request.temperature,
+                "max_tokens": request.max_tokens,
+                "prompt_version": request.prompt_version,
+                "prompt_hash": request.prompt_hash,
+                "configuration_hash": request.configuration_hash,
+                "source_hash": job.source_hash,
+            },
+            "response": response.to_dict(),
+            "provenance": {"provider": "perplexity", "live": True},
+            "cost": {
+                "usd_estimate": response.cost_usd_estimate(),
+                "usage": dict(response.usage),
+            },
+            "review": {"status": "unreviewed", "reviewed_at": None, "reviewer": None},
+            "findings": [
+                finding.to_dict()
+                for finding in parse_findings(response.content, response.citations)
+            ],
+        }
+
+    @staticmethod
+    def parse(document: Mapping[str, Any]) -> tuple[ResearchFinding, ...]:
+        """Re-derive structured findings from an assembled document (parse stage)."""
+        response = document.get("response")
+        if not isinstance(response, Mapping) or not isinstance(response.get("content"), str):
+            raise ResearchError("document has no parseable provider response")
+        return parse_findings(response["content"], response.get("citations", []))
+
+    @staticmethod
+    def render(document: Mapping[str, Any]) -> str:
+        """Render a document to Markdown (render stage)."""
+        return _render_markdown(document)
+
+    def run(
+        self,
+        regions: list[Mapping[str, Any]],
+        personas: list[str],
+        *,
+        output_dir: str | Path,
+        live: bool,
+        model: str = "sonar",
+        temperature: float = 0.2,
+        max_tokens: int = 1500,
+    ) -> list[Path]:
+        """Run research and return the paths written during this invocation.
+
+        Artifacts that are fully resumable (both files intact and hashes
+        agreeing) are skipped and therefore not included in the returned list.
+        """
+        jobs, manifest_entries = self.prepare(
+            regions,
+            personas,
+            output_dir=output_dir,
+            live=live,
+            model=model,
+            temperature=temperature,
+            max_tokens=max_tokens,
+        )
+        destination = Path(output_dir)
+        manifest_path = destination / "manifest.json"
+        written: list[Path] = []
+        for job in jobs:
+            if job.resumable:
+                continue
+            response = self.execute(job.request)
+            document = self.build_document(job, response)
+            _atomic_json(job.target, document)
+            written.append(job.target)
+            _atomic_text(job.target.with_suffix(".md"), self.render(document))
+            manifest_entries[job.relative_json] = _artifact_entry(
+                destination,
+                job.target,
+                job.source_hash,
+                cost_usd_estimate=response.cost_usd_estimate(),
+            )
+        entries = [manifest_entries[key] for key in sorted(manifest_entries)]
         _atomic_json(
             manifest_path,
             {
                 "schema_version": RESEARCH_MANIFEST_VERSION,
                 "provider": "perplexity",
                 "live": True,
-                "entries": [manifest_entries[key] for key in sorted(manifest_entries)],
+                "cost_usd_total": sum(_entry_cost(destination, entry) for entry in entries),
+                "entries": entries,
             },
         )
         return written
@@ -479,7 +688,13 @@ def _sha256_file(path: Path) -> str:
     return hashlib.sha256(path.read_bytes()).hexdigest()
 
 
-def _artifact_entry(destination: Path, json_path: Path, source_hash: str) -> dict[str, str]:
+def _artifact_entry(
+    destination: Path,
+    json_path: Path,
+    source_hash: str,
+    *,
+    cost_usd_estimate: float = 0.0,
+) -> dict[str, Any]:
     markdown_path = json_path.with_suffix(".md")
     return {
         "json": str(json_path.relative_to(destination)),
@@ -487,7 +702,31 @@ def _artifact_entry(destination: Path, json_path: Path, source_hash: str) -> dic
         "json_sha256": _sha256_file(json_path),
         "markdown_sha256": _sha256_file(markdown_path),
         "source_hash": source_hash,
+        "cost_usd_estimate": cost_usd_estimate,
     }
+
+
+def _entry_cost(destination: Path, entry: Mapping[str, Any]) -> float:
+    """Return an entry's recorded cost estimate, reading the artifact if absent."""
+    recorded = entry.get("cost_usd_estimate")
+    if (
+        isinstance(recorded, (int, float))
+        and not isinstance(recorded, bool)
+        and math.isfinite(float(recorded))
+    ):
+        return float(recorded)
+    relative = entry.get("json")
+    if isinstance(relative, str):
+        try:
+            document = json.loads((destination / relative).read_text(encoding="utf-8"))
+            return float(document["cost"]["usd_estimate"])
+        except (OSError, ValueError, KeyError, TypeError):
+            return 0.0
+    return 0.0
+
+
+def _utc_now_iso() -> str:
+    return datetime.now(UTC).isoformat()
 
 
 def _load_manifest(path: Path) -> dict[str, Mapping[str, Any]]:

@@ -9,7 +9,7 @@ from typing import Any, Protocol
 
 import numpy as np
 
-from .config import BiofirmConfig, VariableConfig
+from .config import BiofirmConfig, VariableConfig, observation_index
 from .immutability import freeze
 from .pymdp import build_active_inference_matrices
 
@@ -59,6 +59,8 @@ def _action_for_control(control: float, tolerance: float = 1e-12) -> int:
 class SlideRuleController:
     """Proportional bounded control with configurable damping."""
 
+    name = "slide-rule"
+
     def __init__(self, config: BiofirmConfig):
         self.config = config
         self._previous: dict[str, float] = {}
@@ -92,6 +94,8 @@ class SlideRuleController:
 class RandomController:
     """Seeded baseline controller; randomness is explicit and reproducible."""
 
+    name = "random"
+
     def __init__(self, config: BiofirmConfig, seed: int | None = None):
         self.config = config
         self.reset(config.seed if seed is None else seed)
@@ -124,6 +128,8 @@ class ActiveInferenceController:
     distribution, and selected action.
     """
 
+    name = "active-inference"
+
     def __init__(self, config: BiofirmConfig, seed: int | None = None):
         self.config = config
         self._seed = config.seed if seed is None else seed
@@ -145,8 +151,8 @@ class ActiveInferenceController:
         self._jax = jax
         self._jnp = jnp
         self._jax_key = jax.random.PRNGKey(seed)
-        matrices = build_active_inference_matrices()
         for name, variable in self.config.variables.items():
+            matrices = build_active_inference_matrices(variable.observation_bins)
             with warnings.catch_warnings():
                 warnings.filterwarnings(
                     "ignore",
@@ -169,11 +175,7 @@ class ActiveInferenceController:
     @staticmethod
     def _discrete_observation(value: float, variable: VariableConfig) -> int:
         normalised = (value - variable.target) / variable.span
-        if normalised < -0.05:
-            return 0
-        if normalised > 0.05:
-            return 2
-        return 1
+        return observation_index(normalised, variable.observation_bins)
 
     def act(self, values: Mapping[str, float]) -> ControlDecision:
         _validate_values(self.config, values)

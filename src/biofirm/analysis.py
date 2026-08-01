@@ -44,6 +44,13 @@ class SurpriseTracker:
         self._mean = self.prior_mean
 
     def update(self, observation: float) -> SurpriseObservation:
+        """Absorb one observation and report the surprise it incurred.
+
+        The empirical surprise is computed *before* the running mean absorbs the
+        new observation: it measures how surprising the observation is under the
+        prior (the current running mean). The reported ``posterior_mean`` is the
+        updated mean *after* absorption.
+        """
         observation = float(observation)
         if not math.isfinite(observation):
             raise ValueError("observation must be finite")
@@ -119,6 +126,20 @@ def summarize_records(records: Iterable[Mapping[str, object]]) -> dict[str, floa
 
 @dataclass(frozen=True)
 class TokenLedgerEntry:
+    """One allocation round's auditable accounting.
+
+    Fields describe the requested, reserved, allocated, and remainder
+    quantities precisely:
+
+    - ``requested``: whole tokens made available for allocation this round
+      (the remaining budget after previously allocated and reserved tokens).
+    - ``reserved``: whole tokens withheld as reserve this round.
+    - ``allocated``: whole tokens actually granted across recipients.
+    - ``remainder``: the whole-token remainder that the largest-remainder rule
+      distributes as one extra token per the largest fractional remainder(s)
+      before the round is finalized.
+    """
+
     coalition: tuple[str, ...]
     requested: int
     allocated: int

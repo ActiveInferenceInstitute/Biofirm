@@ -42,3 +42,15 @@ def test_probability_validation_rejects_bad_shapes_and_preferences() -> None:
         from biofirm.pymdp import ActiveInferenceMatrices
 
         ActiveInferenceMatrices(np.eye(3), np.eye(3), np.zeros((3, 1)), np.ones(3) / 3)
+
+
+def test_generalized_observation_bin_matrices_are_valid() -> None:
+    matrices = build_active_inference_matrices(5)
+    assert matrices.A.shape == (5, 5)
+    assert matrices.B.shape == (5, 5, 3)
+    assert matrices.C.size == 5
+    assert np.allclose(matrices.B.sum(axis=0), 1.0)
+    with pytest.raises(MatrixValidationError, match="odd"):
+        build_active_inference_matrices(4)
+    with pytest.raises(MatrixValidationError, match="odd"):
+        build_active_inference_matrices(1)

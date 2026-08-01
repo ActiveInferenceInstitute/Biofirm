@@ -5,6 +5,7 @@
 - [README](README.md): installation, commands, safety boundaries, and development checks.
 - [Generative model](Biofirm_Generative_Model.md): transition, observation, controller, and artifact contracts.
 - [Installation guide](One_Earth/INSTALLATION_GUIDE.md): repository-root setup pointer.
+- `src/biofirm/graph.py`: experimental regional interaction graph data model with per-node/per-edge provenance and descriptive-only summaries.
 
 ## Authoritative source data
 
@@ -16,7 +17,7 @@
 
 - `One_Earth/`: methodology, case studies, pipeline concepts, and historical roadmaps.
 - `Stream/`: Active InferAnt discussion and explanatory material.
-- [Graph/network status](GNN.md): deferred experimental direction.
+- [Graph/network status](GNN.md): the experimental graph data model and interface (descriptive only; not validated ecological evidence).
 
 Historical documents may describe systems that are not implemented by the
 current package. Active implementation work belongs in [TODO.md](TODO.md).

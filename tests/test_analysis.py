@@ -60,3 +60,26 @@ def test_analysis_services_reject_invalid_shapes_and_weights() -> None:
         TokenLedger(10).allocate({"a": -1.0})
     with pytest.raises(ValueError, match="coalition"):
         ShapleyAllocator().values(("a",), {})
+
+
+def test_token_ledger_conserves_and_accounts_non_uniform_allocation() -> None:
+    ledger = TokenLedger(100, reserve_rate=0.1)
+    tokens = ledger.allocate({"a": 3.0, "b": 1.0})
+    # reserve (10) + allocated (90) exactly account for the 100-token budget.
+    assert ledger.reserved_tokens + ledger.allocated_tokens == 100
+    assert sum(tokens.values()) == ledger.allocated_tokens == 90
+    entry = ledger.entries[0]
+    assert entry.reserve == 10
+    assert entry.requested == 90
+    assert entry.allocated == 90
+
+
+def test_empirical_surprise_uses_pre_update_prior() -> None:
+    tracker = SurpriseTracker(0.0, 1.0, 0.0)
+    first = tracker.update(2.0)
+    second = tracker.update(2.0)
+    assert first.posterior_mean == 2.0
+    # The second observation's surprise is computed against the posterior of
+    # the first update (i.e. before this observation is absorbed), not after.
+    assert second.empirical_surprise == 0.0
+    assert second.posterior_mean == 2.0

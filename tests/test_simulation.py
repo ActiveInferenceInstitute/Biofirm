@@ -11,6 +11,7 @@ from biofirm.simulation import (
     SimulationError,
     SimulationResult,
     compare_controllers,
+    run_scenarios,
     simulate,
     validate_result_document,
     write_result,
@@ -123,6 +124,14 @@ def test_controller_comparison_is_seeded_and_aggregated() -> None:
     assert set(report["aggregates"]) == {"slide-rule", "random"}
 
 
+def test_simulation_identity_reports_actual_controllers() -> None:
+    config = load_config()
+    default_result = simulate(config, steps=1, seed=1)
+    assert default_result.controller == config.controller.name
+    raw_result = simulate(config, steps=2, seed=1, controller=RandomController(config, seed=1))
+    assert raw_result.controller == "random"
+
+
 def test_simulation_and_comparison_reject_invalid_inputs() -> None:
     config = load_config()
     with pytest.raises(SimulationError, match="steps"):
@@ -182,6 +191,41 @@ def test_result_validator_rejects_malformed_records() -> None:
         changed = {**document, **changes}
         with pytest.raises(ResultSchemaError, match=message):
             validate_result_document(changed)
+
+
+def test_run_scenarios_compares_variants_and_reports_uncertainty() -> None:
+    variant = {**load_config().to_dict(), "name": "disturbed", "seed": 9}
+    report = run_scenarios(
+        [load_config(), type(load_config()).from_dict(variant)],
+        2,
+        [1, 2],
+        controller_name="slide-rule",
+    )
+    assert report["schema_version"] == 1
+    assert len(report["rows"]) == 4
+    assert set(report["scenarios"]) == {"biofirm-default-ecosystem", "disturbed"}
+    assert "final_uncertainty" in report["rows"][0]
+    with pytest.raises(SimulationError, match="scenario"):
+        run_scenarios([], 1, [1])
+    duplicate = [load_config(), load_config()]
+    with pytest.raises(SimulationError, match="unique"):
+        run_scenarios(duplicate, 1, [1])
+
+
+def test_five_bin_observation_contract_and_uncertainty_metric() -> None:
+    raw = load_config().to_dict()
+    raw["variables"]["biodiversity"]["observation_bins"] = 5
+    config = type(load_config()).from_dict(raw)
+    result = simulate(config, steps=2, seed=1, controller_name="slide-rule")
+    document = result.to_dict()
+    validate_result_document(document)
+    for record in result.records:
+        assert 0 <= record.observations["biodiversity"] < 5
+        assert "posterior_entropy" in record.metrics
+    assert result.records[0].metrics["posterior_entropy"] == 0.0
+    active = simulate(config, steps=2, seed=3, controller_name="active-inference")
+    assert len(active.records[1].beliefs["biodiversity"]) == 5
+    validate_result_document(active.to_dict())
 
 
 def test_simulation_result_constructor_and_controller_contracts_fail_closed() -> None:
