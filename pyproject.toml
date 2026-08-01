@@ -12,7 +12,7 @@ license = { text = "MIT" }
 authors = [{ name = "Active Inference Institute" }]
 dependencies = [
   "numpy==2.4.6",
-  "requests==2.33.0",
+  "requests==2.34.2",
   "inferactively-pymdp==1.0.3",
   "jax==0.10.2",
 ]
