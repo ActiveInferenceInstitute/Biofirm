@@ -1,0 +1,15 @@
+cff-version: 1.2.0
+message: "If you use Biofirm in research or products, please cite it as follows."
+title: "Biofirm"
+abstract: "Reproducible ecological control, bioregion research, and decision analysis."
+authors:
+  - name: "Active Inference Institute"
+    affiliation: "Active Inference Institute"
+license: MIT
+url: "https://github.com/ActiveInferenceInstitute/Biofirm"
+keywords:
+  - active inference
+  - ecological control
+  - bioregion research
+  - decision analysis
+  - python
