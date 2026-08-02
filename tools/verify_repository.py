@@ -29,6 +29,7 @@ def main() -> int:
     for required_document in (
         ROOT / "README.md",
         ROOT / "Biofirm_Generative_Model.md",
+        ROOT / "CONFIGURATION.md",
         ROOT / "TODO.md",
         ROOT / "DOCUMENTATION_INDEX.md",
         ROOT / "One_Earth" / "INSTALLATION_GUIDE.md",
