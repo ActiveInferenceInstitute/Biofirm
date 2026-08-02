@@ -1,10 +1,14 @@
-# Documentation index
+# Documentation Index
 
 ## Implemented package contracts
 
 - [README](README.md): installation, commands, safety boundaries, and development checks.
 - [Generative model](Biofirm_Generative_Model.md): transition, observation, controller, and artifact contracts.
+- [Configuration reference](CONFIGURATION.md): field-by-field schema for `name`, `variables`, `relationships`, `controller`, `output`, and `seed`.
 - [Installation guide](One_Earth/INSTALLATION_GUIDE.md): repository-root setup pointer.
+- [Contributing](CONTRIBUTING.md): development setup, checks, and conventions.
+- [Security](SECURITY.md): live-research safety boundaries and vulnerability reporting.
+- [Citation](CITATION.cff): machine-readable citation metadata.
 - `src/biofirm/graph.py`: experimental regional interaction graph data model with per-node/per-edge provenance and descriptive-only summaries.
 
 ## Authoritative source data

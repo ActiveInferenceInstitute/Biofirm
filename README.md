@@ -84,6 +84,9 @@ next = clip(current + trend + relationship_effect + control + bounded_noise,
             minimum, maximum)
 ```
 
+A field-by-field reference for every configuration key is in
+[CONFIGURATION.md](CONFIGURATION.md).
+
 The active-inference controller uses the installed PyMDP 1.x API with JAX
 arrays, explicit empirical priors, explicit policy inference, and deterministic
 action selection unless stochastic selection is configured.
@@ -91,8 +94,9 @@ action selection unless stochastic selection is configured.
 ## Development checks
 
 ```bash
-pytest
+pytest --cov=biofirm --cov-fail-under=90
 ruff check src tests tools
+ruff format --check src tests tools
 mypy --python-version 3.12 src/biofirm
 bandit -q -r src tools
 python tools/verify_repository.py
@@ -113,6 +117,9 @@ providers; credentials are never sent over insecure HTTP by the CLI.
 See [DOCUMENTATION_INDEX.md](DOCUMENTATION_INDEX.md) for the boundary between
 implemented contracts, source data, and historical design material. Current
 work is scoped in [TODO.md](TODO.md); completed items remain in Git history.
+Development setup and contribution conventions are in
+[CONTRIBUTING.md](CONTRIBUTING.md); security boundaries and vulnerability
+reporting are in [SECURITY.md](SECURITY.md).
 
 Schema compatibility is explicit: consumers must validate simulation schema
 version `1`, and future breaking changes require a new schema version and

@@ -253,16 +253,14 @@ git push origin feature/your-feature-name
 
 ### Mermaid Diagrams
 
-The project uses Mermaid for diagrams. When creating diagrams:
+The project uses Mermaid for diagrams. When creating diagrams, use a fenced
+code block with the `mermaid` language tag:
 
-```
-# Example Mermaid diagram syntax
 ```mermaid
 flowchart TD
     A[Start] --> B{Decision}
     B -->|Yes| C[Action 1]
     B -->|No| D[Action 2]
-```
 ```
 
 - Keep diagrams simple and focused

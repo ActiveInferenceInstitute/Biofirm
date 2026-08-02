@@ -1,7 +1,9 @@
 # DPSIR Framework Integration with Active Inference for Ecological Management
 
-> Status: Speculative design note. DPSIR expansion is deferred until the
-> bounded-state model and controller benchmarks in `TODO.md` are complete.
+> Status: Speculative design note. It maps DPSIR concepts onto the Biofirm
+> model but does not define implemented behavior. The configurable observation
+> model it assumes now exists (see `README.md`), but DPSIR expansion itself is
+> not tracked in `TODO.md` and remains unimplemented.
 
 ## Overview
 DPSIR (Drivers, Pressures, State, Impact, and Response model of intervention) provides a causal framework for describing society-environment interactions. When combined with active inference principles, it creates a powerful approach for adaptive ecological management.
