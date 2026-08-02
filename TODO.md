@@ -2,7 +2,7 @@
 
 Status: Open — maintained
 Owner: Active Inference Institute
-Last reviewed: 2026-08-01
+Last reviewed: 2026-08-02
 
 This is the sole current backlog for the repository. Completed work is recorded
 in an explicit "Completed/Closed" section below; the "Scoped (deferred)"
@@ -119,3 +119,52 @@ before it is added.
   until an authoritative edge dataset with per-edge provenance and acceptance
   criteria exists; the experimental `graph` interface already enforces the
   `experimental` label and descriptive-only framing.
+
+## Documentation review (2026-08-02)
+
+Scope from the 2026-08-02 docs-deep review; the full audit is in
+`REVIEW_LOG_2026-08-02.md`. Tier definitions: Minor = typo, broken link,
+formatting; Medium = stale section rewrite, doc restructure, added missing
+guide; Major = large doc system overhaul or cross-cutting refactor.
+
+### Minor
+
+- ✓ Documentation index title capitalization for consistency —
+  `DOCUMENTATION_INDEX.md` (118a0d0).
+- ✓ Malformed nested code fence in the historical contribution guide —
+  `One_Earth/CONTRIBUTING.md` (118a0d0).
+- ✓ Stale status note in the speculative DPSIR design note —
+  `Stream/DPSIR.md` (118a0d0).
+
+### Medium
+
+- ✓ README development checks now mirror the CI quality job exactly
+  (coverage floor plus `ruff format --check`) — `README.md` (118a0d0).
+- ✓ Added a full field-by-field configuration reference (new) —
+  `CONFIGURATION.md` (222a50b).
+- ✓ Added a current contribution guide for the package (new; the only prior
+  guide was historical) — `CONTRIBUTING.md` (222a50b).
+- ✓ Added a concise security policy (new) — `SECURITY.md` (222a50b).
+- ✓ Added machine-readable citation metadata (new) — `CITATION.cff`
+  (222a50b).
+- ✓ Wired the new documents into the index and the repository verification
+  contract — `README.md`, `DOCUMENTATION_INDEX.md`,
+  `tools/verify_repository.py` (118a0d0, 222a50b, 880de08).
+
+### Major
+
+- ✓ Documentation-system coherence pass: the index now covers every tracked
+  document, README links the new guides, the historical/current boundary is
+  preserved, and a scripted link/anchor audit is green over all 19 markdown
+  files (118a0d0, 222a50b, 880de08, and the review-log commit).
+
+### Open / deferred
+
+- Trailing whitespace inside historical `One_Earth/` mermaid diagram fences
+  (e.g. `Next_Steps.md`) — deferred; not user-visible and cleanup churn is
+  disproportionate to benefit.
+- Rewriting the speculative `Stream/` and historical `One_Earth/` prose —
+  deferred by design; those documents are intentionally labelled historical.
+- Full CI matrix (Python 3.11/3.12, bandit, clean wheel install) — not
+  re-run locally; `pytest` (102 passed) and `tools/verify_repository.py` are
+  green and CI exercises the remainder on push.
