@@ -58,7 +58,7 @@ gantt
     Requirements Gathering        :done, req, 2023-08-01, 14d
     UX Design                     :active, ux, after req, 21d
     Technical Architecture        :active, arch, after req, 14d
-    
+
     section Phase 1 - MVP
     Survey Flow Implementation    :p1_1, after ux, 14d
     Database Setup                :p1_2, after arch, 7d
@@ -66,14 +66,14 @@ gantt
     Bioregion Selection UI        :p1_4, after p1_1, 14d
     Integration & Testing         :p1_5, after p1_3, after p1_4, 7d
     MVP Launch                    :milestone, p1_launch, after p1_5, 0d
-    
+
     section Phase 2 - Enhanced Features
     Social Graph Implementation   :p2_1, after p1_launch, 21d
     Weighting Algorithm           :p2_2, after p1_launch, 14d
     Semantic Scholar Integration  :p2_3, after p2_2, 14d
     Advanced Reporting            :p2_4, after p2_1, 14d
     Enhanced UI/UX                :p2_5, after p2_3, after p2_4, 14d
-    
+
     section Phase 3 - Integration
     Website Integration           :p3_1, after p2_5, 21d
     Expert Profiles               :p3_2, after p2_5, 14d
@@ -94,7 +94,7 @@ flowchart TD
     D --> F[Results Compilation]
     F --> G[Expert Network Visualization]
     D --> H[Map-Based Results Interface]
-    
+
     subgraph Backend
     D
     F
@@ -102,7 +102,7 @@ flowchart TD
     J[Tracking Link System]
     K[Data Enrichment]
     end
-    
+
     subgraph Frontend
     A
     B
@@ -115,7 +115,7 @@ flowchart TD
     N[Results Display]
     O[Feedback System]
     end
-    
+
     C --> I
     I --> J
     J --> B
@@ -135,7 +135,7 @@ flowchart TB
     subgraph Client
     A[Web Browser] --> B[Next.js Frontend]
     end
-    
+
     subgraph Server
     B --> C[API Layer]
     C --> D[Authentication Service]
@@ -143,13 +143,13 @@ flowchart TB
     C --> F[Nomination Engine]
     C --> G[Analytics Service]
     end
-    
+
     subgraph Database
     E --> H[AirTable]
     F --> H
     G --> H
     end
-    
+
     subgraph External
     C --> I[Email Service]
     G --> J[Semantic Scholar API]
@@ -177,7 +177,7 @@ flowchart TB
 flowchart TD
     A[One Earth Staff] --> B[Create Campaign]
     B --> C[Invite Tier 1 Experts]
-    
+
     C --> D[Expert Opens Email]
     D --> E[Expert Visits Survey Landing Page]
     E --> F[Expert Completes Basic Info]
@@ -185,19 +185,19 @@ flowchart TD
     G --> H[Expert Navigates Bioregion Selection]
     H --> I[Expert Nominates Other Experts]
     I --> J[Expert Shares Custom Link]
-    
+
     J --> K[Tier 2 Expert Receives Invitation]
     K --> E
-    
+
     I --> L[Expert Views Other Available Surveys]
     L --> M[Expert Participates in Related Surveys]
-    
+
     subgraph "Initial Campaign Setup"
     A
     B
     C
     end
-    
+
     subgraph "Expert Survey Flow"
     D
     E
@@ -207,7 +207,7 @@ flowchart TD
     I
     J
     end
-    
+
     subgraph "Expansion & Engagement"
     K
     L
@@ -220,54 +220,54 @@ flowchart TD
 ```mermaid
 stateDiagram-v2
     [*] --> LandingPage
-    
+
     state LandingPage {
         [*] --> Welcome
         Welcome --> CollectBasicInfo
         CollectBasicInfo --> [*]
     }
-    
+
     LandingPage --> GeographicExpertise
-    
+
     state GeographicExpertise {
         [*] --> RealmSelection
         RealmSelection --> [*]
     }
-    
+
     GeographicExpertise --> BioregionSelection
-    
+
     state BioregionSelection {
         [*] --> MapView
         MapView --> SelectMultipleBioregions
         SelectMultipleBioregions --> [*]
     }
-    
+
     BioregionSelection --> NominationScreen
-    
+
     state NominationScreen {
         [*] --> ExpertEntryForm
         ExpertEntryForm --> AddMoreExperts
         AddMoreExperts --> ExpertEntryForm: Add another
         AddMoreExperts --> [*]: Done
     }
-    
+
     NominationScreen --> InvitationScreen
-    
+
     state InvitationScreen {
         [*] --> GenerateCustomLink
         GenerateCustomLink --> EmailTemplate
         EmailTemplate --> CopyToClipboard
         CopyToClipboard --> [*]
     }
-    
+
     InvitationScreen --> ThankYouPage
-    
+
     state ThankYouPage {
         [*] --> Confirmation
         Confirmation --> RelatedSurveys
         RelatedSurveys --> [*]
     }
-    
+
     ThankYouPage --> [*]
 ```
 
@@ -280,7 +280,7 @@ sequenceDiagram
     participant T2 as Tier 2 Expert
     participant DB as Database
     participant SS as Semantic Scholar
-    
+
     OE->>T1: Send campaign invitation
     T1->>DB: Submit personal information
     DB->>T1: Generate unique user ID
@@ -311,7 +311,7 @@ erDiagram
         int nominationCount
         float weightFactor
     }
-    
+
     CAMPAIGN {
         string campaignID PK
         string title
@@ -321,7 +321,7 @@ erDiagram
         date endDate
         string status
     }
-    
+
     NOMINATION {
         string nominationID PK
         string nominatorID FK
@@ -331,7 +331,7 @@ erDiagram
         int priority
         string status
     }
-    
+
     EXPERTISE {
         string expertiseID PK
         string userID FK
@@ -339,7 +339,7 @@ erDiagram
         string expertiseType
         int confidenceLevel
     }
-    
+
     BIOREGION {
         string bioregionID PK
         string name
@@ -347,7 +347,7 @@ erDiagram
         string description
         string geoJSON
     }
-    
+
     ACADEMIC_METRICS {
         string metricsID PK
         string userID FK
@@ -356,7 +356,7 @@ erDiagram
         int citationCount
         int hIndex
     }
-    
+
     USER ||--o{ NOMINATION : "makes"
     USER ||--o{ EXPERTISE : "has"
     USER ||--o{ ACADEMIC_METRICS : "has"

@@ -9,6 +9,7 @@
 - [Contributing](CONTRIBUTING.md): development setup, checks, and conventions.
 - [Security](SECURITY.md): live-research safety boundaries and vulnerability reporting.
 - [Citation](CITATION.cff): machine-readable citation metadata.
+- [Package walkthrough notebook](Documentation/Notebooks/ActInf_BioFirm_v_011.ipynb): seeded offline walkthrough, executed in the test suite.
 - `src/biofirm/graph.py`: experimental regional interaction graph data model with per-node/per-edge provenance and descriptive-only summaries.
 
 ## Authoritative source data

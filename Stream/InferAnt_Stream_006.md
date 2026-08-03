@@ -71,7 +71,7 @@ Previous Active InferAnt streams
   - Action space: [-1,0,1] with controllability scaling
   - State representation
 
-#### Modeling Framework and Next Steps 
+#### Modeling Framework and Next Steps
 
 - Generalized Notation System
   - P3IF integration

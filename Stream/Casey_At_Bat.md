@@ -1,5 +1,9 @@
 # Casey at the Neural Bat: An Active Inference Tale
 
+> Status: Historical creative material. A narrative illustration of the
+> active-inference control concept; it is not a specification of implemented
+> Biofirm behavior.
+
 The outlook wasn't brilliant for the homeostatic game that day,
 The entropy was rising, free energy held sway.
 The variables were drifting far from bounds they ought to keep,

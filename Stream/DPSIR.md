@@ -18,13 +18,13 @@ The Biofirm generative model maps DPSIR components to active inference elements:
    - Maps directly to hidden states in POMDP agents
    - Represented in discrete state space {LOW, HOMEOSTATIC, HIGH}
    - Encoded in agents' belief states through variational inference
-   
+
 2. **Pressures (P) & Drivers (D)**
    - Encoded in B matrices as transition probabilities
    - Captures both:
      - Endogenic managed pressures (controllable)
      - Exogenic unmanaged pressures (environmental noise)
-   
+
 3. **Impact (I)**
    - Represented in C vectors (prior preferences)
    - Encoded as maximum preference for homeostatic states
@@ -40,10 +40,10 @@ The Biofirm generative model maps DPSIR components to active inference elements:
 ```python
 class BiofirmAgent:
     """Active inference implementation of DPSIR framework
-    
+
     Each ecological modality has independent POMDP agent with:
     - A matrix: Maps observations to belief states (State)
-    - B matrix: Encodes pressure & driver effects (Pressures/Drivers) 
+    - B matrix: Encodes pressure & driver effects (Pressures/Drivers)
     - C vector: Defines impact preferences (Impact)
     - Control signals: Implements responses (Response)
     """
