@@ -110,3 +110,29 @@ re-run green (102 passed).
   One_Earth mermaid diagram fences (not user-visible; churn disproportionate
   to benefit) and rewriting the speculative Stream/One_Earth prose (intended
   historical material).
+
+## Follow-up pass (2026-08-02) — previously deferred items closed
+
+- Trailing whitespace stripped from historical/speculative markdown
+  (`One_Earth/Next_Steps.md`, `Stream/DPSIR.md`, `Stream/InferAnt_Stream_006.md`);
+  the diff was verified whitespace-only (`73e714d`).
+- `Stream/Casey_At_Bat.md` now carries a historical status block, matching the
+  repo's historical-labelling convention (`73e714d`).
+- The package walkthrough notebook is now listed in the documentation index so
+  every tracked document is covered (`73e714d`).
+- CI parity executed locally, replicating every runnable step of the
+  `quality` job:
+  - `uv lock --check` passes; the CI export/diff of `requirements.lock` is in
+    sync with `uv export --all-extras --locked`.
+  - `python -m build` produces `biofirm-0.1.0` sdist + wheel.
+  - The clean-environment job (locked install from `requirements.lock`,
+    `--no-deps` wheel install, then the offline command exercise:
+    validate / simulate / sweep / analyze / visualize / parse-description /
+    business-evaluate with non-empty artifact assertions) passes on
+    Python 3.11.15 and Python 3.12.13.
+  - `pytest` passes 102/102 under the clean Python 3.11 environment (and the
+    earlier 3.12 runs); `ruff check` and `ruff format --check` clean; `mypy`
+    clean (17 source files); `bandit` clean; `tools/verify_repository.py`
+    passes under the clean environment.
+- Not run locally (runner-hosted only, exercised on push): the GitHub Actions
+  runner itself and the gitleaks secret-scan step.

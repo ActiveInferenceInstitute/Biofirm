@@ -160,11 +160,25 @@ guide; Major = large doc system overhaul or cross-cutting refactor.
 
 ### Open / deferred
 
-- Trailing whitespace inside historical `One_Earth/` mermaid diagram fences
-  (e.g. `Next_Steps.md`) — deferred; not user-visible and cleanup churn is
-  disproportionate to benefit.
 - Rewriting the speculative `Stream/` and historical `One_Earth/` prose —
   deferred by design; those documents are intentionally labelled historical.
-- Full CI matrix (Python 3.11/3.12, bandit, clean wheel install) — not
-  re-run locally; `pytest` (102 passed) and `tools/verify_repository.py` are
-  green and CI exercises the remainder on push.
+- GitHub-hosted CI steps (Actions runner, gitleaks secret scan) — exercised
+  only on push; every locally runnable CI step was replicated and is green
+  (see the follow-up below).
+
+### Follow-up (2026-08-02) — previously deferred items closed
+
+- ✓ Trailing whitespace stripped from historical/speculative markdown —
+  `One_Earth/Next_Steps.md`, `Stream/DPSIR.md`, `Stream/InferAnt_Stream_006.md`
+  (73e714d; verified whitespace-only diff).
+- ✓ `Stream/Casey_At_Bat.md` labelled as historical creative material,
+  matching the repo's historical-labelling convention (73e714d).
+- ✓ The package walkthrough notebook is now listed in the documentation index
+  so every tracked document is covered (73e714d).
+- ✓ CI parity executed locally: `uv lock --check` and the `requirements.lock`
+  export diff pass; `python -m build` produces the wheel; the CI
+  clean-environment job (locked install + wheel install + offline command
+  exercise) passes on Python 3.11.15 and 3.12.13; `pytest` passes 102/102
+  under both interpreters; ruff check + format, mypy, bandit, and
+  `tools/verify_repository.py` are green under the clean environment.
+  Full detail in `REVIEW_LOG_2026-08-02.md`.
