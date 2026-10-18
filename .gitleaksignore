@@ -1,0 +1,7 @@
+# Exact historical findings only. All affected keys were reported revoked by
+# the repository owner on 2026-10-18. No credential values are stored here.
+# Full-history scanning remains required; new commits/paths/lines are not exempt.
+cede4d49f64746e2df89eb7e571e53813c3b8c44:Scripts/6_Business.py:openai-api-key:136
+cede4d49f64746e2df89eb7e571e53813c3b8c44:Scripts/utils/llm_keys.key:openai-api-key:1
+680e18f0ad56e787b012f79f3521303526afd500:Notebooks/actinf_biofirm_v_011.py:openai-api-key:653
+680e18f0ad56e787b012f79f3521303526afd500:Notebooks/actinf_biofirm_v_011.py:openai-api-key:1367

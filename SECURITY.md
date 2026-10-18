@@ -37,3 +37,13 @@ maintainers.
 The `--allow-custom-endpoint` escape hatch exists for trusted providers; any
 proposal to weaken the offline-by-default or HTTPS-only guarantees should be
 raised as a security discussion before implementation.
+
+## Revoked historical credentials
+
+The owner confirmed on 2026-10-18 that all affected historical OpenAI keys
+were revoked. Four exact commit/path/rule/line fingerprints are recorded in
+`.gitleaksignore`; no credential values are stored in that file. This is a
+record of accepted revoked history, not a claim that history contains no
+credentials or an independent verification of provider revocation. Full-history
+scanning remains required. New findings, including new commits at the same
+paths, still fail the gate; CI proves this with a synthetic Git-history control.
