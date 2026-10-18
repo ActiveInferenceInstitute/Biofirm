@@ -12,6 +12,8 @@ jobs:
         python-version: ["3.11", "3.12"]
     steps:
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
       - uses: actions/setup-python@v5
         with:
           python-version: ${{ matrix.python-version }}
@@ -66,6 +68,29 @@ jobs:
           test -s run.png
           test -s profile.json
       - name: Secret scan
-        uses: gitleaks/gitleaks-action@v2
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        shell: bash
+        run: |
+          scanner="$RUNNER_TEMP/biofirm-gitleaks"
+          mkdir -p "$scanner"
+          curl --fail --silent --show-error --location \
+            https://github.com/gitleaks/gitleaks/releases/download/v8.30.1/gitleaks_8.30.1_linux_x64.tar.gz \
+            --output "$scanner/release.tar.gz"
+          echo "551f6fc83ea457d62a0d98237cbad105af8d557003051f41f3e7ca7b3f2470eb  $scanner/release.tar.gz" | sha256sum --check --strict
+          tar -xzf "$scanner/release.tar.gz" -C "$scanner" gitleaks
+          test "$("$scanner/gitleaks" version)" = 8.30.1
+          control="$(mktemp -d "$RUNNER_TEMP/biofirm-secret-control.XXXXXX")"
+          python - "$control/control.txt" <<'PYCONTROL'
+          from pathlib import Path
+          import secrets
+          import string
+          import sys
+          synthetic = "ghp_" + "".join(secrets.choice(string.ascii_letters + string.digits) for _ in range(36))
+          Path(sys.argv[1]).write_text('token = "' + synthetic + '"\n', encoding="utf-8")
+          PYCONTROL
+          if "$scanner/gitleaks" dir --redact --no-banner --exit-code 1 "$control"; then
+            echo "Secret scanner failed to reject the synthetic control" >&2
+            exit 1
+          else
+            test "$?" = 1
+          fi
+          "$scanner/gitleaks" git --redact --no-banner --exit-code 1 --log-opts=--all .
