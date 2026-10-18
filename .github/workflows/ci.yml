@@ -93,4 +93,21 @@ jobs:
           else
             test "$?" = 1
           fi
-          "$scanner/gitleaks" git --redact --no-banner --exit-code 1 --log-opts=--all .
+          # Exact historical exceptions must not exempt a new commit at the old path.
+          mkdir -p "$control/Scripts/utils"
+          cp "$control/control.txt" "$control/Scripts/utils/llm_keys.key"
+          cp .gitleaksignore "$control/.gitleaksignore"
+          git init --quiet "$control"
+          git -C "$control" add -f -- .gitleaksignore Scripts/utils/llm_keys.key
+          git -C "$control" -c user.name='Scanner control' -c user.email=control@example.invalid \
+            -c commit.gpgsign=false -c core.hooksPath=/dev/null \
+            commit --quiet -m 'Synthetic scanner negative control'
+          if "$scanner/gitleaks" git --redact --no-banner --exit-code 1 --log-opts=--all \
+            --gitleaks-ignore-path "$PWD/.gitleaksignore" "$control"; then
+            echo "Exact historical exceptions admitted a new credential" >&2
+            exit 1
+          else
+            test "$?" = 1
+          fi
+          "$scanner/gitleaks" git --redact --no-banner --exit-code 1 --log-opts=--all \
+            --gitleaks-ignore-path .gitleaksignore .
