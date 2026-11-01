@@ -91,6 +91,35 @@ The active-inference controller uses the installed PyMDP 1.x API with JAX
 arrays, explicit empirical priors, explicit policy inference, and deterministic
 action selection unless stochastic selection is configured.
 
+## Generative model specification
+
+The controller's generative model is specified in Generalized Notation Notation
+(GNN) at
+[`models/biofirm_ecosystem_variable.gnn.md`](models/biofirm_ecosystem_variable.gnn.md).
+[`models/README.md`](models/README.md) records the declared structure, the
+loader and drift guard in `src/biofirm/gnn.py`, and the pinned upstream
+revision (GNN v5.0.3, commit `8f293d9ba810e6eda5c09842d9c7ed9ffa5f92c1`, also in
+[`.github/gnn-pin.json`](.github/gnn-pin.json)). `tests/test_gnn.py` checks the
+specification against the matrices the package builds, for the default three-bin
+model and for generalized odd `observation_bins` values, and re-validates it with
+the pinned upstream parser when the GNN checkout is available.
+
+For new model work, start from the upstream [framework integration
+guide](https://github.com/ActiveInferenceInstitute/Generalized_Notation_Notation/blob/8f293d9ba810e6eda5c09842d9c7ed9ffa5f92c1/docs/gnn/integration/framework_integration_guide.md)
+and the [downstream adoption
+guide](https://github.com/ActiveInferenceInstitute/Generalized_Notation_Notation/blob/1f3abb56e25886dfa6ddc49c76af7b723941485a/docs/gnn/integration/downstream_adoption.md).
+A related Active Inference Institute repository is
+[GEO_INFER](https://github.com/ActiveInferenceInstitute/GEO_INFER), whose
+geospatial and ecological models also carry GNN specifications and pin-freshness
+checks. Other repositories that already declare models this way:
+
+- [ActiveBlockference](https://github.com/ActiveInferenceInstitute/ActiveBlockference)
+  — the closest sibling for control models; its `specs/gridworld_3x3.gnn.md` is
+  validated against the same GNN v5.0.3 tag.
+- [active_fractal_rabbit](https://github.com/ActiveInferenceInstitute/active_fractal_rabbit)
+  — the reference layout this repository follows: `models/`, a loader module,
+  and `.github/gnn-pin.json`.
+
 ## Development checks
 
 ```bash

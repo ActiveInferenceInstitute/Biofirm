@@ -1,12 +1,17 @@
 # Graph and network modeling status
 
+This document covers regional graph and network modeling. It is unrelated to
+Generalized Notation Notation (GNN), the Active Inference Institute
+specification language for generative models, which this repository uses for
+its generative-model specification in [`models/`](models/README.md).
+
 ## What exists
 
 `src/biofirm/graph.py` implements the **experimental data model and evaluation
 contract** for regional graph/network work. It deliberately does not implement
-a GNN or calibrated ecological analytics. Everything it returns is labelled
-`experimental` and described as *descriptive topology only*, never as validated
-ecological evidence.
+graph neural networks or calibrated ecological analytics. Everything it returns
+is labelled `experimental` and described as *descriptive topology only*, never
+as validated ecological evidence.
 
 - `RegionalNode` and `RegionalEdge` carry explicit provenance (source path) and,
   for edges, an uncertainty in `[0, 1]`, a `kind`, and a `calibrated` flag that
@@ -26,7 +31,8 @@ ecological evidence.
 
 ## Not yet implemented (scoped, not validated)
 
-Before any GNN or predictive graph analytics, the following must exist:
+Before any graph-neural-network or predictive graph analytics, the following
+must exist:
 
 - an authoritative graph with edge meanings derived from a source-of-truth
   dataset (not candidate heuristics);
