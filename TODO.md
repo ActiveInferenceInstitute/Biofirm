@@ -66,8 +66,8 @@ re-open without evidence that their acceptance criteria regressed.
   consistent JSON output/error contract (exit code 2 on failure),
   atomic non-empty artifacts, documented stable exports.
 - **BF-010 — Canonical documentation** — Implemented. README, generative-model
-  contract, installation guide, and GNN status documents are maintained and
-  refreshed this pass.
+  contract, installation guide, and graph/network status documents are
+  maintained and refreshed this pass.
 - **BF-011 — Legacy-document reconciliation** — Implemented. One Earth and
   Stream documents marked historical in `DOCUMENTATION_INDEX.md`; index
   distinguishes implemented behavior, source data, historical notes, and
@@ -88,13 +88,39 @@ re-open without evidence that their acceptance criteria regressed.
   (`set_review_status`); independently rerunnable
   prepare/execute/build/parse/render stages. Raw provider responses are
   preserved; no synthetic or fallback evidence is introduced.
-- **BF-015 (delivered part) — Network/GNN data model** — Implemented the
+- **BF-015 (delivered part) — Network/graph data model** — Implemented the
   experimental interface: `RegionalNode`/`RegionalEdge`/`RegionalGraph` with
   per-node/per-edge provenance, uncertainty, and a `calibrated` flag;
   `nodes_from_json`; `empty_regional_graph`/`with_candidate_edge`;
   `descriptive_summary` (explicitly descriptive-only); `acceptance_report`;
   `biofirm graph`. Every output is labelled experimental and never framed as
   validated ecological evidence.
+- **BF-019 — Generalized Notation Notation generative-model specification** —
+  Implemented. `models/biofirm_ecosystem_variable.gnn.md` is the structural
+  source of truth for the active-inference controller's generative model (one
+  bounded factor, one identity-likelihood modality, the three
+  decrease/hold/increase controls, target-peaked preferences, uniform prior,
+  clipped shift transition); `src/biofirm/gnn.py` parses it without upstream
+  dependencies and reports conformance; `tests/test_gnn.py` compares the
+  declared matrices with `build_active_inference_matrices` for the default and
+  generalized bin counts and re-validates the file with the pinned upstream
+  parser (`--strict`) from a clean export of the pinned revision. The pin
+  (v5.0.3, `8f293d9ba810e6eda5c09842d9c7ed9ffa5f92c1`) is recorded in
+  `.github/gnn-pin.json`; the former `GNN.md` graph/network document is renamed
+  `GRAPH_MODELING.md` so "GNN" unambiguously means Generalized Notation
+  Notation in this repository.
+- **BF-020 — Dependency currency review** — Implemented. Each runtime pin in
+  `pyproject.toml` is the newest release that satisfies both supported Python
+  versions (3.11 and 3.12) together with `inferactively-pymdp==1.0.4`, so the
+  pins are qualified values rather than stale freezes: `numpy` 2.5.x and `jax`
+  0.11.0 both require Python >= 3.12, and PyMDP caps `jax<0.11.1`. The
+  rationale and the recheck commands are documented in `CONTRIBUTING.md`.
+  `pytest` moved from 9.1.1 to 9.2.0, and the CI tool pin moved from
+  `uv==0.11.6` to `uv==0.13.6` after the regenerated `requirements.lock` diffed
+  identical under the newer tool. Acceptance: the documented check list passes
+  (tests with the 90% coverage floor, ruff, mypy, bandit,
+  `tools/verify_repository.py`, `uv lock --check`, the CI export diff, and
+  `python -m build`).
 
 ## Scoped (deferred) — future work
 
@@ -115,7 +141,8 @@ before it is added.
   validated structurally (HTTP(S)); online freshness/reachability checking is
   not part of offline tests. Add an opt-in, clearly-labelled freshness check
   that never blocks or fabricates evidence.
-- **BF-018 — GNN / predictive graph analytics.** No GNN or predictive analytics
+- **BF-018 — Graph-neural-network / predictive graph analytics.** No graph
+  neural network or predictive analytics
   until an authoritative edge dataset with per-edge provenance and acceptance
   criteria exists; the experimental `graph` interface already enforces the
   `experimental` label and descriptive-only framing.

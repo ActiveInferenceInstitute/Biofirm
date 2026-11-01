@@ -4,6 +4,7 @@
 
 - [README](README.md): installation, commands, safety boundaries, and development checks.
 - [Generative model](Biofirm_Generative_Model.md): transition, observation, controller, and artifact contracts.
+- [GNN model specifications](models/README.md): the Generalized Notation Notation source of truth for the generative-model structure, the loader/drift guard, and the pinned upstream revision.
 - [Configuration reference](CONFIGURATION.md): field-by-field schema for `name`, `variables`, `relationships`, `controller`, `output`, and `seed`.
 - [Installation guide](One_Earth/INSTALLATION_GUIDE.md): repository-root setup pointer.
 - [Contributing](CONTRIBUTING.md): development setup, checks, and conventions.
@@ -22,7 +23,7 @@
 
 - `One_Earth/`: methodology, case studies, pipeline concepts, and historical roadmaps.
 - `Stream/`: Active InferAnt discussion and explanatory material.
-- [Graph/network status](GNN.md): the experimental graph data model and interface (descriptive only; not validated ecological evidence).
+- [Graph/network status](GRAPH_MODELING.md): the experimental graph data model and interface (descriptive only; not validated ecological evidence).
 
 Historical documents may describe systems that are not implemented by the
 current package. Active implementation work belongs in [TODO.md](TODO.md).

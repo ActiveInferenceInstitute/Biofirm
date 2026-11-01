@@ -32,6 +32,12 @@ and records the selected action. The action space is the three-step
 decrease/hold/increase contract. Deterministic action selection is the default.
 Stochastic selection requires a configured seed and uses a JAX PRNG key.
 
+The generative-model structure is specified in Generalized Notation Notation at
+[`models/biofirm_ecosystem_variable.gnn.md`](models/biofirm_ecosystem_variable.gnn.md);
+[`models/README.md`](models/README.md) records the pinned upstream revision and
+the drift guard that keeps the specification, `src/biofirm/gnn.py`, and
+`src/biofirm/pymdp.py` in agreement.
+
 The simulation history contains the observed state, controls, action IDs,
 beliefs, variational free energy, expected free energy, policy distributions,
 metrics (including a `posterior_entropy` uncertainty term derived from

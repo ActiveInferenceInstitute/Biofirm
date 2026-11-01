@@ -23,6 +23,32 @@ source .venv/bin/activate
 python -m pip install -e ".[dev,analysis,visualization,documents]"
 ```
 
+### Dependency pins
+
+The runtime dependencies in `pyproject.toml` are exact pins, and the committed
+lock files carry the hashes CI diffs. Each runtime pin is the newest release
+that satisfies every Python version this project supports (3.11 and 3.12)
+together with `inferactively-pymdp`:
+
+| Pin | Newest release | Why the pin stops there |
+| --- | --- | --- |
+| `numpy==2.4.6` | 2.5.4 | `numpy` 2.5.x requires Python >= 3.12. |
+| `jax==0.10.2` | 0.12.0.1 | `inferactively-pymdp==1.0.4` requires `jax<0.11.1`, and `jax` 0.11.0 requires Python >= 3.12. |
+| `requests==2.34.2` | 2.34.2 | Current release. |
+| `inferactively-pymdp==1.0.4` | 1.0.4 | Current release. |
+
+Recheck a pin by widening its specifier temporarily, letting the resolver
+report what it reaches under each supported Python, and restoring the pin:
+
+```bash
+uv lock --upgrade-package jax
+uv export --all-extras --format requirements.txt --locked --no-emit-project \
+  --no-header --output-file requirements.lock
+```
+
+A pin that needs Python 3.12 cannot be adopted while 3.11 stays in the support
+matrix, so `requires-python` moves before the runtime pins do.
+
 ## Checks
 
 Run the same checks as CI before pushing:

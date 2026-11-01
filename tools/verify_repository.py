@@ -33,7 +33,9 @@ def main() -> int:
         ROOT / "TODO.md",
         ROOT / "DOCUMENTATION_INDEX.md",
         ROOT / "One_Earth" / "INSTALLATION_GUIDE.md",
-        ROOT / "GNN.md",
+        ROOT / "GRAPH_MODELING.md",
+        ROOT / "models" / "README.md",
+        ROOT / "models" / "biofirm_ecosystem_variable.gnn.md",
     ):
         if (
             not required_document.is_file()
