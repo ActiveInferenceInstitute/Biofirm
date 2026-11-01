@@ -19,7 +19,7 @@ jobs:
           python-version: ${{ matrix.python-version }}
       - name: Install locked tooling and dependencies
         run: |
-          python -m pip install --upgrade pip uv==0.11.6
+          python -m pip install --upgrade pip uv==0.13.6
           uv lock --check
           uv export --all-extras --format requirements.txt --locked --no-emit-project --no-header --output-file "$RUNNER_TEMP/requirements.lock"
           diff -u requirements.lock "$RUNNER_TEMP/requirements.lock"
