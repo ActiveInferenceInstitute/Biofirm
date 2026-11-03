@@ -21,8 +21,13 @@ jobs:
         run: |
           python -m pip install --upgrade pip uv==0.13.6
           uv lock --check
+          # The requirements export is derived from uv.lock at run time and is never
+          # committed: a committed copy would be a second source of truth that a
+          # lock-only dependency update cannot regenerate, so the export would fail
+          # its own gate before anything was installed. uv lock --check above already
+          # proves the lock matches the manifests, and the clean-environment job below
+          # installs from this run-time export, so it is exercised end to end.
           uv export --all-extras --format requirements.txt --locked --no-emit-project --no-header --output-file "$RUNNER_TEMP/requirements.lock"
-          diff -u requirements.lock "$RUNNER_TEMP/requirements.lock"
           uv sync --frozen --all-extras
       - name: Test suite
         run: uv run pytest --cov=biofirm --cov-report=term-missing --cov-fail-under=90
@@ -43,7 +48,7 @@ jobs:
       - name: Install and run outside checkout
         run: |
           python -m venv "$RUNNER_TEMP/biofirm-clean"
-          uv pip install --python "$RUNNER_TEMP/biofirm-clean/bin/python" --requirement requirements.lock
+          uv pip install --python "$RUNNER_TEMP/biofirm-clean/bin/python" --requirement "$RUNNER_TEMP/requirements.lock"
           uv pip install --python "$RUNNER_TEMP/biofirm-clean/bin/python" --no-deps dist/*.whl
           "$RUNNER_TEMP/biofirm-clean/bin/python" - <<'PY'
           import json
