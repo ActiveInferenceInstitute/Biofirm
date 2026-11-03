@@ -181,3 +181,6 @@ cython_debug/
 
 # Virtual Environment
 venv/
+
+# Hashed requirements export — derived from uv.lock at run time, never committed
+requirements.lock

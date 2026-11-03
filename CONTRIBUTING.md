@@ -6,8 +6,8 @@ marked as such; do not treat it as an implementation contract.
 
 ## Development setup
 
-Biofirm supports Python 3.11 and 3.12. The committed `uv.lock` and
-`requirements.lock` provide a hash-locked environment:
+Biofirm supports Python 3.11 and 3.12. The committed `uv.lock` provides a
+hash-locked environment:
 
 ```bash
 uv sync --frozen --all-extras
@@ -26,7 +26,9 @@ python -m pip install -e ".[dev,analysis,visualization,documents]"
 ### Dependency pins
 
 The runtime dependencies in `pyproject.toml` are exact pins, and the committed
-lock files carry the hashes CI diffs. Each runtime pin is the newest release
+`uv.lock` carries the hashes CI verifies with `uv lock --check`. The hashed
+requirements export is derived from the lock at run time and is not committed.
+Each runtime pin is the newest release
 that satisfies every Python version this project supports (3.11 and 3.12)
 together with `inferactively-pymdp`:
 
@@ -43,7 +45,7 @@ report what it reaches under each supported Python, and restoring the pin:
 ```bash
 uv lock --upgrade-package jax
 uv export --all-extras --format requirements.txt --locked --no-emit-project \
-  --no-header --output-file requirements.lock
+  --no-header --output-file /tmp/biofirm-requirements.lock
 ```
 
 A pin that needs Python 3.12 cannot be adopted while 3.11 stays in the support
