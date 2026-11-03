@@ -4,8 +4,10 @@ These tests keep three things in agreement: the GNN specification in
 ``models/``, the matrices the package builds in ``biofirm.pymdp``, and the
 pinned upstream revision recorded in ``.github/gnn-pin.json``. The upstream
 parser checks run against a clean export of the pinned revision, so in-progress
-edits in a sibling GNN checkout cannot contaminate the result; they skip with
-an explicit reason when the checkout or its interpreter is unavailable.
+edits in a sibling GNN checkout cannot contaminate the result; they skip with an
+explicit reason when the checkout or its interpreter is unavailable, and fail
+instead of skipping when the checkout was selected explicitly (CI sets
+``GNN_CHECKOUT``, so a missing or unusable checkout is a red check there).
 """
 
 from __future__ import annotations
@@ -61,24 +63,37 @@ def _pin() -> dict[str, object]:
     return json.loads(PIN_PATH.read_text(encoding="utf-8"))
 
 
+def _unavailable(message: str) -> None:
+    """Skip when no checkout was selected; fail when one was selected explicitly.
+
+    ``GNN_CHECKOUT`` is the explicit selection, and CI sets it after
+    provisioning the pinned revision. An unusable selected checkout must be a
+    failure, never a skip: a skipped check cannot fail and so proves nothing.
+    """
+
+    if os.environ.get(CHECKOUT_ENV):
+        pytest.fail(f"{CHECKOUT_ENV} selects a checkout, but {message}")
+    pytest.skip(message)
+
+
 @pytest.fixture(scope="module")
 def pinned_upstream(tmp_path_factory: pytest.TempPathFactory) -> Iterator[tuple[Path, Path, str]]:
     """Yield ``(checkout, exported_tree, revision)`` for the pinned revision."""
 
     checkout = _checkout()
     if not (checkout / ".git").exists():
-        pytest.skip(f"GNN checkout not found at {checkout}; set {CHECKOUT_ENV} to enable")
+        _unavailable(f"no GNN checkout exists at {checkout}")
     revision = str(_pin()["revision"])
     interpreter = checkout / ".venv" / "bin" / "python"
     if not interpreter.is_file():
-        pytest.skip(f"GNN checkout {checkout} has no .venv/bin/python interpreter")
+        _unavailable(f"the GNN checkout at {checkout} has no .venv/bin/python interpreter")
     archive = subprocess.run(
         ["git", "-C", str(checkout), "archive", revision, "src/gnn", "pyproject.toml"],
         capture_output=True,
         check=False,
     )
     if archive.returncode != 0:
-        pytest.skip(
+        _unavailable(
             f"pinned revision {revision} is not available in {checkout}: "
             f"{archive.stderr.decode(errors='replace').strip()}"
         )
