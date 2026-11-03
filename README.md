@@ -16,8 +16,9 @@ biofirm validate
 ```
 
 For a hash-locked development environment, install `uv` and run
-`uv sync --frozen --all-extras`; the committed `uv.lock` and
-`requirements.lock` cover Python 3.11 and 3.12 with platform markers.
+`uv sync --frozen --all-extras`; the committed `uv.lock` covers Python 3.11 and
+3.12 with platform markers, and CI derives the hashed requirements export from
+it at run time rather than reading a committed copy.
 
 All offline commands use the packaged configuration unless `--config` is
 provided. Live research is the only network-enabled path and requires both an
