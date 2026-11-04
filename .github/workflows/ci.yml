@@ -124,7 +124,7 @@ jobs:
     # tests/test_gnn.py fails (never skips) when the explicitly selected
     # checkout is missing or unusable, so the pin is checked here rather than
     # assumed.
-    name: gnn conformance (pinned v5.0.3)
+    name: gnn conformance (pinned)
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -155,3 +155,12 @@ jobs:
         env:
           GNN_CHECKOUT: ${{ runner.temp }}/gnn
         run: uv run pytest tests/test_gnn.py -q
+
+      - name: Report the resolved GNN version
+        run: |
+          PIN=.github/gnn-pin.json
+          VERSION=$(python3 -c "import json;print(json.load(open('$PIN'))['version'].removeprefix('v'))")
+          test -n "$VERSION"
+          TAG=$(python3 -c "import json;print(json.load(open('$PIN'))['tag'])")
+          test "$VERSION" = "${TAG#v}"
+          echo "gnn-version=${VERSION}" >> "$GITHUB_STEP_SUMMARY"

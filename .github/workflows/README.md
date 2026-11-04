@@ -14,7 +14,7 @@ check on `src tests tools`, strict mypy on `src/biofirm`, bandit on `src tools`,
 commands outside the checkout, and a gitleaks scan with a synthetic negative
 control.
 
-## `gnn conformance (pinned v5.0.3)`
+## `gnn conformance (pinned)`
 
 Job key `gnn-conformance`. Fetches the revision and tag from
 [../gnn-pin.json](../gnn-pin.json) out of the public upstream repository into a

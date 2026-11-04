@@ -2,7 +2,7 @@
 
 - `ci.yml` is the only workflow file. Do not add a second workflow that
   duplicates the gate; extend the existing jobs instead.
-- The `gnn conformance (pinned v5.0.3)` display name and the `gnn-conformance`
+- The `gnn conformance (pinned)` display name and the `gnn-conformance`
   job key are referenced by [../../models/README.md](../../models/README.md) and
   by the repository [AGENTS.md](../../AGENTS.md). Keep both unchanged.
 - The requirements export is written to `$RUNNER_TEMP`, never to the checkout.
