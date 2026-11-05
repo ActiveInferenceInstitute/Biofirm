@@ -24,10 +24,11 @@ uv run python -m build
 ```
 
 The second job is keyed `gnn-conformance` and its display name is exactly
-`gnn conformance (pinned v5.0.3)`. Keep both. It fetches the parser revision
+`gnn conformance (pinned)`. Keep both. It fetches the parser revision
 recorded in [.github/gnn-pin.json](.github/gnn-pin.json) and runs
-`tests/test_gnn.py`; [models/README.md](models/README.md) names that job, so a
-rename breaks the documented pin story.
+`tests/test_gnn.py`; [models/README.md](models/README.md) names that job. The
+job also reports the resolved version in its step summary, and the pin remains
+the source of truth.
 
 `tools/verify_repository.py` is part of the gate. It compiles `src`, imports the
 package, requires a non-empty version, requires the nine documents named in

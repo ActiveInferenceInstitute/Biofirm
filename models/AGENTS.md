@@ -16,7 +16,7 @@ and the pin. This file is the editing contract.
   offline installs.
 - The pin lives in [../.github/gnn-pin.json](../.github/gnn-pin.json) and is
   repeated in [README.md](README.md). Changing `tag` or `revision` requires both
-  to change together and the `gnn conformance (pinned v5.0.3)` job to pass.
+  to change together and the `gnn conformance (pinned)` job to pass.
 - Keep the claim boundary intact. The variables, targets and coefficients are
   illustrative configuration; structural validation never certifies calibrated
   ecological evidence. Do not add language that claims otherwise.

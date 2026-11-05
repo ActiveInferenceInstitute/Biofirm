@@ -8,7 +8,7 @@
   make a network call.
 - `test_gnn.py` has two modes. With no checkout selected it skips with an
   explicit reason; when `GNN_CHECKOUT` points at a missing or unusable checkout
-  it must fail, never skip. The `gnn conformance (pinned v5.0.3)` CI job
+  it must fail, never skip. The `gnn conformance (pinned)` CI job
   provisions that checkout. Do not weaken either branch.
 - `test_notebook.py` executes
   [../Documentation/Notebooks/ActInf_BioFirm_v_011.ipynb](../Documentation/Notebooks/ActInf_BioFirm_v_011.ipynb)
