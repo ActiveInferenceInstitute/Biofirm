@@ -1,13 +1,63 @@
-# `.aii/`
+# .aii — InstituteOS sidecar
 
-InstituteOS sidecar metadata for the Active Inference Institute's platform.
-One file, [config.yaml](config.yaml), declares the repository name, slug, full
-name, description, category, maturity, steward, ecosystem relations and tags.
+This folder is the committed [InstituteOS](https://github.com/ActiveInferenceInstitute/InstituteOS)
+sidecar for **`ActiveInferenceInstitute/Biofirm`**. It records curated institutional metadata that the GitHub
+API cannot provide — identity, category, maturity, ecosystem relations, key artifacts,
+provenance, and portable tasks — so InstituteOS can federate a unified view across
+Institute repositories without touching this project's own content. The schema is
+`aii-sidecar/v1`.
 
-It is metadata, not a build input. No command reads it and no test asserts its
-contents. Keep the `full_name` and `slug` accurate if the repository moves.
+## Contents
 
-The folder also carries [`readiness.json`](readiness.json): this repository's
-tier, baseline commit and waivers for the organization's agent-readiness
-standard. That file is read by the standard's checker, not by this project's
-build, tests or CI.
+| File | Purpose |
+| --- | --- |
+| [`config.yaml`](config.yaml) | Machine-readable metadata; the single source of truth. |
+| [`readiness.json`](readiness.json) | Declared tier, baseline commit, and waivers for the AII readiness standard. |
+| [`docs/`](docs/README.md) | Sidecar documents: the [`README.md`](docs/README.md) · [`AGENTS.md`](docs/AGENTS.md) folder guides, and [`INTEGRATION.md`](docs/INTEGRATION.md) — how this repository is federated, validated, and operated through InstituteOS. |
+| [`README.md`](README.md) · [`AGENTS.md`](AGENTS.md) | Human and agent guidance for this folder. |
+
+## Repository profile
+
+| Field | Value |
+| --- | --- |
+| Repository | `ActiveInferenceInstitute/Biofirm` |
+| Category | `research-software` |
+| Status | `active` |
+| Maturity | `released` |
+| License | `MIT` |
+| Default branch | `main` |
+| Homepage | — |
+| Tags | `biofirm`, `ecological-control`, `active-inference`, `python` |
+
+## Capabilities
+
+- tested
+- notebooks
+- python-package
+- ci
+- citation
+
+## Portable tasks
+
+| Task | Command | Working directory | Description |
+| --- | --- | --- | --- |
+| `inventory` | `git ls-files` | `.` | List tracked files. |
+| `test` | `uv run pytest tests/ -q` | `.` | Run the test suite. |
+
+## Links
+
+- **github:** https://github.com/ActiveInferenceInstitute/Biofirm
+- **website:** https://www.activeinference.org
+
+## Validate
+
+The authoritative validator ships in the private `aii-platform` kernel:
+
+```bash
+python -m aii_platform.aii_sidecar.validate <repo> --completeness
+python -m aii_platform.aii_sidecar docs <repo> --overwrite
+python -m aii_platform.aii_sidecar.run <repo> --list
+```
+
+If the private environment is unavailable, review `config.yaml` as plain YAML and
+check that every declared path exists in the repository.

@@ -24,7 +24,7 @@
 | Dashboard | `true` |
 | Sync policy | `pull` |
 | Registries | — |
-| Tags | biofirm, framework, ecological, system, control, python |
+| Tags | biofirm, ecological-control, active-inference, python |
 
 ## Ecosystem relations
 
@@ -40,12 +40,20 @@
 | Path | Kind | Description |
 | --- | --- | --- |
 | `README.md` | `doc` | Repository overview. |
-| `LICENSE` | `doc` | License. |
 | `AGENTS.md` | `doc` | Agent guidance. |
+| `LICENSE` | `doc` | License. |
 | `CITATION.cff` | `citation` | Machine-readable citation metadata. |
+| `docs` | `doc` | Modular documentation hub (configuration, I/O, GNN). |
+| `DOCUMENTATION_INDEX.md` | `doc` | Repository-wide documentation index. |
+| `CONFIGURATION.md` | `doc` | Field-by-field configuration reference. |
+| `models` | `doc` | GNN model specification and pinned upstream revision. |
+| `Documentation` | `doc` | Package walkthrough notebook. |
+| `tools` | `code` | Repository verification gate. |
 | `pyproject.toml` | `code` | Python package configuration. |
 | `src` | `code` | Source tree. |
 | `tests` | `test` | Test suite. |
+| `One_Earth` | `dataset` | Authoritative One Earth bioregion source data. |
+| `Bio_Perplexity` | `dataset` | Authoritative regional source maps and research prompts. |
 
 ## Portable tasks
 

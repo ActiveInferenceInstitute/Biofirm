@@ -11,6 +11,7 @@ repo:
     with a pymdp active-inference controller.
 institute:
   category: research-software
+  status: active
   maturity: released
   steward: Active Inference Institute
 ecosystem:
@@ -34,15 +35,33 @@ artifacts:
 - path: README.md
   kind: doc
   description: Repository overview.
-- path: LICENSE
-  kind: doc
-  description: License.
 - path: AGENTS.md
   kind: doc
   description: Agent guidance.
+- path: LICENSE
+  kind: doc
+  description: License.
 - path: CITATION.cff
   kind: citation
   description: Machine-readable citation metadata.
+- path: docs
+  kind: doc
+  description: Modular documentation hub (configuration, I/O, GNN).
+- path: DOCUMENTATION_INDEX.md
+  kind: doc
+  description: Repository-wide documentation index.
+- path: CONFIGURATION.md
+  kind: doc
+  description: Field-by-field configuration reference.
+- path: models
+  kind: doc
+  description: GNN model specification and pinned upstream revision.
+- path: Documentation
+  kind: doc
+  description: Package walkthrough notebook.
+- path: tools
+  kind: code
+  description: Repository verification gate.
 - path: pyproject.toml
   kind: code
   description: Python package configuration.
@@ -52,6 +71,12 @@ artifacts:
 - path: tests
   kind: test
   description: Test suite.
+- path: One_Earth
+  kind: dataset
+  description: Authoritative One Earth bioregion source data.
+- path: Bio_Perplexity
+  kind: dataset
+  description: Authoritative regional source maps and research prompts.
 provenance:
   license: MIT
   citation:

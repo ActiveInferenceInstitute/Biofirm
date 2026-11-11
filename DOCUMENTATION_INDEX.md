@@ -3,6 +3,9 @@
 ## Implemented package contracts
 
 - [README](README.md): installation, commands, safety boundaries, and development checks.
+- [Documentation hub](docs/README.md): the modular entry point, with topical pages for
+  [configuration](docs/configuration.md), [I/O and artifacts](docs/io.md), and the
+  [GNN specification](docs/gnn.md).
 - [Generative model](Biofirm_Generative_Model.md): transition, observation, controller, and artifact contracts.
 - [GNN model specifications](models/README.md): the Generalized Notation Notation source of truth for the generative-model structure, the loader/drift guard, and the pinned upstream revision.
 - [Configuration reference](CONFIGURATION.md): field-by-field schema for `name`, `variables`, `relationships`, `controller`, `output`, and `seed`.

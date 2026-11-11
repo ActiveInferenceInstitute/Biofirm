@@ -1,0 +1,64 @@
+# Biofirm documentation
+
+Modular documentation for **Biofirm**, an installable Python package for
+reproducible ecological control, bioregion research, deterministic text
+extraction, analysis, and auditable business decisions. This directory is the
+entry point; each page covers one topic and links to the authoritative document
+it summarizes rather than duplicating it.
+
+The single repository-wide index, including historical and source-data
+material, is [`../DOCUMENTATION_INDEX.md`](../DOCUMENTATION_INDEX.md). Start
+there if you are unsure whether a document is an implemented contract, source
+data, or historical design material.
+
+## Start here
+
+- [Project overview and quick start](../README.md) — install, commands, safety
+  boundaries, and development checks.
+- [Configuration](configuration.md) — how a run is configured, the packaged
+  default, environment prerequisites, and the `--config` flag.
+- [I/O and artifacts](io.md) — the simulation result document, the research
+  JSON/Markdown pairs and manifest, atomic writes, and where outputs belong.
+- [GNN specification](gnn.md) — the generative-model specification, its loader
+  and drift guard, and the pinned upstream revision.
+
+## Implemented package contracts
+
+- [Generative model](../Biofirm_Generative_Model.md) — transition, observation,
+  controller, and artifact contracts.
+- [Configuration reference](../CONFIGURATION.md) — field-by-field schema for
+  `name`, `variables`, `relationships`, `controller`, `output`, and `seed`.
+- [GNN model specifications](../models/README.md) — the Generalized Notation
+  Notation source of truth for the generative-model structure, the loader and
+  drift guard, and the pinned upstream revision.
+- [Graph/network status](../GRAPH_MODELING.md) — the experimental regional
+  interaction graph data model and interface (descriptive only).
+- [Contributing](../CONTRIBUTING.md) — development setup, checks, and
+  conventions.
+- [Security](../SECURITY.md) — live-research safety boundaries and vulnerability
+  reporting.
+- [Citation](../CITATION.cff) — machine-readable citation metadata.
+- [Package walkthrough notebook](../Documentation/Notebooks/ActInf_BioFirm_v_011.ipynb)
+  — seeded offline walkthrough, executed in the test suite.
+
+## Authoritative source data
+
+- [Source provenance](../Bio_Perplexity/DATA_PROVENANCE.md) — provenance for
+  the regional source maps, prompts, and the One Earth hierarchy.
+- [Installation guide](../One_Earth/INSTALLATION_GUIDE.md) — repository-root
+  setup pointer.
+
+## Documentation conventions
+
+Every markdown file in this repository is hand-written, is checked by
+[`../tools/verify_repository.py`](../tools/verify_repository.py) (relative links
+must resolve; the script walks the tree, so new files are covered
+automatically), and must be registered in
+[`../DOCUMENTATION_INDEX.md`](../DOCUMENTATION_INDEX.md). See
+[AGENTS.md](AGENTS.md) for the editing contract.
+
+## See also
+
+- [Repository root README](../README.md)
+- [Agent guidance for this folder](AGENTS.md)
+- [Repository-wide documentation index](../DOCUMENTATION_INDEX.md)

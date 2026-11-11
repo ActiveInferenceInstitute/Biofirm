@@ -101,7 +101,8 @@ Each directory carries its own `README.md` and `AGENTS.md`. Read them before
 editing inside one: [.github/](.github/README.md), [.github/workflows/](.github/workflows/README.md),
 [.aii/](.aii/README.md), [src/](src/README.md), [src/biofirm/](src/biofirm/README.md),
 [src/biofirm/data/](src/biofirm/data/README.md), [tests/](tests/README.md),
-[tools/](tools/README.md), [models/](models/README.md), [Documentation/](Documentation/README.md),
+[tools/](tools/README.md), [models/](models/README.md), [docs/](docs/README.md),
+[Documentation/](Documentation/README.md),
 [Documentation/Notebooks/](Documentation/Notebooks/README.md),
 [Bio_Perplexity/](Bio_Perplexity/README.md), [One_Earth/](One_Earth/README.md),
 [Stream/](Stream/README.md).

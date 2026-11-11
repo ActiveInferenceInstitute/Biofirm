@@ -4,6 +4,20 @@ Biofirm is an installable Python package for reproducible ecological control,
 bioregion research, deterministic text extraction, analysis, and auditable
 business decisions.
 
+## Documentation
+
+- [Install](#install) · [Commands](#commands) · [Configuration](#configuration) ·
+  [Generative model specification](#generative-model-specification) ·
+  [Development checks](#development-checks)
+- [docs/README.md](docs/README.md) — the modular documentation hub
+  ([configuration](docs/configuration.md), [I/O and artifacts](docs/io.md),
+  [GNN specification](docs/gnn.md)).
+- [DOCUMENTATION_INDEX.md](DOCUMENTATION_INDEX.md) — the repository-wide index,
+  including authoritative source data and historical material.
+- [CONFIGURATION.md](CONFIGURATION.md) — field-by-field configuration reference;
+  [models/README.md](models/README.md) — the Generalized Notation Notation model
+  reference and pinned revision.
+
 ## Install
 
 Biofirm supports Python 3.11 and 3.12.
