@@ -1,11 +1,14 @@
-# AII sidecar — InstituteOS metadata. Schema: instituteos.platform.aii_sidecar
+# AII sidecar — InstituteOS metadata. Schema: aii_platform.aii_sidecar
 meta:
-  updated: '2026-06-30'
+  sidecar_version: 1.2.1
+  updated: '2026-11-10'
 repo:
   name: Biofirm
   slug: biofirm
   full_name: ActiveInferenceInstitute/Biofirm
-  description: A framework for ecological system control using Active Inference agents.
+  description: Installable Python package for reproducible ecological control, bioregion
+    research, deterministic text extraction, analysis, and auditable business planning
+    with a pymdp active-inference controller.
 institute:
   category: research-software
   maturity: released
@@ -17,6 +20,11 @@ ecosystem:
     note: Federated via the InstituteOS .aii manifest.
   - repo: ActiveInferenceInstitute/Active_Inference_Ontology
     note: Uses Active Inference Ontology terms.
+  - repo: ActiveInferenceInstitute/pymdp
+    relation: depends-on
+    note: Consumes the pymdp active-inference library.
+  - repo: ActiveInferenceInstitute/Generalized_Notation_Notation
+    note: Uses Generalized Notation Notation (GNN) for model specifications.
   links:
     github: https://github.com/ActiveInferenceInstitute/Biofirm
     website: https://www.activeinference.org
@@ -27,6 +35,21 @@ artifacts:
 - path: LICENSE
   kind: doc
   description: License.
+- path: AGENTS.md
+  kind: doc
+  description: Agent guidance.
+- path: CITATION.cff
+  kind: citation
+  description: Machine-readable citation metadata.
+- path: pyproject.toml
+  kind: code
+  description: Python package configuration.
+- path: src
+  kind: code
+  description: Source tree.
+- path: tests
+  kind: test
+  description: Test suite.
 provenance:
   license: MIT
   citation:
@@ -34,15 +57,26 @@ provenance:
 instituteos:
   tags:
   - biofirm
-  - framework
-  - ecological
-  - system
-  - control
+  - ecological-control
+  - active-inference
   - python
 capabilities:
 - tested
 - notebooks
+- python-package
+- ci
+- citation
 tasks:
   inventory:
     cmd: git ls-files
     description: List tracked files.
+  test:
+    cmd: uv run pytest tests/ -q
+    description: Run the test suite.
+docs:
+- README.md
+- AGENTS.md
+- docs/INTEGRATION.md
+- docs/README.md
+- docs/AGENTS.md
+schema: aii-sidecar/v1

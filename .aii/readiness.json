@@ -1,0 +1,11 @@
+{
+  "schema": "aii-readiness/v1",
+  "repo": "ActiveInferenceInstitute/Biofirm",
+  "tier": "python-service",
+  "standard_version": "1.0.0",
+  "baseline": {
+    "commit": "070d6896c03e98ec70c31e1cc747185bd67ca9c7",
+    "measured_at": "2026-11-10"
+  },
+  "waivers": []
+}

@@ -5,8 +5,16 @@ on:
     branches: [main]
   pull_request:
 
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
 jobs:
   quality:
+    timeout-minutes: 120
     runs-on: ubuntu-latest
     strategy:
       matrix:
@@ -119,6 +127,7 @@ jobs:
             --gitleaks-ignore-path .gitleaksignore .
 
   gnn-conformance:
+    timeout-minutes: 60
     # Validates models/biofirm_ecosystem_variable.gnn.md with the upstream parser
     # revision pinned in .github/gnn-pin.json. The pinned revision is fetched
     # from the public repository at the recorded SHA into its own runtime;

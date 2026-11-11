@@ -156,3 +156,11 @@ version `1`, and future breaking changes require a new schema version and
 migration notes. The public package exports stable configuration, simulation,
 data-validation, and comparison entry points; internal modules remain
 implementation details.
+
+## InstituteOS sidecar
+
+This repository carries a committed [`.aii/`](.aii/README.md) sidecar with curated
+InstituteOS metadata (`aii-sidecar/v1`): category, maturity, ecosystem relations,
+key artifacts, provenance, and portable tasks. It is read by
+[InstituteOS](https://github.com/ActiveInferenceInstitute/InstituteOS) tooling and
+does not affect the project's build or runtime.
