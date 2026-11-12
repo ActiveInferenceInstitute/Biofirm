@@ -30,21 +30,37 @@ instantiation.
 
 ## Pin
 
-The upstream revision is recorded in
-[`../.github/gnn-pin.json`](../.github/gnn-pin.json):
+The canonical pin file is
+[`../.github/gnn-pin.json`](../.github/gnn-pin.json), schema
+`gnn-importer-pin/v1`:
 
 - Repository: `ActiveInferenceInstitute/Generalized_Notation_Notation`
 - Tag: `v5.0.3`
 - Revision: `8f293d9ba810e6eda5c09842d9c7ed9ffa5f92c1`
+- Schema: `gnn-importer-pin/v1`
+- Recorded: `2026-11-12`
+- Specification files: `models/biofirm_ecosystem_variable.gnn.md`
 
 `tests/test_gnn.py` reads the parser from a clean `git archive` of that revision
 — never from the GNN checkout's working tree — so in-progress edits in a sibling
 checkout cannot contaminate the result. When no checkout is selected the
 upstream half skips with an explicit reason; when `GNN_CHECKOUT` selects a
-missing or unusable checkout it fails. CI runs this file in the
-`gnn conformance (pinned)` job, which fetches the pinned revision and
-provisions its interpreter, so the pin is re-checked on every push and pull
-request.
+missing or unusable checkout it fails.
+
+CI runs this file in the job keyed `gnn-conformance`, displayed as
+`gnn conformance (pinned)`, which fetches the pinned revision and provisions its
+interpreter, so the pin is re-checked on every push and pull request.
+[`../.github/GNN.md`](../.github/GNN.md) is the short pointer that records what
+that job parses and what it does not cover. Locally the same check is one arm of
+the gate:
+
+```bash
+./run.sh gnn
+```
+
+Measured arm times, the test count and the coverage total live in
+[gate.md](gate.md), which [`../tools/gate_report.py`](../tools/gate_report.py)
+refreshes.
 
 ## Editing rules
 

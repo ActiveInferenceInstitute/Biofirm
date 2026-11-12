@@ -26,7 +26,11 @@ the working tree rather than an installed copy. `pyproject.toml` sets
 ## Run it
 
 ```bash
-uv run pytest --cov=biofirm --cov-report=term-missing --cov-fail-under=90
+./run.sh test-fast   # suite without coverage or tests/test_gnn.py
+./run.sh test        # full suite with the 90% coverage floor
 ```
 
-The 90% floor is enforced in CI. Bandit excludes this directory.
+`test` is the CI arm; `test-fast` is the quick signal while editing. The 90%
+floor is enforced in CI by the `test` arm. Bandit excludes this directory.
+Measured suite times and the pass count live in
+[../docs/gate.md](../docs/gate.md).

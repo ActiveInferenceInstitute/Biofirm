@@ -55,11 +55,13 @@ re-checked on every push and pull request.
 
 - Upstream repository:
   `https://github.com/ActiveInferenceInstitute/Generalized_Notation_Notation.git`
+- Canonical pin file: [`../.github/gnn-pin.json`](../.github/gnn-pin.json),
+  schema `gnn-importer-pin/v1`
 - Pinned tag: `v5.0.3`
 - Pinned revision: `8f293d9ba810e6eda5c09842d9c7ed9ffa5f92c1` (the commit the
   `v5.0.3` tag dereferences to)
 - Upstream version: `5.0.3`
-- Pinned on: `2026-11-01`
+- Recorded in the pin file: `2026-11-12`
 
 Re-validation runs the pinned upstream validator against this specification:
 

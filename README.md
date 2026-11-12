@@ -137,16 +137,25 @@ checks. Other repositories that already declare models this way:
 
 ## Development checks
 
+[`run.sh`](run.sh) is the single gate entry point; CI calls the same arms, so a
+local run and a CI run execute the same commands:
+
 ```bash
-pytest --cov=biofirm --cov-fail-under=90
-ruff check src tests tools
-ruff format --check src tests tools
-mypy --python-version 3.12 src/biofirm
-bandit -q -r src tools
-python tools/verify_repository.py
-uv lock --check
-python -m build
+./run.sh sync        # locked environment for BIOFIRM_PYTHON (default 3.12)
+./run.sh test        # full suite, 90% coverage floor
+./run.sh test-fast   # same suite without coverage or tests/test_gnn.py
+./run.sh lint        # ruff check + ruff format --check
+./run.sh types       # strict mypy on src/biofirm
+./run.sh links       # tools/verify_repository.py (relative links, data, credentials)
+./run.sh docs        # biofirm validate + biofirm validate-data
+./run.sh gnn         # pinned GNN parser conformance
+./run.sh all         # every arm, in CI order
 ```
+
+`./run.sh list` prints the arms and `./run.sh --help` the full table. Measured
+wall times, the test count and the coverage total are in
+[docs/gate.md](docs/gate.md), which [`tools/gate_report.py`](tools/gate_report.py)
+refreshes from a real run; do not hand-edit those numbers.
 
 Generated research, simulation, report, plot, log, and cache files belong in
 `artifacts/` or another ignored runtime directory. Authoritative source data
