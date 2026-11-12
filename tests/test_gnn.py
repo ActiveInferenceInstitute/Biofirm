@@ -155,8 +155,22 @@ def test_pin_record_revision_is_the_declared_tag(pinned_upstream: tuple[Path, Pa
         check=False,
     )
     if resolved.returncode != 0:
-        pytest.skip(f"tag {_pin()['tag']} is not available in {checkout}")
+        _unavailable(f"tag {_pin()['tag']} is not available in {checkout}")
     assert resolved.stdout.strip() == revision
+
+
+@pytest.mark.parametrize("selected", [False, True])
+def test_missing_pinned_tag_respects_checkout_selection(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, selected: bool
+) -> None:
+    subprocess.run(["git", "init", "--quiet", str(tmp_path)], check=True)
+    if selected:
+        monkeypatch.setenv(CHECKOUT_ENV, str(tmp_path))
+    else:
+        monkeypatch.delenv(CHECKOUT_ENV, raising=False)
+    outcome = pytest.fail.Exception if selected else pytest.skip.Exception
+    with pytest.raises(outcome, match=f"tag {_pin()['tag']} is not available"):
+        test_pin_record_revision_is_the_declared_tag((tmp_path, tmp_path, str(_pin()["revision"])))
 
 
 def test_upstream_parser_accepts_the_specification(
