@@ -60,7 +60,7 @@
 | Task | Command | Working directory | Description |
 | --- | --- | --- | --- |
 | `inventory` | `git ls-files` | `.` | List tracked files. |
-| `test` | `uv run pytest tests/ -q` | `.` | Run the test suite. |
+| `test` | `./run.sh test` | `.` | Run the full test suite with the 90% coverage floor. |
 
 ## Validation
 

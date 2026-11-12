@@ -98,8 +98,8 @@ tasks:
     cmd: git ls-files
     description: List tracked files.
   test:
-    cmd: uv run pytest tests/ -q
-    description: Run the test suite.
+    cmd: ./run.sh test
+    description: Run the full test suite with the 90% coverage floor.
 docs:
 - README.md
 - AGENTS.md
