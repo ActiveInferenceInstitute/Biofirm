@@ -65,8 +65,8 @@ Generated or derived artefacts are never committed:
   `build_active_inference_matrices(3)` builds and that the invariants hold for
   odd bin counts 3, 5, 7 and 9. Editing the spec or the matrices without the
   other fails the suite. See [models/AGENTS.md](models/AGENTS.md).
-- [.github/gnn-pin.json](.github/gnn-pin.json) records tag `v5.0.3`, revision
-  `8f293d9ba810e6eda5c09842d9c7ed9ffa5f92c1`, and the pinned date. `tests/test_gnn.py`
+- [.github/gnn-pin.json](.github/gnn-pin.json) records tag `v5.0.3` and revision
+  `8f293d9ba810e6eda5c09842d9c7ed9ffa5f92c1`. `tests/test_gnn.py`
   checks the pin still dereferences upstream.
 - [.gitleaksignore](.gitleaksignore) holds exact historical findings only. CI
   proves with a synthetic control that a new commit at an old path is not
