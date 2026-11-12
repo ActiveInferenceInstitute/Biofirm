@@ -27,6 +27,8 @@
 # Environment:
 #   BIOFIRM_PYTHON  Interpreter used for `sync`, `install` and the GNN runtime
 #                   (default: 3.12). CI sets it per job and matrix leg.
+#   GITLEAKS_ARCHIVE  Local release tarball for an offline secret scan.
+#                     The platform-specific checksum and version still apply.
 #   GNN_CHECKOUT    Already-provisioned GNN checkout for `gnn`. Without it the
 #                   script reuses a usable sibling checkout or provisions the
 #                   pinned revision in a temporary directory. The arm exports
@@ -184,7 +186,6 @@ PY
 }
 
 arm_secret() {
-    require_command curl
     require_command tar
     local version="8.30.1" asset checksum
     case "$(uname -s)-$(uname -m)" in
@@ -198,9 +199,15 @@ arm_secret() {
     scanner="$(mktemp -d "${TMPDIR:-/tmp}/biofirm-gitleaks.XXXXXX")"
     control="$(mktemp -d "${TMPDIR:-/tmp}/biofirm-secret-control.XXXXXX")"
     CLEANUP+=("$scanner" "$control")
-    curl --fail --silent --show-error --location \
-        "https://github.com/gitleaks/gitleaks/releases/download/v${version}/gitleaks_${version}_${asset}.tar.gz" \
-        --output "$scanner/release.tar.gz"
+    if [[ -n "${GITLEAKS_ARCHIVE:-}" ]]; then
+        [[ -f "$GITLEAKS_ARCHIVE" ]] || die "gitleaks release tarball is unavailable"
+        cp -- "$GITLEAKS_ARCHIVE" "$scanner/release.tar.gz"
+    else
+        require_command curl
+        curl --fail --silent --show-error --location \
+            "https://github.com/gitleaks/gitleaks/releases/download/v${version}/gitleaks_${version}_${asset}.tar.gz" \
+            --output "$scanner/release.tar.gz"
+    fi
     test "$(sha256_file "$scanner/release.tar.gz")" = "$checksum" ||
         die "gitleaks tarball checksum mismatch"
     tar -xzf "$scanner/release.tar.gz" -C "$scanner" gitleaks
