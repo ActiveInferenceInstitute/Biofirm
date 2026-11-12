@@ -6,10 +6,12 @@
 - Keep tests offline. Only `test_research.py` exercises the provider path, and
   it must use a fake provider; no test may read a real `PERPLEXITY_API_KEY` or
   make a network call.
-- `test_gnn.py` has two modes. With no checkout selected it skips with an
-  explicit reason; when `GNN_CHECKOUT` points at a missing or unusable checkout
-  it must fail, never skip. The `gnn conformance (pinned)` CI job
-  provisions that checkout. Do not weaken either branch.
+- `test_gnn.py` has two modes. With no checkout selected it skips its upstream
+  half with an explicit reason; when `GNN_CHECKOUT` points at a missing or
+  unusable checkout, or the `gnn` arm's `GNN_EXPORT` is unusable, it must fail,
+  never skip. The `gnn conformance (pinned)` CI job provisions that checkout and
+  export. Do not weaken either branch. The file does not read the pin: the
+  shared `gnn.importers` reader in the `gnn` arm owns the pin and pointer.
 - `test_notebook.py` executes
   [../Documentation/Notebooks/ActInf_BioFirm_v_011.ipynb](../Documentation/Notebooks/ActInf_BioFirm_v_011.ipynb)
   and asserts 10 steps and 11 records. A notebook edit that changes the run

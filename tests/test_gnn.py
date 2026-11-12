@@ -1,23 +1,25 @@
-"""GNN specification conformance and pinned-upstream validation tests.
+"""GNN specification conformance and pinned-parser validation tests.
 
-These tests keep three things in agreement: the GNN specification in
-``models/``, the matrices the package builds in ``biofirm.pymdp``, and the
-pinned upstream revision recorded in ``.github/gnn-pin.json``. The upstream
-parser checks run against a clean export of the pinned revision, so in-progress
-edits in a sibling GNN checkout cannot contaminate the result; they skip with an
-explicit reason when the checkout or its interpreter is unavailable, and fail
-instead of skipping when the checkout was selected explicitly (CI sets
-``GNN_CHECKOUT``, so a missing or unusable checkout is a red check there).
+These tests keep the specification in ``models/`` and the matrices the package
+builds in ``biofirm.pymdp`` in agreement, and re-validate the specification with
+the parser of the pinned upstream revision. The pin, the pointer and the
+specification's syntax are checked by the shared ``gnn.importers`` reader that
+the ``gnn`` arm of ``./run.sh`` runs; these tests do not read the pin.
+
+The upstream parser runs against a clean export of the pinned revision, which
+that arm writes to ``GNN_EXPORT`` after it materializes the revision — never
+against the GNN checkout's working tree, so in-progress edits in a sibling
+checkout cannot contaminate the result. The upstream half skips with an explicit
+reason when no export is available, and fails instead of skipping when a
+checkout was selected explicitly (CI sets ``GNN_CHECKOUT``, so a missing or
+unusable export is a red check there).
 """
 
 from __future__ import annotations
 
-import io
-import json
 import os
 import re
 import subprocess
-import tarfile
 from collections.abc import Iterator
 from pathlib import Path
 
@@ -37,8 +39,8 @@ from biofirm.gnn import (
 from biofirm.pymdp import ActiveInferenceMatrices, build_active_inference_matrices
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
-PIN_PATH = REPO_ROOT / ".github" / "gnn-pin.json"
 CHECKOUT_ENV = "GNN_CHECKOUT"
+EXPORT_ENV = "GNN_EXPORT"
 DEFAULT_CHECKOUT = REPO_ROOT.parent / "Generalized_Notation_Notation"
 UPSTREAM_TIMEOUT_SECONDS = 300
 
@@ -59,10 +61,6 @@ def _replace_block(text: str, section: str, body: str) -> str:
     return replaced
 
 
-def _pin() -> dict[str, object]:
-    return json.loads(PIN_PATH.read_text(encoding="utf-8"))
-
-
 def _unavailable(message: str) -> None:
     """Skip when no checkout was selected; fail when one was selected explicitly.
 
@@ -77,30 +75,29 @@ def _unavailable(message: str) -> None:
 
 
 @pytest.fixture(scope="module")
-def pinned_upstream(tmp_path_factory: pytest.TempPathFactory) -> Iterator[tuple[Path, Path, str]]:
-    """Yield ``(checkout, exported_tree, revision)`` for the pinned revision."""
+def pinned_upstream() -> Iterator[tuple[Path, Path]]:
+    """Yield ``(checkout, exported_tree)`` for the pinned revision.
+
+    The revision is materialized and exported by the ``gnn`` arm, which passes
+    both paths in ``GNN_CHECKOUT`` and ``GNN_EXPORT``. Reading the export rather
+    than the checkout keeps in-progress edits in a sibling tree out of the run.
+    """
 
     checkout = _checkout()
     if not (checkout / ".git").exists():
         _unavailable(f"no GNN checkout exists at {checkout}")
-    revision = str(_pin()["revision"])
     interpreter = checkout / ".venv" / "bin" / "python"
     if not interpreter.is_file():
         _unavailable(f"the GNN checkout at {checkout} has no .venv/bin/python interpreter")
-    archive = subprocess.run(
-        ["git", "-C", str(checkout), "archive", revision, "src/gnn", "pyproject.toml"],
-        capture_output=True,
-        check=False,
-    )
-    if archive.returncode != 0:
+    export = os.environ.get(EXPORT_ENV)
+    if not export:
         _unavailable(
-            f"pinned revision {revision} is not available in {checkout}: "
-            f"{archive.stderr.decode(errors='replace').strip()}"
+            f"{EXPORT_ENV} is unset; `./run.sh gnn` exports the pinned revision's src tree"
         )
-    tree = tmp_path_factory.mktemp("gnn-pinned")
-    with tarfile.open(fileobj=io.BytesIO(archive.stdout)) as bundle:
-        bundle.extractall(tree, filter="data")
-    yield checkout, tree, revision
+    tree = Path(export)
+    if not (tree / "src" / "gnn").is_dir():
+        _unavailable(f"the export at {tree} holds no src/gnn tree")
+    yield checkout, tree
 
 
 def test_repository_spec_conforms_to_built_matrices() -> None:
@@ -132,51 +129,8 @@ def test_declared_edges_match_the_expected_dependency_structure() -> None:
     assert ("C_level", "-", "o_level") in spec.edges()
 
 
-def test_pin_record_matches_the_specification() -> None:
-    pin = _pin()
-    assert pin["schema"] == "gnn-importer-pin/v1"
-    assert pin["recorded"] == "2026-11-12"
-    assert pin["tag"] == "v5.0.3"
-    assert pin["version"] == "5.0.3"
-    assert pin["revision"] == "8f293d9ba810e6eda5c09842d9c7ed9ffa5f92c1"
-    assert len(str(pin["revision"])) == 40
-    assert pin["spec_directory"] == "models"
-    assert pin["spec_files"] == ["models/biofirm_ecosystem_variable.gnn.md"]
-    for spec_file in pin["spec_files"]:
-        assert (REPO_ROOT / str(spec_file)).is_file()
-
-
-def test_pin_record_revision_is_the_declared_tag(pinned_upstream: tuple[Path, Path, str]) -> None:
-    checkout, _, revision = pinned_upstream
-    resolved = subprocess.run(
-        ["git", "-C", str(checkout), "rev-parse", f"{_pin()['tag']}^{{commit}}"],
-        capture_output=True,
-        text=True,
-        check=False,
-    )
-    if resolved.returncode != 0:
-        _unavailable(f"tag {_pin()['tag']} is not available in {checkout}")
-    assert resolved.stdout.strip() == revision
-
-
-@pytest.mark.parametrize("selected", [False, True])
-def test_missing_pinned_tag_respects_checkout_selection(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, selected: bool
-) -> None:
-    subprocess.run(["git", "init", "--quiet", str(tmp_path)], check=True)
-    if selected:
-        monkeypatch.setenv(CHECKOUT_ENV, str(tmp_path))
-    else:
-        monkeypatch.delenv(CHECKOUT_ENV, raising=False)
-    outcome = pytest.fail.Exception if selected else pytest.skip.Exception
-    with pytest.raises(outcome, match=f"tag {_pin()['tag']} is not available"):
-        test_pin_record_revision_is_the_declared_tag((tmp_path, tmp_path, str(_pin()["revision"])))
-
-
-def test_upstream_parser_accepts_the_specification(
-    pinned_upstream: tuple[Path, Path, str],
-) -> None:
-    checkout, tree, _ = pinned_upstream
+def test_upstream_parser_accepts_the_specification(pinned_upstream: tuple[Path, Path]) -> None:
+    checkout, tree = pinned_upstream
     result = subprocess.run(
         [
             str(checkout / ".venv" / "bin" / "python"),
@@ -196,13 +150,13 @@ def test_upstream_parser_accepts_the_specification(
     assert "valid" in result.stdout
 
 
-def test_upstream_export_is_the_pinned_version(pinned_upstream: tuple[Path, Path, str]) -> None:
-    checkout, tree, revision = pinned_upstream
+def test_upstream_export_shadows_an_installed_parser(pinned_upstream: tuple[Path, Path]) -> None:
+    checkout, tree = pinned_upstream
     result = subprocess.run(
         [
             str(checkout / ".venv" / "bin" / "python"),
             "-c",
-            "import gnn; print(gnn.__file__); print(getattr(gnn, '__version__', ''))",
+            "import gnn; print(gnn.__file__)",
         ],
         capture_output=True,
         text=True,
@@ -211,11 +165,7 @@ def test_upstream_export_is_the_pinned_version(pinned_upstream: tuple[Path, Path
         check=False,
     )
     assert result.returncode == 0, result.stdout + result.stderr
-    module_path, version = result.stdout.strip().splitlines()
-    assert str(tree) in module_path, "the export must shadow any installed gnn package"
-    assert version == _pin()["version"], (
-        f"expected {revision} to report version {_pin()['version']}"
-    )
+    assert str(tree) in result.stdout, "the export must shadow any installed gnn package"
 
 
 def test_structural_drift_is_reported() -> None:

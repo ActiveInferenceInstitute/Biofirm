@@ -19,7 +19,8 @@
 #   ./run.sh install    Install dist/ into a clean venv and exercise the CLI
 #                       outside the checkout, from the locked requirements.
 #   ./run.sh secret     gitleaks scan with a synthetic negative control.
-#   ./run.sh gnn        Pinned GNN parser conformance (tests/test_gnn.py).
+#   ./run.sh gnn        Pinned GNN conformance: the shared gnn.importers reader
+#                       from the pinned revision, then tests/test_gnn.py.
 #   ./run.sh gate       Check docs/gate.md matches this arm list and environment.
 #   ./run.sh all        Every arm above, in CI order.
 #
@@ -28,7 +29,9 @@
 #                   (default: 3.12). CI sets it per job and matrix leg.
 #   GNN_CHECKOUT    Already-provisioned GNN checkout for `gnn`. Without it the
 #                   script reuses a usable sibling checkout or provisions the
-#                   pinned revision in a temporary directory.
+#                   pinned revision in a temporary directory. The arm exports
+#                   GNN_EXPORT, a clean `git archive` of that revision's `src`,
+#                   so neither the reader nor the tests run from a working tree.
 #
 # Runtime numbers for this host live in docs/gate.md, which
 # tools/gate_report.py refreshes; do not hand-edit them.
@@ -257,6 +260,9 @@ gnn_provision() {
     # A pin that no longer resolves upstream fails here rather than skipping.
     git -C "$checkout" fetch --depth 1 origin "$revision" "refs/tags/$tag:refs/tags/$tag"
     git -C "$checkout" checkout --quiet --detach "$revision"
+    # The tag the pin names must dereference to the revision it names.
+    test "$(git -C "$checkout" rev-parse "$tag^{commit}")" = "$revision" ||
+        die "pin tag $tag does not resolve to revision $revision"
     "$UV" venv --python "$PROJECT_PYTHON" --no-project "$checkout/.venv"
     "$UV" pip install --python "$checkout/.venv/bin/python" "${GNN_DEPENDENCIES[@]}"
 }
@@ -278,6 +284,21 @@ arm_gnn() {
             export GNN_CHECKOUT="$workdir"
         fi
     fi
+
+    # The reader and the tests run from a clean export of the pinned revision in
+    # the interpreter this arm provisioned, so a dirty sibling checkout cannot
+    # contaminate either. `--repo .` is this checkout: the pin, the pointer and
+    # the specification under it are what the reader checks.
+    local revision
+    revision="$(pin_field revision)"
+    GNN_EXPORT="$(mktemp -d "${TMPDIR:-/tmp}/biofirm-gnn-src.XXXXXX")"
+    export GNN_EXPORT
+    CLEANUP+=("$GNN_EXPORT")
+    git -C "$GNN_CHECKOUT" archive "$revision" src | tar -x -C "$GNN_EXPORT"
+    PYTHONPATH="$GNN_EXPORT/src" "$GNN_CHECKOUT/.venv/bin/python" -m gnn.importers check \
+        --repo . --require-pointer \
+        --workflow .github/workflows/ci.yml --job gnn-conformance
+
     "$UV" run --no-sync pytest tests/test_gnn.py -q
     if [[ -n "${GITHUB_STEP_SUMMARY:-}" ]]; then
         local version tag

@@ -11,7 +11,7 @@ the working tree rather than an installed copy. `pyproject.toml` sets
 | `test_config.py` | Typed configuration, aliases, cycle and range rejection, canonical JSON. |
 | `test_simulation.py` | Transition dynamics, artifact schema, reproducibility, comparisons, scenarios. |
 | `test_pymdp.py` | Matrix validation and the active-inference boundary. |
-| `test_gnn.py` | GNN spec against the built matrices; pinned parser when a checkout is selected. |
+| `test_gnn.py` | GNN spec against the built matrices; pinned parser from the `gnn` arm's export. |
 | `test_analysis.py` | Surprise, free energy and token allocation. |
 | `test_business_contracts.py` | Committee configuration and auditable decisions. |
 | `test_graph.py` | Regional graph validation and descriptive summaries. |

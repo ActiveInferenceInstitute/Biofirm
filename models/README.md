@@ -37,16 +37,18 @@ counts.
   `build_active_inference_matrices(3)` builds, element by element;
 - the declared invariants (identity likelihood, uniform prior, target-peaked
   preferences, clipped shift transition, column-stochastic normalization) hold
-  for other odd `observation_bins` values (3, 5, 7, 9);
-- the recorded pin still dereferences to the recorded revision; and
+  for other odd `observation_bins` values (3, 5, 7, 9); and
 - the pinned upstream parser accepts the specification under `--strict`.
 
 Editing the specification or the matrices without the other side fails the test
-suite. The upstream checks run against a clean export of the pinned revision
-(`git archive <revision> src/gnn`) with the GNN checkout's interpreter, so
-in-progress edits in a sibling checkout cannot contaminate the result; they
-skip with an explicit reason when no checkout was selected, and fail when
-`GNN_CHECKOUT` selects a missing or unusable one. CI runs this file in the
+suite. The pin, the pointer and the specification's syntax are checked by the
+shared `gnn.importers` reader that `./run.sh gnn` runs from a clean export of
+the pinned revision; this file does not read the pin. The upstream parser check
+runs from that same export (a `git archive` of the revision's `src`, never the GNN
+checkout's working tree) with the checkout's interpreter, so in-progress edits in
+a sibling checkout cannot contaminate the result; it skips with an explicit
+reason when no export is available, and fails when `GNN_CHECKOUT` selects a
+missing or unusable one. CI runs this file in the
 `gnn conformance (pinned)` job, which fetches the pinned revision from
 the public upstream repository and provisions its interpreter, so the pin is
 re-checked on every push and pull request.
@@ -57,10 +59,10 @@ re-checked on every push and pull request.
   `https://github.com/ActiveInferenceInstitute/Generalized_Notation_Notation.git`
 - Canonical pin file: [`../.github/gnn-pin.json`](../.github/gnn-pin.json),
   schema `gnn-importer-pin/v1`
-- Pinned tag: `v5.0.3`
-- Pinned revision: `8f293d9ba810e6eda5c09842d9c7ed9ffa5f92c1` (the commit the
-  `v5.0.3` tag dereferences to)
-- Upstream version: `5.0.3`
+- Pinned tag: `v5.1.0`
+- Pinned revision: `75c834bd8519dc7b5adc4d24f16bf393cfd1ecdf` (the commit the
+  `v5.1.0` tag dereferences to)
+- Upstream version: `5.1.0`
 - Recorded in the pin file: `2026-11-12`
 
 Re-validation runs the pinned upstream validator against this specification:
@@ -68,7 +70,7 @@ Re-validation runs the pinned upstream validator against this specification:
 ```bash
 # from this repository; <gnn-checkout> is the sibling checkout or $GNN_CHECKOUT
 export_dir=$(mktemp -d)
-git -C <gnn-checkout> archive 8f293d9ba810e6eda5c09842d9c7ed9ffa5f92c1 src/gnn pyproject.toml \
+git -C <gnn-checkout> archive 75c834bd8519dc7b5adc4d24f16bf393cfd1ecdf src/gnn pyproject.toml \
   | tar -x -C "$export_dir"
 PYTHONPATH="$export_dir/src" <gnn-checkout>/.venv/bin/python -m gnn.cli validate \
   models/biofirm_ecosystem_variable.gnn.md --strict
@@ -77,7 +79,7 @@ PYTHONPATH="$export_dir/src" <gnn-checkout>/.venv/bin/python -m gnn.cli validate
 `tests/test_gnn.py` performs exactly this validation, and the syntax authority
 is `docs/gnn/reference/gnn_syntax.md` in that checkout. For new integrations,
 start from the upstream [Framework Integration
-Guide](https://github.com/ActiveInferenceInstitute/Generalized_Notation_Notation/blob/8f293d9ba810e6eda5c09842d9c7ed9ffa5f92c1/docs/gnn/integration/framework_integration_guide.md)
+Guide](https://github.com/ActiveInferenceInstitute/Generalized_Notation_Notation/blob/75c834bd8519dc7b5adc4d24f16bf393cfd1ecdf/docs/gnn/integration/framework_integration_guide.md)
 and the [downstream adoption
 guide](https://github.com/ActiveInferenceInstitute/Generalized_Notation_Notation/blob/1f3abb56e25886dfa6ddc49c76af7b723941485a/docs/gnn/integration/downstream_adoption.md).
 

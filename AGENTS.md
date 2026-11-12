@@ -23,7 +23,7 @@ second copy of a command to drift. From the repository root:
 ./run.sh build       # python -m build
 ./run.sh install     # wheel in a clean venv, CLI outside the checkout
 ./run.sh secret      # gitleaks with synthetic negative controls
-./run.sh gnn         # pinned GNN parser conformance
+./run.sh gnn         # shared GNN importer reader + pinned parser conformance
 ./run.sh all         # every arm above, in CI order
 ```
 
@@ -38,7 +38,8 @@ keyed `gnn-conformance` with the exact display name
 `gnn conformance (pinned)`: keep both, and keep [.github/GNN.md](.github/GNN.md)
 as the pointer that records what it parses. It fetches the parser revision
 recorded in [.github/gnn-pin.json](.github/gnn-pin.json) (schema
-`gnn-importer-pin/v1`) and runs `tests/test_gnn.py`; [models/README.md](models/README.md)
+`gnn-importer-pin/v1`), runs the shared `gnn.importers` reader shipped in that
+revision, and then `tests/test_gnn.py`; [models/README.md](models/README.md)
 names that job. The `gnn` arm reports the resolved version in the job summary,
 and the pin remains the source of truth.
 
@@ -89,9 +90,10 @@ Generated or derived artefacts are never committed:
   odd bin counts 3, 5, 7 and 9. Editing the spec or the matrices without the
   other fails the suite. See [models/AGENTS.md](models/AGENTS.md).
 - [.github/gnn-pin.json](.github/gnn-pin.json) is the canonical pin file (schema
-  `gnn-importer-pin/v1`) and records tag `v5.0.3` at revision
-  `8f293d9ba810e6eda5c09842d9c7ed9ffa5f92c1`. `tests/test_gnn.py`
-  checks the pin still dereferences upstream.
+  `gnn-importer-pin/v1`) and records tag `v5.1.0` at revision
+  `75c834bd8519dc7b5adc4d24f16bf393cfd1ecdf`. The shared `gnn.importers` reader
+  in `./run.sh gnn` validates it; `./run.sh gnn` also fails when the tag does
+  not dereference to the recorded revision.
 - [.gitleaksignore](.gitleaksignore) holds exact historical findings only. CI
   proves with a synthetic control that a new commit at an old path is not
   exempt. Do not add a pattern or a path, only a full finding.

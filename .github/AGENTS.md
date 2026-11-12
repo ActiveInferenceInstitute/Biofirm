@@ -12,10 +12,12 @@ Rules for editing CI and GitHub metadata.
 - Keep action pins as full commit SHAs with a version comment, including the
   composite action `ActiveInferenceInstitute/.github/.github/actions/setup-python-uv`.
   Dependabot updates them; review the SHA, not just the comment.
-- `gnn-pin.json` is read by CI and by `tests/test_gnn.py`. It carries schema
+- `gnn-pin.json` is read by CI through the shared `gnn.importers` reader in the
+  `gnn` arm, not by `tests/test_gnn.py`. It carries schema
   `gnn-importer-pin/v1`; changing `revision`, `tag` or `version` requires a
-  matching update in [../models/README.md](../models/README.md) and
-  [../docs/gnn.md](../docs/gnn.md), and a passing `./run.sh gnn`.
+  matching update in [../models/README.md](../models/README.md),
+  [../docs/gnn.md](../docs/gnn.md) and [GNN.md](GNN.md), and a passing
+  `./run.sh gnn`.
 - Do not re-add per-version lint, type, documentation, build or install steps to
   the `tests` matrix. Those arms are interpreter-independent and run once on
   3.12; duplicating them doubles work without checking anything new.

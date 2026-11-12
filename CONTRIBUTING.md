@@ -64,7 +64,7 @@ those commands:
 ./run.sh types
 ./run.sh links
 ./run.sh docs
-./run.sh gnn         # pinned GNN parser conformance
+./run.sh gnn         # shared importer reader + pinned parser conformance
 ./run.sh all         # everything, in CI order
 ```
 
