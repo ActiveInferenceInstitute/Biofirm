@@ -1,7 +1,7 @@
 # AII sidecar — InstituteOS metadata. Schema: aii_platform.aii_sidecar
 meta:
   sidecar_version: 1.2.1
-  updated: '2026-11-11'
+  updated: '2026-11-12'
 repo:
   name: Biofirm
   slug: biofirm
@@ -47,7 +47,7 @@ artifacts:
 - path: docs
   kind: doc
   description: Modular documentation hub (configuration, I/O, GNN).
-- path: DOCUMENTATION_INDEX.md
+- path: docs/documentation-index.md
   kind: doc
   description: Repository-wide documentation index.
 - path: CONFIGURATION.md

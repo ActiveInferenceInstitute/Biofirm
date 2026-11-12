@@ -26,7 +26,7 @@ which is derived from `uv.lock` at run time and never committed. See the root
 
 - [__init__.py](__init__.py) defines the public API in `__all__`. Adding or
   removing a name is a public interface change; update
-  [../../README.md](../../README.md) and [../../DOCUMENTATION_INDEX.md](../../DOCUMENTATION_INDEX.md)
+  [../../README.md](../../README.md) and [../../docs/documentation-index.md](../../docs/documentation-index.md)
   when the contract changes.
 - [_version.py](_version.py) is the single version source. Bump it here, not in
   `pyproject.toml`, which reads it through `tool.hatch.version`.

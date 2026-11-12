@@ -22,19 +22,19 @@ document.
 
 | Arm | Before | After | What it runs |
 | --- | --- | --- | --- |
-| `sync` | 0.0s | 0.0s | Lock the environment for the selected interpreter. |
+| `sync` | 0.0s | 0.1s | Lock the environment for the selected interpreter. |
 | `deps` | 0.0s | 0.0s | Verify uv.lock matches the manifests. |
 | `lint` | 1.0s | 0.1s | ruff check and ruff format --check on src tests tools. |
 | `types` | 18.0s | 0.5s | Strict mypy on src/biofirm. |
-| `test` | 74.0s | 35.3s | pytest with the 90% coverage floor (the full suite). |
-| `test-fast` | 27.0s | 21.1s | pytest without coverage and without tests/test_gnn.py. |
-| `links` | 3.0s | 1.3s | tools/verify_repository.py: relative links, source data, notebooks, credential patterns, required documents. |
+| `test` | 74.0s | 25.7s | pytest with the 90% coverage floor (the full suite). |
+| `test-fast` | 27.0s | 15.7s | pytest without coverage and without tests/test_gnn.py. |
+| `links` | 3.0s | 1.1s | tools/verify_repository.py: relative links, source data, notebooks, credential patterns, required documents. |
 | `docs` | 1.0s | 0.4s | biofirm validate and biofirm validate-data. |
-| `bandit` | 2.0s | 0.7s | bandit on src and tools. |
-| `build` | 28.0s | 9.0s | Build sdist and wheel into dist/. |
-| `install` | 32.0s | 21.4s | Install dist/ into a clean venv and exercise the CLI outside the checkout, from the locked requirements. |
-| `secret` | 54.0s | 30.3s | gitleaks scan with a synthetic negative control. |
-| `gnn` | 5.0s | 4.0s | Pinned GNN parser conformance (tests/test_gnn.py). |
+| `bandit` | 2.0s | 0.4s | bandit on src and tools. |
+| `build` | 28.0s | 6.0s | Build sdist and wheel into dist/. |
+| `install` | 32.0s | 16.8s | Install dist/ into a clean venv and exercise the CLI outside the checkout, from the locked requirements. |
+| `secret` | 54.0s | 17.0s | gitleaks scan with a synthetic negative control. |
+| `gnn` | 5.0s | 1.7s | Pinned GNN parser conformance (tests/test_gnn.py). |
 
 `gate` and `all` are meta arms and are not timed here: `gate` checks this
 document and `all` runs the other arms in order. `test-fast` had no CI arm
@@ -48,15 +48,15 @@ once per command.
 
 ## Measured facts
 
-- Full suite (`test`): **119 passed** with
+- Full suite (`test`): **121 passed** with
   **90.58% coverage** against the
   90% floor.
 - Fast arm (`test-fast`): **102 passed**.
   It runs the same suite without coverage and without `tests/test_gnn.py`,
   which the `gnn` arm owns.
-- GNN conformance (`gnn`): **17 passed**.
+- GNN conformance (`gnn`): **19 passed**.
 
-The suite composition did not change: before the gate the same suite reported
+The preserved pre-gate baseline reported
 **119 passed** at
 **90.58% coverage**.
 
@@ -72,7 +72,7 @@ CI compares them.
 | Python | `3.12.16` | `3.12.16` |
 | uv | `0.13.7` | `0.13.7` |
 | `uv.lock` SHA-256 | not recorded | `0e13e44023d3abf8e2bfccdc1b0c6bfe432dde0b0b7697240d8a9055d9ee2993` |
-| Recorded | `2026-11-12` | `2026-11-12T05:14:45-0800` |
+| Recorded | `2026-11-12` | `2026-11-12T07:02:06-0800` |
 
 ## Receipt
 
@@ -82,7 +82,7 @@ CI compares them.
   "arms": [
     {
       "arm": "sync",
-      "seconds": 0.0,
+      "seconds": 0.1,
       "status": "passed"
     },
     {
@@ -103,19 +103,19 @@ CI compares them.
     {
       "arm": "test",
       "coverage_percent": 90.58,
-      "seconds": 35.3,
+      "seconds": 25.7,
       "status": "passed",
-      "tests_passed": 119
+      "tests_passed": 121
     },
     {
       "arm": "test-fast",
-      "seconds": 21.1,
+      "seconds": 15.7,
       "status": "passed",
       "tests_passed": 102
     },
     {
       "arm": "links",
-      "seconds": 1.3,
+      "seconds": 1.1,
       "status": "passed"
     },
     {
@@ -125,29 +125,29 @@ CI compares them.
     },
     {
       "arm": "bandit",
-      "seconds": 0.7,
+      "seconds": 0.4,
       "status": "passed"
     },
     {
       "arm": "build",
-      "seconds": 9.0,
+      "seconds": 6.0,
       "status": "passed"
     },
     {
       "arm": "install",
-      "seconds": 21.4,
+      "seconds": 16.8,
       "status": "passed"
     },
     {
       "arm": "secret",
-      "seconds": 30.3,
+      "seconds": 17.0,
       "status": "passed"
     },
     {
       "arm": "gnn",
-      "seconds": 4.0,
+      "seconds": 1.7,
       "status": "passed",
-      "tests_passed": 17
+      "tests_passed": 19
     }
   ],
   "baseline": {
@@ -244,7 +244,7 @@ CI compares them.
     "system": "Darwin",
     "uv": "0.13.7"
   },
-  "recorded": "2026-11-12T05:14:45-0800",
+  "recorded": "2026-11-12T07:02:06-0800",
   "schema": "biofirm-gate-receipt/v1"
 }
 ```
@@ -254,4 +254,4 @@ gate-receipt -->
 
 - [Documentation hub](README.md) — the topical entry point.
 - [Contributing](../CONTRIBUTING.md) — when a change needs which arm.
-- [Repository index](../DOCUMENTATION_INDEX.md) — every long-lived document.
+- [Repository index](documentation-index.md) — every long-lived document.

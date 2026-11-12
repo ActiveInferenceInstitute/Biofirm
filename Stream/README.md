@@ -10,5 +10,5 @@ Historical and speculative written material. No code, no tests, no build input.
 - [InferAnt_Stream_006.md](InferAnt_Stream_006.md) — a historical discussion note
   from an Active InferAnt stream.
 
-All three carry status blocks. `DOCUMENTATION_INDEX.md` lists this directory as
+All three carry status blocks. `docs/documentation-index.md` lists this directory as
 historical material; none of it defines current behavior.

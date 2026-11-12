@@ -44,7 +44,7 @@
 | `LICENSE` | `doc` | License. |
 | `CITATION.cff` | `citation` | Machine-readable citation metadata. |
 | `docs` | `doc` | Modular documentation hub (configuration, I/O, GNN). |
-| `DOCUMENTATION_INDEX.md` | `doc` | Repository-wide documentation index. |
+| `docs/documentation-index.md` | `doc` | Repository-wide documentation index. |
 | `CONFIGURATION.md` | `doc` | Field-by-field configuration reference. |
 | `models` | `doc` | GNN model specification and pinned upstream revision. |
 | `Documentation` | `doc` | Package walkthrough notebook. |

@@ -17,9 +17,9 @@ It fails, with a message naming the file, when any of these do not hold:
 
 - `src` compiles with `compileall`.
 - `biofirm` imports and `biofirm.__version__` is non-empty.
-- The nine required documents exist and are non-empty: `README.md`,
+- The ten required documents exist and are non-empty: `README.md`,
   `Biofirm_Generative_Model.md`, `CONFIGURATION.md`, `TODO.md`,
-  `DOCUMENTATION_INDEX.md`, `One_Earth/INSTALLATION_GUIDE.md`,
+  `docs/README.md`, `docs/documentation-index.md`, `One_Earth/INSTALLATION_GUIDE.md`,
   `GRAPH_MODELING.md`, `models/README.md`, and
   `models/biofirm_ecosystem_variable.gnn.md`.
 - Every relative markdown link under the repository resolves.
