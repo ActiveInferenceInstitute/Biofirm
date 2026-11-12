@@ -2,7 +2,7 @@
 
 - This directory contains only the `Notebooks/` subdirectory. Do not add loose
   files here; put a contract document at the repository root and register it in
-  [../DOCUMENTATION_INDEX.md](../DOCUMENTATION_INDEX.md), or put a notebook
+  [../docs/documentation-index.md](../docs/documentation-index.md), or put a notebook
   under [Notebooks/](Notebooks/AGENTS.md).
 - Every file added under this tree is subject to
   `tools/verify_repository.py`: relative links must resolve, and notebook code

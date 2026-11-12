@@ -7,7 +7,7 @@ entry point; each page covers one topic and links to the authoritative document
 it summarizes rather than duplicating it.
 
 The single repository-wide index, including historical and source-data
-material, is [`../DOCUMENTATION_INDEX.md`](../DOCUMENTATION_INDEX.md). Start
+material, is [`documentation-index.md`](documentation-index.md). Start
 there if you are unsure whether a document is an implemented contract, source
 data, or historical design material.
 
@@ -58,11 +58,11 @@ Every markdown file in this repository is hand-written, is checked by
 [`../tools/verify_repository.py`](../tools/verify_repository.py) (relative links
 must resolve; the script walks the tree, so new files are covered
 automatically), and must be registered in
-[`../DOCUMENTATION_INDEX.md`](../DOCUMENTATION_INDEX.md). See
+[`documentation-index.md`](documentation-index.md). See
 [AGENTS.md](AGENTS.md) for the editing contract.
 
 ## See also
 
 - [Repository root README](../README.md)
 - [Agent guidance for this folder](AGENTS.md)
-- [Repository-wide documentation index](../DOCUMENTATION_INDEX.md)
+- [Repository-wide documentation index](documentation-index.md)

@@ -8,7 +8,7 @@ is the editing contract for Biofirm's modular documentation.
 `docs/` is the topical entry point for the repository's documentation. Each page
 covers one subject — configuration, I/O and artifacts, the GNN specification, the
 gate — and links to the authoritative document it summarizes. It does not
-replace or duplicate [`../DOCUMENTATION_INDEX.md`](../DOCUMENTATION_INDEX.md)
+replace or duplicate [`documentation-index.md`](documentation-index.md)
 (the repository-wide index, including historical and source-data material),
 [`../CONFIGURATION.md`](../CONFIGURATION.md), or
 [`../models/README.md`](../models/README.md).
@@ -20,7 +20,7 @@ replace or duplicate [`../DOCUMENTATION_INDEX.md`](../DOCUMENTATION_INDEX.md)
   of [`../run.sh`](../run.sh). Never hand-edit a measured number: refresh the
   document with `uv run python tools/gate_report.py`, and `./run.sh gate` fails
   when it no longer matches the arm list or `uv.lock`.
-- Register a new page in [`../DOCUMENTATION_INDEX.md`](../DOCUMENTATION_INDEX.md)
+- Register a new page in [`documentation-index.md`](documentation-index.md)
   and link it from [`README.md`](README.md); keep the topic-per-file split (do
   not grow a single large document).
 - [`../tools/verify_repository.py`](../tools/verify_repository.py) resolves every

@@ -12,7 +12,7 @@ business decisions.
 - [docs/README.md](docs/README.md) — the modular documentation hub
   ([configuration](docs/configuration.md), [I/O and artifacts](docs/io.md),
   [GNN specification](docs/gnn.md)).
-- [DOCUMENTATION_INDEX.md](DOCUMENTATION_INDEX.md) — the repository-wide index,
+- [docs/documentation-index.md](docs/documentation-index.md) — the repository-wide index,
   including authoritative source data and historical material.
 - [CONFIGURATION.md](CONFIGURATION.md) — field-by-field configuration reference;
   [models/README.md](models/README.md) — the Generalized Notation Notation model
@@ -167,7 +167,7 @@ endpoint is the official HTTPS provider endpoint. Custom endpoints require
 `--allow-custom-endpoint` and are intended only for trusted HTTPS-compatible
 providers; credentials are never sent over insecure HTTP by the CLI.
 
-See [DOCUMENTATION_INDEX.md](DOCUMENTATION_INDEX.md) for the boundary between
+See [docs/documentation-index.md](docs/documentation-index.md) for the boundary between
 implemented contracts, source data, and historical design material. Current
 work is scoped in [TODO.md](TODO.md); completed items remain in Git history.
 Development setup and contribution conventions are in

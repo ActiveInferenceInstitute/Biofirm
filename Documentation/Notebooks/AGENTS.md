@@ -11,5 +11,5 @@
 - Notebooks are hand-written, not generated. Clear outputs before committing so
   the diff shows only source changes.
 - A new notebook needs its own entry in
-  [../../DOCUMENTATION_INDEX.md](../../DOCUMENTATION_INDEX.md) and, if the test
+  [../../docs/documentation-index.md](../../docs/documentation-index.md) and, if the test
   suite should execute it, a test that does so.

@@ -219,7 +219,7 @@ once per command.
   which the `gnn` arm owns.
 - GNN conformance (`gnn`): **{gnn.get("tests_passed", "unrecorded")} passed**.
 
-The suite composition did not change: before the gate the same suite reported
+The preserved pre-gate baseline reported
 **{baseline_test.get("tests_passed", "unrecorded")} passed** at
 **{baseline_test.get("coverage_percent", "unrecorded")}% coverage**.
 
@@ -249,7 +249,7 @@ CI compares them.
 
 - [Documentation hub](README.md) — the topical entry point.
 - [Contributing](../CONTRIBUTING.md) — when a change needs which arm.
-- [Repository index](../DOCUMENTATION_INDEX.md) — every long-lived document.
+- [Repository index](documentation-index.md) — every long-lived document.
 """
 
 

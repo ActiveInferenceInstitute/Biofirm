@@ -87,7 +87,7 @@ patterns appear in tracked files.
   tests, documentation, and an explicit acceptance check. The suite must
   remain at zero failures with the 90% coverage floor.
 - **Docs travel with code**: update the README, the generative-model contract,
-  and `DOCUMENTATION_INDEX.md` when commands, the schema, or artifact
+  and `docs/documentation-index.md` when commands, the schema, or artifact
   contracts change. Add new documents to the index.
 - **Never commit credentials**: live research is the only network-enabled
   path and requires an explicit `--live` flag plus `PERPLEXITY_API_KEY` in
@@ -95,7 +95,7 @@ patterns appear in tracked files.
   in a tracked file.
 - **Historical material stays labelled**: anything describing an unimplemented
   or superseded system carries a status block and is listed as historical in
-  `DOCUMENTATION_INDEX.md`.
+  `docs/documentation-index.md`.
 - **Artifacts are not source**: generated research, simulation, report, plot,
   log, and cache files belong under `artifacts/` or another ignored runtime
   directory. Authoritative data under `One_Earth/` and `Bio_Perplexity/`

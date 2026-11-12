@@ -48,7 +48,7 @@ Measured arm times, the test count and the coverage total live in
 can produce, and refresh it after a change that moves one.
 
 `tools/verify_repository.py` is part of the gate. It compiles `src`, imports the
-package, requires a non-empty version, requires the nine documents named in
+package, requires a non-empty version, requires the ten documents named in
 `tools/verify_repository.py` to exist and be non-empty, resolves every
 relative markdown link, validates the source JSON under `One_Earth/` and
 `Bio_Perplexity/`, rejects shell or magic commands in notebooks, and scans
@@ -67,7 +67,7 @@ matches the arm list or `uv.lock`. Change the script, not the numbers.
 Every other markdown file is hand-written and must change in the same commit as
 the behavior it describes. [CONTRIBUTING.md](CONTRIBUTING.md) makes docs part of
 the change and asks you to add new contract documents to
-[DOCUMENTATION_INDEX.md](DOCUMENTATION_INDEX.md).
+[docs/documentation-index.md](docs/documentation-index.md).
 
 Generated or derived artefacts are never committed:
 
