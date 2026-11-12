@@ -1,0 +1,86 @@
+{
+  "schema": "biofirm-gate-baseline/v1",
+  "recorded": "2026-11-12",
+  "commit": "c88b5d3c51f42538b9205d2045302d43559d1262",
+  "note": "Pre-change gate: the commands CI ran directly, before run.sh existed. One run each on this host, timed with the shell's SECONDS counter around the command. Kept as a receipt because the pre-change tree cannot be re-measured; tools/gate_report.py reads it for the Before column and never rewrites it.",
+  "environment": {
+    "system": "Darwin",
+    "machine": "arm64",
+    "python": "3.12.16",
+    "uv": "0.13.7"
+  },
+  "arms": [
+    {
+      "arm": "sync",
+      "command": "uv sync --frozen --all-extras",
+      "seconds": 0.0,
+      "note": "Already-synced environment; a cold sync was not measured."
+    },
+    {
+      "arm": "deps",
+      "command": "uv lock --check",
+      "seconds": 0.0
+    },
+    {
+      "arm": "lint",
+      "command": "uv run ruff check src tests tools && uv run ruff format --check src tests tools",
+      "seconds": 1.0
+    },
+    {
+      "arm": "types",
+      "command": "uv run mypy --python-version 3.12 src/biofirm",
+      "seconds": 18.0
+    },
+    {
+      "arm": "test",
+      "command": "uv run pytest --cov=biofirm --cov-report=term-missing --cov-fail-under=90",
+      "seconds": 74.0,
+      "tests_passed": 119,
+      "coverage_percent": 90.58
+    },
+    {
+      "arm": "test-fast",
+      "command": "uv run pytest -q --ignore=tests/test_gnn.py",
+      "seconds": 27.0,
+      "tests_passed": 102,
+      "note": "No CI arm existed before this change; this is the same selection run by hand."
+    },
+    {
+      "arm": "links",
+      "command": "uv run python tools/verify_repository.py",
+      "seconds": 3.0
+    },
+    {
+      "arm": "docs",
+      "command": "uv run biofirm validate && uv run biofirm validate-data",
+      "seconds": 1.0
+    },
+    {
+      "arm": "bandit",
+      "command": "uv run bandit -q -r src tools",
+      "seconds": 2.0
+    },
+    {
+      "arm": "build",
+      "command": "uv run python -m build",
+      "seconds": 28.0
+    },
+    {
+      "arm": "install",
+      "command": "uv export --locked, uv venv, uv pip install (requirements + wheel), seven CLI commands outside the checkout",
+      "seconds": 32.0,
+      "note": "The CI step used python -m venv; the measurement used uv venv with the same installs and CLI commands."
+    },
+    {
+      "arm": "secret",
+      "command": "gitleaks 8.30.1 download + SHA-256 check + synthetic control + history scan",
+      "seconds": 54.0
+    },
+    {
+      "arm": "gnn",
+      "command": "uv run pytest tests/test_gnn.py -q",
+      "seconds": 5.0,
+      "tests_passed": 17
+    }
+  ]
+}

@@ -12,24 +12,39 @@ the arm names and `./run.sh --help` the full table.
 
 ## Arms
 
-| Arm | What it runs | Last measured wall time |
-| --- | --- | --- |
-| `sync` | Lock the environment for the selected interpreter. | 0.1s |
-| `deps` | Verify uv.lock matches the manifests. | 0.1s |
-| `lint` | ruff check and ruff format --check on src tests tools. | 0.1s |
-| `types` | Strict mypy on src/biofirm. | 0.6s |
-| `test` | pytest with the 90% coverage floor (the full suite). | 39.1s |
-| `test-fast` | pytest without coverage and without tests/test_gnn.py. | 30.5s |
-| `links` | tools/verify_repository.py: relative links, source data, notebooks, credential patterns, required documents. | 3.2s |
-| `docs` | biofirm validate and biofirm validate-data. | 1.3s |
-| `bandit` | bandit on src and tools. | 1.6s |
-| `build` | Build sdist and wheel into dist/. | 20.6s |
-| `install` | Install dist/ into a clean venv and exercise the CLI outside the checkout, from the locked requirements. | 33.5s |
-| `secret` | gitleaks scan with a synthetic negative control. | 58.1s |
-| `gnn` | Pinned GNN parser conformance (tests/test_gnn.py). | 6.4s |
+**Before** is the command CI ran directly, before [`../run.sh`](../run.sh)
+existed: one run each on this host, preserved in
+[`../tools/gate_baseline.json`](../tools/gate_baseline.json) at commit
+`c88b5d3c51f42538b9205d2045302d43559d1262`. Reconciling that measurement into a script would
+mean inventing a run of a tree that no longer exists, so it stays a receipt the
+gate reads instead. **After** is the arm as measured by the run that wrote this
+document.
+
+| Arm | Before | After | What it runs |
+| --- | --- | --- | --- |
+| `sync` | 0.0s | 0.0s | Lock the environment for the selected interpreter. |
+| `deps` | 0.0s | 0.0s | Verify uv.lock matches the manifests. |
+| `lint` | 1.0s | 0.1s | ruff check and ruff format --check on src tests tools. |
+| `types` | 18.0s | 0.5s | Strict mypy on src/biofirm. |
+| `test` | 74.0s | 35.3s | pytest with the 90% coverage floor (the full suite). |
+| `test-fast` | 27.0s | 21.1s | pytest without coverage and without tests/test_gnn.py. |
+| `links` | 3.0s | 1.3s | tools/verify_repository.py: relative links, source data, notebooks, credential patterns, required documents. |
+| `docs` | 1.0s | 0.4s | biofirm validate and biofirm validate-data. |
+| `bandit` | 2.0s | 0.7s | bandit on src and tools. |
+| `build` | 28.0s | 9.0s | Build sdist and wheel into dist/. |
+| `install` | 32.0s | 21.4s | Install dist/ into a clean venv and exercise the CLI outside the checkout, from the locked requirements. |
+| `secret` | 54.0s | 30.3s | gitleaks scan with a synthetic negative control. |
+| `gnn` | 5.0s | 4.0s | Pinned GNN parser conformance (tests/test_gnn.py). |
 
 `gate` and `all` are meta arms and are not timed here: `gate` checks this
-document and `all` runs the other arms in order.
+document and `all` runs the other arms in order. `test-fast` had no CI arm
+before the gate existed; its baseline is the same selection run by hand.
+
+The host is noisy and warm caches persist between runs, so single samples differ
+by tens of seconds. Read both columns as receipts, not as a controlled benchmark;
+the change to review is structural — interpreter-independent arms run once
+instead of twice per push, and each job resolves its environment once instead of
+once per command.
 
 ## Measured facts
 
@@ -41,19 +56,23 @@ document and `all` runs the other arms in order.
   which the `gnn` arm owns.
 - GNN conformance (`gnn`): **17 passed**.
 
+The suite composition did not change: before the gate the same suite reported
+**119 passed** at
+**90.58% coverage**.
+
 These are one run each on the host in the receipt below. Wall times are receipts,
 not contracts: a slower or faster host does not invalidate them, and nothing in
 CI compares them.
 
 ## Environment
 
-| Field | Value |
-| --- | --- |
-| Host | `Darwin/arm64` |
-| Python | `3.12.16` |
-| uv | `0.13.7` |
-| `uv.lock` SHA-256 | `0e13e44023d3abf8e2bfccdc1b0c6bfe432dde0b0b7697240d8a9055d9ee2993` |
-| Recorded | `2026-11-12T05:03:35-0800` |
+| Field | Baseline | This run |
+| --- | --- | --- |
+| Host | `Darwin/arm64` | `Darwin/arm64` |
+| Python | `3.12.16` | `3.12.16` |
+| uv | `0.13.7` | `0.13.7` |
+| `uv.lock` SHA-256 | not recorded | `0e13e44023d3abf8e2bfccdc1b0c6bfe432dde0b0b7697240d8a9055d9ee2993` |
+| Recorded | `2026-11-12` | `2026-11-12T05:14:45-0800` |
 
 ## Receipt
 
@@ -63,12 +82,12 @@ CI compares them.
   "arms": [
     {
       "arm": "sync",
-      "seconds": 0.1,
+      "seconds": 0.0,
       "status": "passed"
     },
     {
       "arm": "deps",
-      "seconds": 0.1,
+      "seconds": 0.0,
       "status": "passed"
     },
     {
@@ -78,59 +97,145 @@ CI compares them.
     },
     {
       "arm": "types",
-      "seconds": 0.6,
+      "seconds": 0.5,
       "status": "passed"
     },
     {
       "arm": "test",
       "coverage_percent": 90.58,
-      "seconds": 39.1,
+      "seconds": 35.3,
       "status": "passed",
       "tests_passed": 119
     },
     {
       "arm": "test-fast",
-      "seconds": 30.5,
+      "seconds": 21.1,
       "status": "passed",
       "tests_passed": 102
     },
     {
       "arm": "links",
-      "seconds": 3.2,
-      "status": "passed"
-    },
-    {
-      "arm": "docs",
       "seconds": 1.3,
       "status": "passed"
     },
     {
+      "arm": "docs",
+      "seconds": 0.4,
+      "status": "passed"
+    },
+    {
       "arm": "bandit",
-      "seconds": 1.6,
+      "seconds": 0.7,
       "status": "passed"
     },
     {
       "arm": "build",
-      "seconds": 20.6,
+      "seconds": 9.0,
       "status": "passed"
     },
     {
       "arm": "install",
-      "seconds": 33.5,
+      "seconds": 21.4,
       "status": "passed"
     },
     {
       "arm": "secret",
-      "seconds": 58.1,
+      "seconds": 30.3,
       "status": "passed"
     },
     {
       "arm": "gnn",
-      "seconds": 6.4,
+      "seconds": 4.0,
       "status": "passed",
       "tests_passed": 17
     }
   ],
+  "baseline": {
+    "arms": [
+      {
+        "arm": "sync",
+        "command": "uv sync --frozen --all-extras",
+        "note": "Already-synced environment; a cold sync was not measured.",
+        "seconds": 0.0
+      },
+      {
+        "arm": "deps",
+        "command": "uv lock --check",
+        "seconds": 0.0
+      },
+      {
+        "arm": "lint",
+        "command": "uv run ruff check src tests tools && uv run ruff format --check src tests tools",
+        "seconds": 1.0
+      },
+      {
+        "arm": "types",
+        "command": "uv run mypy --python-version 3.12 src/biofirm",
+        "seconds": 18.0
+      },
+      {
+        "arm": "test",
+        "command": "uv run pytest --cov=biofirm --cov-report=term-missing --cov-fail-under=90",
+        "coverage_percent": 90.58,
+        "seconds": 74.0,
+        "tests_passed": 119
+      },
+      {
+        "arm": "test-fast",
+        "command": "uv run pytest -q --ignore=tests/test_gnn.py",
+        "note": "No CI arm existed before this change; this is the same selection run by hand.",
+        "seconds": 27.0,
+        "tests_passed": 102
+      },
+      {
+        "arm": "links",
+        "command": "uv run python tools/verify_repository.py",
+        "seconds": 3.0
+      },
+      {
+        "arm": "docs",
+        "command": "uv run biofirm validate && uv run biofirm validate-data",
+        "seconds": 1.0
+      },
+      {
+        "arm": "bandit",
+        "command": "uv run bandit -q -r src tools",
+        "seconds": 2.0
+      },
+      {
+        "arm": "build",
+        "command": "uv run python -m build",
+        "seconds": 28.0
+      },
+      {
+        "arm": "install",
+        "command": "uv export --locked, uv venv, uv pip install (requirements + wheel), seven CLI commands outside the checkout",
+        "note": "The CI step used python -m venv; the measurement used uv venv with the same installs and CLI commands.",
+        "seconds": 32.0
+      },
+      {
+        "arm": "secret",
+        "command": "gitleaks 8.30.1 download + SHA-256 check + synthetic control + history scan",
+        "seconds": 54.0
+      },
+      {
+        "arm": "gnn",
+        "command": "uv run pytest tests/test_gnn.py -q",
+        "seconds": 5.0,
+        "tests_passed": 17
+      }
+    ],
+    "commit": "c88b5d3c51f42538b9205d2045302d43559d1262",
+    "environment": {
+      "machine": "arm64",
+      "python": "3.12.16",
+      "system": "Darwin",
+      "uv": "0.13.7"
+    },
+    "file": "tools/gate_baseline.json",
+    "recorded": "2026-11-12",
+    "schema": "biofirm-gate-baseline/v1"
+  },
   "coverage_floor": 90,
   "environment": {
     "lock_sha256": "0e13e44023d3abf8e2bfccdc1b0c6bfe432dde0b0b7697240d8a9055d9ee2993",
@@ -139,7 +244,7 @@ CI compares them.
     "system": "Darwin",
     "uv": "0.13.7"
   },
-  "recorded": "2026-11-12T05:03:35-0800",
+  "recorded": "2026-11-12T05:14:45-0800",
   "schema": "biofirm-gate-receipt/v1"
 }
 ```

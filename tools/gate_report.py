@@ -1,17 +1,19 @@
 """Refresh or check `docs/gate.md`, the measured record of the gate arms.
 
 `docs/gate.md` is the one document that carries measured numbers: per-arm wall
-times, the full-suite test count and the coverage total. Those values are
-produced by running `./run.sh`, never typed by hand.
+times before and after the gate was unified, the full-suite test count and the
+coverage total. The After column is produced by running `./run.sh`; the Before
+column is read from [`gate_baseline.json`](gate_baseline.json), the preserved
+receipt for the pre-change gate that cannot be re-measured.
 
     uv run python tools/gate_report.py            # run every arm, rewrite the doc
     uv run python tools/gate_report.py --check    # CI: verify the doc is current
 
 `--check` does not re-time anything. It proves the document still describes the
 gate that exists: the arm list equals `./run.sh list`, the recorded `uv.lock`
-digest equals the current file, and every arm has a measured value. Re-timing is
-`--write`, and it is deliberately not part of the gate because a wall time is a
-receipt for one host, not a contract.
+digest equals the current file, every arm has a measured value, and every arm
+has a baseline entry. Re-timing is `--write`, and it is deliberately not part of
+the gate because a wall time is a receipt for one host, not a contract.
 """
 
 from __future__ import annotations
@@ -32,9 +34,11 @@ from typing import Any
 
 ROOT = Path(__file__).resolve().parents[1]
 DOC = ROOT / "docs" / "gate.md"
+BASELINE = ROOT / "tools" / "gate_baseline.json"
 RECEIPT_OPEN = "<!-- gate-receipt"
 RECEIPT_CLOSE = "gate-receipt -->"
 SCHEMA = "biofirm-gate-receipt/v1"
+BASELINE_SCHEMA = "biofirm-gate-baseline/v1"
 META_ARMS = {"all", "list"}
 UNMEASURED_ARMS = {"all", "gate"}
 COVERAGE_FLOOR = 90
@@ -78,6 +82,23 @@ def lock_digest() -> str:
     return hashlib.sha256((ROOT / "uv.lock").read_bytes()).hexdigest()
 
 
+def baseline() -> dict[str, Any]:
+    """Read the preserved pre-change receipt. Never written by this script."""
+    if not BASELINE.is_file():
+        raise SystemExit(f"missing {BASELINE.relative_to(ROOT)}")
+    try:
+        data = json.loads(BASELINE.read_text(encoding="utf-8"))
+    except json.JSONDecodeError as error:
+        raise SystemExit(f"baseline is not valid JSON: {error}") from error
+    if data.get("schema") != BASELINE_SCHEMA:
+        raise SystemExit(f"baseline schema is {data.get('schema')!r}, expected {BASELINE_SCHEMA!r}")
+    return data
+
+
+def baseline_arms(data: dict[str, Any]) -> dict[str, dict[str, Any]]:
+    return {str(record.get("arm")): record for record in data.get("arms", [])}
+
+
 def environment() -> dict[str, str]:
     uv = run("uv", "--version").stdout.split()
     python = run(
@@ -113,12 +134,20 @@ def measure(arm: str) -> dict[str, Any]:
     return record
 
 
-def receipt(records: list[dict[str, Any]]) -> dict[str, Any]:
+def receipt(records: list[dict[str, Any]], baseline_data: dict[str, Any]) -> dict[str, Any]:
     return {
         "schema": SCHEMA,
         "recorded": time.strftime("%Y-%m-%dT%H:%M:%S%z"),
         "environment": environment(),
         "coverage_floor": COVERAGE_FLOOR,
+        "baseline": {
+            "file": str(BASELINE.relative_to(ROOT)),
+            "schema": baseline_data["schema"],
+            "commit": baseline_data.get("commit"),
+            "recorded": baseline_data.get("recorded"),
+            "environment": baseline_data.get("environment"),
+            "arms": baseline_data.get("arms", []),
+        },
         "arms": records,
     }
 
@@ -126,9 +155,13 @@ def receipt(records: list[dict[str, Any]]) -> dict[str, Any]:
 def render(data: dict[str, Any]) -> str:
     descriptions = arm_descriptions()
     environment_data = data["environment"]
+    before_arms = baseline_arms(data["baseline"])
     rows = "\n".join(
-        "| `{}` | {} | {} |".format(
-            record["arm"], descriptions.get(record["arm"], ""), f"{record['seconds']}s"
+        "| `{}` | {} | {} | {} |".format(
+            record["arm"],
+            format_seconds(before_arms.get(record["arm"], {}).get("seconds")),
+            format_seconds(record["seconds"]),
+            descriptions.get(record["arm"], ""),
         )
         for record in data["arms"]
     )
@@ -136,6 +169,9 @@ def render(data: dict[str, Any]) -> str:
     full = by_arm.get("test", {})
     fast = by_arm.get("test-fast", {})
     gnn = by_arm.get("gnn", {})
+    baseline_test = before_arms.get("test", {})
+    baseline_data = data["baseline"]
+    baseline_environment = baseline_data.get("environment") or {}
     receipt_json = json.dumps(data, indent=2, sort_keys=True)
     return f"""# Gate and measured arm times
 
@@ -151,12 +187,27 @@ the arm names and `./run.sh --help` the full table.
 
 ## Arms
 
-| Arm | What it runs | Last measured wall time |
-| --- | --- | --- |
+**Before** is the command CI ran directly, before [`../run.sh`](../run.sh)
+existed: one run each on this host, preserved in
+[`../tools/gate_baseline.json`](../tools/gate_baseline.json) at commit
+`{baseline_data.get("commit")}`. Reconciling that measurement into a script would
+mean inventing a run of a tree that no longer exists, so it stays a receipt the
+gate reads instead. **After** is the arm as measured by the run that wrote this
+document.
+
+| Arm | Before | After | What it runs |
+| --- | --- | --- | --- |
 {rows}
 
 `gate` and `all` are meta arms and are not timed here: `gate` checks this
-document and `all` runs the other arms in order.
+document and `all` runs the other arms in order. `test-fast` had no CI arm
+before the gate existed; its baseline is the same selection run by hand.
+
+The host is noisy and warm caches persist between runs, so single samples differ
+by tens of seconds. Read both columns as receipts, not as a controlled benchmark;
+the change to review is structural — interpreter-independent arms run once
+instead of twice per push, and each job resolves its environment once instead of
+once per command.
 
 ## Measured facts
 
@@ -168,19 +219,23 @@ document and `all` runs the other arms in order.
   which the `gnn` arm owns.
 - GNN conformance (`gnn`): **{gnn.get("tests_passed", "unrecorded")} passed**.
 
+The suite composition did not change: before the gate the same suite reported
+**{baseline_test.get("tests_passed", "unrecorded")} passed** at
+**{baseline_test.get("coverage_percent", "unrecorded")}% coverage**.
+
 These are one run each on the host in the receipt below. Wall times are receipts,
 not contracts: a slower or faster host does not invalidate them, and nothing in
 CI compares them.
 
 ## Environment
 
-| Field | Value |
-| --- | --- |
-| Host | `{environment_data["system"]}/{environment_data["machine"]}` |
-| Python | `{environment_data["python"]}` |
-| uv | `{environment_data["uv"]}` |
-| `uv.lock` SHA-256 | `{environment_data["lock_sha256"]}` |
-| Recorded | `{data["recorded"]}` |
+| Field | Baseline | This run |
+| --- | --- | --- |
+| Host | `{baseline_environment.get("system")}/{baseline_environment.get("machine")}` | `{environment_data["system"]}/{environment_data["machine"]}` |
+| Python | `{baseline_environment.get("python")}` | `{environment_data["python"]}` |
+| uv | `{baseline_environment.get("uv")}` | `{environment_data["uv"]}` |
+| `uv.lock` SHA-256 | not recorded | `{environment_data["lock_sha256"]}` |
+| Recorded | `{baseline_data.get("recorded")}` | `{data["recorded"]}` |
 
 ## Receipt
 
@@ -196,6 +251,10 @@ CI compares them.
 - [Contributing](../CONTRIBUTING.md) — when a change needs which arm.
 - [Repository index](../DOCUMENTATION_INDEX.md) — every long-lived document.
 """
+
+
+def format_seconds(seconds: Any) -> str:
+    return "not measured" if not isinstance(seconds, (int, float)) else f"{seconds}s"
 
 
 def parse_receipt(text: str) -> dict[str, Any]:
@@ -220,7 +279,10 @@ def check() -> int:
     if not DOC.is_file():
         print(f"missing {DOC.relative_to(ROOT)}; run --write", file=sys.stderr)
         return 1
-    data = parse_receipt(DOC.read_text(encoding="utf-8"))
+    document = DOC.read_text(encoding="utf-8")
+    data = parse_receipt(document)
+    baseline_data = baseline()
+    before = baseline_arms(baseline_data)
     problems: list[str] = []
     if data.get("schema") != SCHEMA:
         problems.append(f"receipt schema is {data.get('schema')!r}, expected {SCHEMA!r}")
@@ -228,6 +290,19 @@ def check() -> int:
     recorded = [record.get("arm") for record in data.get("arms", [])]
     if recorded != expected:
         problems.append(f"arm list drifted: document {recorded}, run.sh {expected}")
+    if "| Arm | Before | After | What it runs |" not in document:
+        problems.append("the arms table has no Before/After columns")
+    if not re.fullmatch(r"[0-9a-f]{40}", str(baseline_data.get("commit"))):
+        problems.append("the baseline receipt has no full pre-change commit")
+    for arm in expected:
+        if arm not in before:
+            problems.append(f"baseline receipt has no entry for arm {arm}")
+        elif not isinstance(before[arm].get("seconds"), (int, float)):
+            problems.append(f"baseline entry for arm {arm} has no measured wall time")
+        elif not before[arm].get("command"):
+            problems.append(f"baseline entry for arm {arm} records no command")
+    if data.get("baseline", {}).get("commit") != baseline_data.get("commit"):
+        problems.append("document baseline provenance does not match the baseline receipt")
     current_lock = lock_digest()
     recorded_lock = data.get("environment", {}).get("lock_sha256")
     if recorded_lock != current_lock:
@@ -249,8 +324,9 @@ def check() -> int:
 
 
 def write() -> int:
+    baseline_data = baseline()
     records = [measure(arm) for arm in gate_arms() if arm not in UNMEASURED_ARMS]
-    data = receipt(records)
+    data = receipt(records, baseline_data)
     DOC.write_text(render(data), encoding="utf-8")
     print(f"wrote {DOC.relative_to(ROOT)} with {len(records)} arms")
     return 0
