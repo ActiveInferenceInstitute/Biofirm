@@ -35,9 +35,9 @@ together with `inferactively-pymdp`:
 | Pin | Newest release | Why the pin stops there |
 | --- | --- | --- |
 | `numpy==2.4.6` | 2.5.4 | `numpy` 2.5.x requires Python >= 3.12. |
-| `jax==0.10.2` | 0.12.0.1 | `inferactively-pymdp==1.0.4` requires `jax<0.11.1`, and `jax` 0.11.0 requires Python >= 3.12. |
+| `jax==0.10.2` | 0.12.0.1 | `jax` 0.11.0 requires Python >= 3.12. |
 | `requests==2.34.2` | 2.34.2 | Current release. |
-| `inferactively-pymdp==1.0.4` | 1.0.4 | Current release. |
+| `inferactively-pymdp==1.0.5` | 1.0.5 | Current release. |
 
 Recheck a pin by widening its specifier temporarily, letting the resolver
 report what it reaches under each supported Python, and restoring the pin:

@@ -112,9 +112,9 @@ re-open without evidence that their acceptance criteria regressed.
   Notation in this repository.
 - **BF-020 — Dependency currency review** — Implemented. Each runtime pin in
   `pyproject.toml` is the newest release that satisfies both supported Python
-  versions (3.11 and 3.12) together with `inferactively-pymdp==1.0.4`, so the
+  versions (3.11 and 3.12) together with `inferactively-pymdp==1.0.5`, so the
   pins are qualified values rather than stale freezes: `numpy` 2.5.x and `jax`
-  0.11.0 both require Python >= 3.12, and PyMDP caps `jax<0.11.1`. The
+  0.11.0 both require Python >= 3.12. The
   rationale and the recheck commands are documented in `CONTRIBUTING.md`.
   `pytest` moved from 9.1.1 to 9.2.0, and the CI tool pin moved from
   `uv==0.11.6` to `uv==0.13.6` after the regenerated `requirements.lock` diffed

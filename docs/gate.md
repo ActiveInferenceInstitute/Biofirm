@@ -25,16 +25,16 @@ document.
 | `sync` | 0.0s | 0.0s | Lock the environment for the selected interpreter. |
 | `deps` | 0.0s | 0.0s | Verify uv.lock matches the manifests. |
 | `lint` | 1.0s | 0.1s | ruff check and ruff format --check on src tests tools. |
-| `types` | 18.0s | 0.2s | Strict mypy on src/biofirm. |
-| `test` | 74.0s | 15.7s | pytest with the 90% coverage floor (the full suite). |
-| `test-fast` | 27.0s | 12.5s | pytest without coverage and without tests/test_gnn.py. |
-| `links` | 3.0s | 0.7s | tools/verify_repository.py: relative links, source data, notebooks, credential patterns, required documents. |
-| `docs` | 1.0s | 0.3s | biofirm validate and biofirm validate-data. |
-| `bandit` | 2.0s | 0.3s | bandit on src and tools. |
-| `build` | 28.0s | 4.3s | Build sdist and wheel into dist/. |
-| `install` | 32.0s | 17.0s | Install dist/ into a clean venv and exercise the CLI outside the checkout, from the locked requirements. |
-| `secret` | 54.0s | 15.4s | gitleaks scan with a synthetic negative control. |
-| `gnn` | 5.0s | 1.3s | Pinned GNN conformance: the shared gnn.importers reader from the pinned revision, then tests/test_gnn.py. |
+| `types` | 18.0s | 0.3s | Strict mypy on src/biofirm. |
+| `test` | 74.0s | 24.6s | pytest with the 90% coverage floor (the full suite). |
+| `test-fast` | 27.0s | 18.4s | pytest without coverage and without tests/test_gnn.py. |
+| `links` | 3.0s | 1.0s | tools/verify_repository.py: relative links, source data, notebooks, credential patterns, required documents. |
+| `docs` | 1.0s | 0.4s | biofirm validate and biofirm validate-data. |
+| `bandit` | 2.0s | 1.0s | bandit on src and tools. |
+| `build` | 28.0s | 10.1s | Build sdist and wheel into dist/. |
+| `install` | 32.0s | 22.5s | Install dist/ into a clean venv and exercise the CLI outside the checkout, from the locked requirements. |
+| `secret` | 54.0s | 23.5s | gitleaks scan with a synthetic negative control. |
+| `gnn` | 5.0s | 7.8s | Pinned GNN conformance: the shared gnn.importers reader from the pinned revision, then tests/test_gnn.py. |
 
 `gate` and `all` are meta arms and are not timed here: `gate` checks this
 document and `all` runs the other arms in order. `test-fast` had no CI arm
@@ -74,8 +74,8 @@ CI compares them.
 | Host | `Darwin/arm64` | `Darwin/arm64` |
 | Python | `3.12.16` | `3.12.16` |
 | uv | `0.13.7` | `0.13.7` |
-| `uv.lock` SHA-256 | not recorded | `0e13e44023d3abf8e2bfccdc1b0c6bfe432dde0b0b7697240d8a9055d9ee2993` |
-| Recorded | `2026-11-12` | `2026-11-12T08:24:21-0800` |
+| `uv.lock` SHA-256 | not recorded | `ba33e645ea9521dbd6708dc830afabe681f57a6c7f4a711f3a6e956295049aaa` |
+| Recorded | `2026-11-12` | `2026-11-12T09:55:02-0800` |
 
 ## Receipt
 
@@ -100,56 +100,56 @@ CI compares them.
     },
     {
       "arm": "types",
-      "seconds": 0.2,
+      "seconds": 0.3,
       "status": "passed"
     },
     {
       "arm": "test",
       "coverage_percent": 90.58,
-      "seconds": 15.7,
+      "seconds": 24.6,
       "status": "passed",
       "tests_passed": 115,
       "tests_skipped": 2
     },
     {
       "arm": "test-fast",
-      "seconds": 12.5,
+      "seconds": 18.4,
       "status": "passed",
       "tests_passed": 102
     },
     {
       "arm": "links",
-      "seconds": 0.7,
+      "seconds": 1.0,
       "status": "passed"
     },
     {
       "arm": "docs",
-      "seconds": 0.3,
+      "seconds": 0.4,
       "status": "passed"
     },
     {
       "arm": "bandit",
-      "seconds": 0.3,
+      "seconds": 1.0,
       "status": "passed"
     },
     {
       "arm": "build",
-      "seconds": 4.3,
+      "seconds": 10.1,
       "status": "passed"
     },
     {
       "arm": "install",
-      "seconds": 17.0,
+      "seconds": 22.5,
       "status": "passed"
     },
     {
       "arm": "secret",
-      "seconds": 15.4,
+      "seconds": 23.5,
       "status": "passed"
     },
     {
       "arm": "gnn",
-      "seconds": 1.3,
+      "seconds": 7.8,
       "status": "passed",
       "tests_passed": 15
     }
@@ -242,13 +242,13 @@ CI compares them.
   },
   "coverage_floor": 90,
   "environment": {
-    "lock_sha256": "0e13e44023d3abf8e2bfccdc1b0c6bfe432dde0b0b7697240d8a9055d9ee2993",
+    "lock_sha256": "ba33e645ea9521dbd6708dc830afabe681f57a6c7f4a711f3a6e956295049aaa",
     "machine": "arm64",
     "python": "3.12.16",
     "system": "Darwin",
     "uv": "0.13.7"
   },
-  "recorded": "2026-11-12T08:24:21-0800",
+  "recorded": "2026-11-12T09:55:02-0800",
   "schema": "biofirm-gate-receipt/v1"
 }
 ```
