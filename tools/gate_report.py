@@ -43,6 +43,7 @@ META_ARMS = {"all", "list"}
 UNMEASURED_ARMS = {"all", "gate"}
 COVERAGE_FLOOR = 90
 PASSED_PATTERN = re.compile(r"(\d+) passed")
+SKIPPED_PATTERN = re.compile(r"(\d+) skipped")
 COVERAGE_PATTERN = re.compile(r"Total coverage:\s*([\d.]+)%")
 ARM_HEADER_PATTERN = re.compile(r"^#   \./run\.sh (\S+)\s+(.+)$")
 ARM_DETAIL_PATTERN = re.compile(r"^#\s{7,}(\S.*)$")
@@ -128,6 +129,9 @@ def measure(arm: str) -> dict[str, Any]:
     passed = PASSED_PATTERN.search(output)
     if passed:
         record["tests_passed"] = int(passed.group(1))
+    skipped = SKIPPED_PATTERN.search(output)
+    if skipped:
+        record["tests_skipped"] = int(skipped.group(1))
     coverage = COVERAGE_PATTERN.search(output)
     if coverage:
         record["coverage_percent"] = float(coverage.group(1))
@@ -218,6 +222,9 @@ once per command.
   It runs the same suite without coverage and without `tests/test_gnn.py`,
   which the `gnn` arm owns.
 - GNN conformance (`gnn`): **{gnn.get("tests_passed", "unrecorded")} passed**.
+  The full suite reports {full.get("tests_skipped", 0)} skips from
+  `tests/test_gnn.py`: its pinned-parser checks need the export the `gnn` arm
+  writes, so they skip there and run here.
 
 The preserved pre-gate baseline reported
 **{baseline_test.get("tests_passed", "unrecorded")} passed** at

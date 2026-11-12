@@ -74,12 +74,14 @@ jobs:
 
   gnn-conformance:
     timeout-minutes: 30
-    # Validates models/biofirm_ecosystem_variable.gnn.md with the upstream parser
-    # revision pinned in .github/gnn-pin.json. The pin is fetched from the public
-    # repository at the recorded SHA into its own runtime; tests/test_gnn.py
-    # fails (never skips) when the explicitly selected checkout is missing or
-    # unusable, so the pin is checked here rather than assumed. The arm also
-    # writes the resolved parser version to the job summary.
+    # Validates the pin, its pointer and models/biofirm_ecosystem_variable.gnn.md
+    # with the shared gnn.importers reader of the revision pinned in
+    # .github/gnn-pin.json. The pin is fetched from the public repository at the
+    # recorded SHA into its own runtime and exported clean; both the reader and
+    # tests/test_gnn.py run from that export. The test fails (never skips) when
+    # the explicitly selected checkout or export is missing or unusable, so the
+    # pin is checked here rather than assumed. The arm also writes the resolved
+    # parser version to the job summary.
     name: gnn conformance (pinned)
     runs-on: ubuntu-latest
     env:

@@ -33,13 +33,17 @@ with the 90% coverage floor. This is the only work duplicated per version.
 ## `gnn conformance (pinned)`
 
 Job key `gnn-conformance`, display name `gnn conformance (pinned)`. Runs `sync`
-and the `gnn` arm. The arm makes `tests/test_gnn.py` run against a checkout of
-the revision recorded in [../gnn-pin.json](../gnn-pin.json): it reuses a usable
-`GNN_CHECKOUT`, else a sibling checkout that contains the pinned commit, else it
-fetches the pin and provisions a temporary interpreter with numpy, defusedxml and
-psutil. A pin that no longer resolves fails the run; the test never silently
-skips when a selected checkout is missing or unusable. The arm also writes the
-resolved parser version to the job summary.
+and the `gnn` arm. The arm materializes the revision recorded in
+[../gnn-pin.json](../gnn-pin.json) — it reuses a usable `GNN_CHECKOUT`, else a
+sibling checkout that contains the pinned commit, else it fetches the pin and
+provisions a temporary interpreter with numpy, defusedxml and psutil — exports
+that revision's `src` tree with `git archive`, and runs the shared
+`gnn.importers` reader shipped in it against this checkout. A pin that no longer
+resolves, a tag that does not dereference to the recorded revision, or a pointer
+that omits the pin, revision, workflow or job key fails the run. The arm then
+runs `tests/test_gnn.py` from the same export; the test never silently skips
+when a selected checkout or export is missing or unusable. The arm also writes
+the resolved parser version to the job summary.
 
 Measured arm times for this host live in
 [../../docs/gate.md](../../docs/gate.md), refreshed by

@@ -105,8 +105,9 @@ re-open without evidence that their acceptance criteria regressed.
   declared matrices with `build_active_inference_matrices` for the default and
   generalized bin counts and re-validates the file with the pinned upstream
   parser (`--strict`) from a clean export of the pinned revision. The pin
-  (v5.0.3, `8f293d9ba810e6eda5c09842d9c7ed9ffa5f92c1`) is recorded in
-  `.github/gnn-pin.json`; the former `GNN.md` graph/network document is renamed
+  (v5.1.0, `75c834bd8519dc7b5adc4d24f16bf393cfd1ecdf`) is recorded in
+  `.github/gnn-pin.json` and read by the shared `gnn.importers` reader in
+  `./run.sh gnn`; the former `GNN.md` graph/network document is renamed
   `GRAPH_MODELING.md` so "GNN" unambiguously means Generalized Notation
   Notation in this repository.
 - **BF-020 — Dependency currency review** — Implemented. Each runtime pin in
