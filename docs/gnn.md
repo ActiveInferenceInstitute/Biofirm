@@ -37,11 +37,17 @@ The upstream revision is recorded in
 - Tag: `v5.0.3`
 - Revision: `8f293d9ba810e6eda5c09842d9c7ed9ffa5f92c1`
 
+The pin is at the newest GNN release tag (`v5.0.3`). At the time of this review
+GNN's default branch was 225 commits ahead of the pin, so this is a release pin,
+not a tip pin.
+
 `tests/test_gnn.py` reads the parser from a clean `git archive` of that revision
 — never from the GNN checkout's working tree — so in-progress edits in a sibling
 checkout cannot contaminate the result. When no checkout is selected the
 upstream half skips with an explicit reason; when `GNN_CHECKOUT` selects a
-missing or unusable checkout it fails. CI runs this file in the
+missing or unusable checkout it fails. The separate tag-to-revision assertion
+skips when the tag is unavailable in the selected checkout, so the fail-closed
+rule is not yet enforced for that check. CI runs this file in the
 `gnn conformance (pinned)` job, which fetches the pinned revision and
 provisions its interpreter, so the pin is re-checked on every push and pull
 request.

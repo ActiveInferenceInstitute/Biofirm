@@ -38,7 +38,8 @@ counts.
 - the declared invariants (identity likelihood, uniform prior, target-peaked
   preferences, clipped shift transition, column-stochastic normalization) hold
   for other odd `observation_bins` values (3, 5, 7, 9);
-- the recorded pin still dereferences to the recorded revision; and
+- the recorded pin still dereferences to the recorded revision (the assertion
+  skips, rather than fails, when the selected checkout lacks the tag); and
 - the pinned upstream parser accepts the specification under `--strict`.
 
 Editing the specification or the matrices without the other side fails the test
@@ -60,6 +61,10 @@ re-checked on every push and pull request.
   `v5.0.3` tag dereferences to)
 - Upstream version: `5.0.3`
 - Pinned on: `2026-11-01`
+
+The pin is at the newest GNN release tag (`v5.0.3`). At the time of this review
+GNN's default branch was 225 commits ahead of the pin, so this is a release pin,
+not a tip pin.
 
 Re-validation runs the pinned upstream validator against this specification:
 
