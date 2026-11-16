@@ -201,9 +201,7 @@ def test_hash_equivalent_mapping_orders_replay_identically(
         )
         for index, name in enumerate(("delta", "gamma", "beta", "alpha"))
     }
-    relationship = RelationshipConfig(
-        "delta", {"gamma": 1.0, "beta": -1e16, "alpha": 1e16}
-    )
+    relationship = RelationshipConfig("delta", {"gamma": 1.0, "beta": -1e16, "alpha": 1e16})
     config = BiofirmConfig(
         "replay-order",
         variables,

@@ -280,9 +280,7 @@ def test_result_validator_rejects_noise_outside_three_sigma(noise: float) -> Non
     document = simulate(
         _single_variable_config(noise=noise), steps=1, seed=3, controller_name="slide-rule"
     ).to_dict()
-    document["records"][1]["diagnostics"]["x.noise"] = (
-        1e-300 if noise == 0.0 else 3.0 * noise + 0.1
-    )
+    document["records"][1]["diagnostics"]["x.noise"] = 1e-300 if noise == 0.0 else 3.0 * noise + 0.1
     with pytest.raises(ResultSchemaError, match="out-of-bounds diagnostics"):
         validate_result_document(document)
 
@@ -303,9 +301,7 @@ def test_result_validator_rejects_unreconstructable_transition() -> None:
 
 @pytest.mark.parametrize("component", ["values", "controls"])
 def test_result_validator_rejects_inconsistent_initial_record(component: str) -> None:
-    document = simulate(
-        _single_variable_config(), steps=0, controller_name="slide-rule"
-    ).to_dict()
+    document = simulate(_single_variable_config(), steps=0, controller_name="slide-rule").to_dict()
     record = document["records"][0]
     if component == "values":
         record["values"]["x"] = 6.0
@@ -350,7 +346,9 @@ def test_clipped_transition_artifacts_round_trip(
     assert document == result.to_dict()
 
 
-@pytest.mark.parametrize("controller_name", ["slide-rule", "random", "active-inference", "business"])
+@pytest.mark.parametrize(
+    "controller_name", ["slide-rule", "random", "active-inference", "business"]
+)
 @pytest.mark.parametrize("control_strength", [0.0, 1e-13, 1e-12])
 def test_zero_strength_action_contract_round_trips(
     tmp_path: Path, controller_name: str, control_strength: float

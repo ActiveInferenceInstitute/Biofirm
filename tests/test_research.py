@@ -431,11 +431,7 @@ def test_interrupted_research_preserves_committed_pairs_on_resume(
 
         def complete(self, request: ResearchRequest) -> ResearchResponse:
             self.calls.append(request.region_id)
-            if (
-                failure_stage == "provider"
-                and request.region_id == "r2"
-                and not self.resuming
-            ):
+            if failure_stage == "provider" and request.region_id == "r2" and not self.resuming:
                 raise ResearchError("interrupted second job")
             return ResearchResponse(
                 content=f"Response {len(self.calls)} for {request.region_id}.",
@@ -479,9 +475,7 @@ def test_interrupted_research_preserves_committed_pairs_on_resume(
     assert not second_json.with_suffix(".md").exists()
 
     provider.resuming = True
-    written = ResearchService(provider).run(
-        regions, ["ecologist"], output_dir=tmp_path, live=True
-    )
+    written = ResearchService(provider).run(regions, ["ecologist"], output_dir=tmp_path, live=True)
     assert written == [second_json]
     assert provider.calls == ["r1", "r2", "r2"]
     assert (first_json.read_bytes(), first_markdown.read_bytes()) == completed_pair

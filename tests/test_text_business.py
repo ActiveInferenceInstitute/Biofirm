@@ -181,8 +181,7 @@ def test_decimal_ranges_preserve_values_units_and_original_offsets(
     range_text: str, minimum: float, maximum: float
 ) -> None:
     description = (
-        f"A river. Biodiversity {range_text}. "
-        "Soil moisture 30.25 to 40.75 %! Another sentence."
+        f"A river. Biodiversity {range_text}. Soil moisture 30.25 to 40.75 %! Another sentence."
     )
     profile = BioregionTextProcessor(load_config()).process(description)
     assert profile.variables["biodiversity"]["minimum"] == minimum
