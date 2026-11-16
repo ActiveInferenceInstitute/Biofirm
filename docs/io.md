@@ -49,6 +49,13 @@ checked against the configuration's variable set, `metrics` is exactly
 `posterior_entropy`, and every value must be finite. Read or write this format
 through `SimulationResult`/`validate_result_document` rather than by hand.
 
+Validation checks initial values and zero initial controls, bounds transition
+noise by three configured standard deviations, reconstructs clipped next-state
+values, and recomputes posterior entropy from recorded beliefs. Action IDs must
+match effective signed control using the `1e-12` hold threshold, including zero
+and near-zero strengths. Artifact keys and schema version remain unchanged.
+Retain rejected historical documents as evidence; do not rewrite them to pass.
+
 Use it as:
 
 ```bash

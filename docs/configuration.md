@@ -50,6 +50,9 @@ never commit a key.
 - The canonical JSON serialization of the validated configuration is hashed
   (SHA-256) and snapshotted into every simulation artifact, so a run can be
   audited against the exact configuration that produced it.
+- Variable, relationship-target and dependency maps are frozen in canonical name
+  order, so hash-equivalent configurations use the same random-draw and summation
+  order. Preserve older insertion-order-dependent artifacts and provenance.
 - `output.directory` (default `artifacts`) is the directory used when a command
   writes by default, and `output.write_by_default` controls whether
   `simulate`/`sweep` write without an explicit `--output`.
@@ -62,6 +65,9 @@ or `business`. The active-inference controller builds PyMDP `A`, `B`, `C`, and
 `observation_bins`; the action space is the fixed three-step
 decrease/hold/increase contract. See [`../CONFIGURATION.md`](../CONFIGURATION.md)
 for the parameter table.
+Action IDs describe effective signed control, including zero and near-zero
+strengths, using the `1e-12` threshold in the reference. Custom decisions must
+obey the same finite, bounded control/action contract before simulation succeeds.
 
 ## Related
 

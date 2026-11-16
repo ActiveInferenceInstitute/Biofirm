@@ -210,13 +210,15 @@ class RelationshipConfig:
     def __post_init__(self) -> None:
         if not isinstance(self.dependencies, Mapping):
             raise ConfigError("relationship dependencies must be an object")
-        object.__setattr__(self, "dependencies", MappingProxyType(dict(self.dependencies)))
         if not isinstance(self.target, str) or not self.target.strip():
             raise ConfigError("relationship targets must be non-empty strings")
         for source, coefficient in self.dependencies.items():
             if not isinstance(source, str) or not source.strip():
                 raise ConfigError("relationship dependency keys must be non-empty strings")
             _finite(coefficient, f"relationships.{self.target}.dependencies.{source}")
+        object.__setattr__(
+            self, "dependencies", MappingProxyType(dict(sorted(self.dependencies.items())))
+        )
 
     @classmethod
     def from_dict(cls, target: str, raw: Mapping[str, Any]) -> RelationshipConfig:
@@ -350,9 +352,14 @@ class BiofirmConfig:
             raise ConfigError("configuration.variables must be an object")
         if not isinstance(self.relationships, Mapping):
             raise ConfigError("configuration.relationships must be an object")
-        object.__setattr__(self, "variables", MappingProxyType(dict(self.variables)))
-        object.__setattr__(self, "relationships", MappingProxyType(dict(self.relationships)))
         self.validate()
+        # Hash-equivalent mappings must assign RNG draws and sums identically.
+        object.__setattr__(
+            self, "variables", MappingProxyType(dict(sorted(self.variables.items())))
+        )
+        object.__setattr__(
+            self, "relationships", MappingProxyType(dict(sorted(self.relationships.items())))
+        )
 
     @classmethod
     def from_dict(cls, raw: Mapping[str, Any]) -> BiofirmConfig:
