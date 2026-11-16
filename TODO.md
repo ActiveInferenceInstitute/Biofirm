@@ -14,6 +14,22 @@ workflows, P2 documentation and repository coherence, P3 experimental
 scientific and product expansion. Every item lands with tests, documentation,
 and an explicit acceptance check before it is marked complete.
 
+## 2026-11-13 scoped qualification
+
+The independent `tests/test_research.py` and `tests/test_text_business.py`
+modules passed all 37 cases without loading the PyMDP backend. This qualifies
+the BF-C per-pair research checkpoint and BF-D decimal-range repairs, not live
+provider evidence or a native simulation gate. Their current consumer guidance
+is updated. The BF-F single-variable configuration example no longer references
+undeclared `water_quality`; the validator's rejection contract is unchanged.
+
+The complete four-file configuration/simulation/research/text acceptance remains
+blocked: the prepared Python 3.12 environment has PyMDP 1.0.4, not the exact
+1.0.5 dependency. BF-A, BF-B and BF-E remain unqualified, and their native
+behavior documentation is not promoted. No dependency pin, historical gate
+measurement, completed item below, owner decision or scientific prerequisite is
+changed by this scoped qualification.
+
 ## Completed/Closed
 
 Implemented in source, tests, and CI. Preserved here for auditability; do not

@@ -165,3 +165,51 @@ def test_business_action_id_matches_simulation_contract() -> None:
 
     for control in (0.0, 1e-13, -1e-13, 1.5, -1.5):
         assert business._action_id(control) == simulation._action_id(control)
+
+
+@pytest.mark.parametrize(
+    ("range_text", "minimum", "maximum"),
+    [
+        ("between 10.5 and 20.5 index", 10.5, 20.5),
+        ("between -10.5 and +20.5 index", -10.5, 20.5),
+        ("between -.5 and +.75 index", -0.5, 0.75),
+        ("-10.5--2.5 index", -10.5, -2.5),
+        ("between 20.5 and 10.5 index", 10.5, 20.5),
+    ],
+)
+def test_decimal_ranges_preserve_values_units_and_original_offsets(
+    range_text: str, minimum: float, maximum: float
+) -> None:
+    description = (
+        f"A river. Biodiversity {range_text}. "
+        "Soil moisture 30.25 to 40.75 %! Another sentence."
+    )
+    profile = BioregionTextProcessor(load_config()).process(description)
+    assert profile.variables["biodiversity"]["minimum"] == minimum
+    assert profile.variables["biodiversity"]["maximum"] == maximum
+    assert profile.variables["biodiversity"]["unit"] == "index"
+    assert profile.variables["soil_moisture"]["minimum"] == 30.25
+    assert profile.variables["soil_moisture"]["maximum"] == 40.75
+    assert profile.variables["soil_moisture"]["unit"] == "%"
+    spans = {span.value: span for span in profile.evidence if span.category == "variable-range"}
+    span = spans["biodiversity"]
+    assert span.start == description.index(range_text)
+    assert span.end == span.start + len(range_text)
+    assert description[span.start : span.end] == range_text
+    assert span.text == f"Biodiversity {range_text}."
+    assert not profile.ambiguities
+
+
+def test_decimal_range_attribution_remains_ambiguous_when_nearly_equidistant() -> None:
+    description = "soil_moisture 40.25 to 50.75 biodiversity"
+    profile = BioregionTextProcessor(load_config()).process(description)
+    assert profile.variables == {}
+    assert profile.ambiguities == ((14, "40.25 to 50.75 biodiversity"),)
+
+
+def test_decimal_range_does_not_borrow_an_alias_from_another_sentence() -> None:
+    profile = BioregionTextProcessor(load_config()).process(
+        "Biodiversity is unmeasured. between 10.5 and 20.5 index."
+    )
+    assert profile.variables == {}
+    assert not [span for span in profile.evidence if span.category == "variable-range"]

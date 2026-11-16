@@ -65,10 +65,14 @@ Each artifact records the request hash, prompt version, source hash, a
 provider-cost estimate, a human review state, and structured findings extracted
 verbatim from the provider response (with hedge-aware confidence).
 
-Resume is allowed only when both files, their hashes, the prompt version and
-hash, and the source hash agree. Structural validation establishes artifact
-integrity; it never certifies the factual quality of citations or research
-claims. Execution is split into independently rerunnable
+Each complete JSON/Markdown pair is hashed and checkpointed to the manifest
+before another provider job starts. A later provider or rendering failure
+therefore leaves already committed pairs resumable; an incomplete pair is not a
+completed manifest entry. Resume is allowed only when both files, their hashes,
+the prompt version and hash, and the source hash agree. Manifest costs estimate
+committed artifact entries, not billed provider usage. Structural validation
+establishes artifact integrity; it never certifies factual quality of citations
+or research claims. Execution remains split into independently rerunnable
 acquire/prepare/execute/parse/render stages.
 
 ## Where outputs belong

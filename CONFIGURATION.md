@@ -94,11 +94,7 @@ The action space is the fixed three-step decrease/hold/increase contract.
       "unit": "index"
     }
   },
-  "relationships": {
-    "biodiversity": {
-      "dependencies": { "water_quality": 0.1 }
-    }
-  },
+  "relationships": {},
   "controller": {
     "name": "active-inference",
     "stochastic": false

@@ -111,8 +111,8 @@ class BioregionTextProcessor:
                     evidence.append(span)
         variables: dict[str, Mapping[str, Any]] = {}
         ambiguities: list[tuple[int, str]] = []
-        sentences = list(re.finditer(r"[^.!?]+[.!?]?", description))
-        for sentence_match in sentences:
+        # Keep decimal points, including leading fractions, inside their sentence.
+        for sentence_match in re.finditer(r"(?:[^.!?]|\.(?=\d))+[.!?]?", description):
             sentence = sentence_match.group(0)
             sentence_start = sentence_match.start()
             aliases = [

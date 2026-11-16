@@ -18,6 +18,10 @@ environment.
 All commands validate the same schema before running, so
 `biofirm validate --config path.json` is the fastest way to check a file.
 
+The reference's single-variable example uses `"relationships": {}`. A
+dependency must name another declared variable; validation rejects undeclared
+sources.
+
 ## What validation rejects
 
 Unknown fields, non-finite numbers, invalid ranges, duplicate or
