@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import math
-from collections.abc import Mapping
+from collections.abc import Mapping, Sequence
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any
@@ -208,11 +208,7 @@ def _transition(
                 source_config = config.variables[source]
                 normalised = (float(values[source]) - source_config.target) / source_config.span
                 relationship_effect += coefficient * normalised * variable.span
-        if name not in decision.controls:
-            raise SimulationError(f"controller omitted control for {name!r}")
         control = float(decision.controls[name])
-        if not math.isfinite(control) or abs(control) > variable.control_strength + 1e-9:
-            raise SimulationError(f"controller produced invalid control for {name!r}")
         raw_noise = float(rng.normal(0.0, variable.noise))
         noise = float(np.clip(raw_noise, -3.0 * variable.noise, 3.0 * variable.noise))
         proposed = current + trend_effect + relationship_effect + control + noise
@@ -304,7 +300,7 @@ def _action_id(control: float) -> int:
     return 1
 
 
-def _belief_entropy(values: tuple[float, ...]) -> float:
+def _belief_entropy(values: Sequence[float]) -> float:
     """Shannon entropy of a belief distribution (0 for an empty/known state)."""
     if not values:
         return 0.0
@@ -497,12 +493,18 @@ def validate_result_document(document: Any) -> dict[str, Any]:
             variable = validated_config.variables[name]
             if not variable.minimum <= float(value) <= variable.maximum:
                 raise ResultSchemaError(f"record {index} has out-of-bounds values.{name}")
+            if index == 0 and not math.isclose(
+                float(value), variable.initial, rel_tol=1e-9, abs_tol=1e-9
+            ):
+                raise ResultSchemaError(f"record {index} has inconsistent initial values.{name}")
             expected_observation = _observation(float(value), variable)
             if record["observations"][name] != expected_observation:
                 raise ResultSchemaError(f"record {index} has inconsistent observations.{name}")
             control = float(record["controls"][name])
             if abs(control) > variable.control_strength + 1e-9:
                 raise ResultSchemaError(f"record {index} has out-of-bounds controls.{name}")
+            if index == 0 and control != 0.0:
+                raise ResultSchemaError(f"record {index} has inconsistent initial controls.{name}")
             expected_action = _action_id(control)
             if record["action_ids"][name] != expected_action:
                 raise ResultSchemaError(f"record {index} has inconsistent action_ids.{name}")
@@ -512,8 +514,13 @@ def validate_result_document(document: Any) -> dict[str, Any]:
                 [
                     abs(record["values"][name] - validated_config.variables[name].target)
                     / validated_config.variables[name].span
-                    for name in variable_names
+                    for name in validated_config.variables
                 ]
+            )
+        )
+        expected_entropy = float(
+            np.mean(
+                [_belief_entropy(record["beliefs"][name]) for name in validated_config.variables]
             )
         )
         if (
@@ -535,10 +542,16 @@ def validate_result_document(document: Any) -> dict[str, Any]:
                 rel_tol=1e-9,
                 abs_tol=1e-9,
             )
+            or not math.isclose(
+                float(record["metrics"]["posterior_entropy"]),
+                expected_entropy,
+                rel_tol=1e-9,
+                abs_tol=1e-9,
+            )
             or record["metrics"]["bounded"] != 1.0
         ):
             raise ResultSchemaError(f"record {index} has inconsistent metrics")
-        for name in variable_names:
+        for name, variable in validated_config.variables.items():
             if index == 0:
                 expected_diagnostics = {
                     "trend": 0.0,
@@ -547,20 +560,37 @@ def validate_result_document(document: Any) -> dict[str, Any]:
                     "noise": 0.0,
                 }
             else:
+                previous_values = records[index - 1]["values"]
                 relationship_effect = 0.0
                 relationship = validated_config.relationships.get(name)
                 if relationship:
-                    previous_values = records[index - 1]["values"]
                     for source, coefficient in relationship.dependencies.items():
                         source_config = validated_config.variables[source]
                         normalised = (
                             float(previous_values[source]) - source_config.target
                         ) / source_config.span
-                        relationship_effect += (
-                            coefficient * normalised * validated_config.variables[name].span
-                        )
+                        relationship_effect += coefficient * normalised * variable.span
+                noise = float(record["diagnostics"][f"{name}.noise"])
+                if abs(noise) > 3.0 * variable.noise:
+                    raise ResultSchemaError(
+                        f"record {index} has out-of-bounds diagnostics.{name}.noise"
+                    )
+                proposed = (
+                    float(previous_values[name])
+                    + variable.trend
+                    + relationship_effect
+                    + float(record["controls"][name])
+                    + noise
+                )
+                expected_value = float(np.clip(proposed, variable.minimum, variable.maximum))
+                if not math.isclose(
+                    float(record["values"][name]), expected_value, rel_tol=1e-9, abs_tol=1e-9
+                ):
+                    raise ResultSchemaError(
+                        f"record {index} has inconsistent transition values.{name}"
+                    )
                 expected_diagnostics = {
-                    "trend": validated_config.variables[name].trend,
+                    "trend": variable.trend,
                     "relationship": relationship_effect,
                     "control": float(record["controls"][name]),
                 }
@@ -607,6 +637,14 @@ def _validate_decision(config: BiofirmConfig, decision: ControlDecision) -> None
     for name, action in decision.action_ids.items():
         if isinstance(action, bool) or not isinstance(action, int) or action not in {0, 1, 2}:
             raise SimulationError(f"controller produced invalid action for {name!r}")
+        control = decision.controls[name]
+        if (
+            not _finite_json_number(control)
+            or abs(control) > config.variables[name].control_strength + 1e-9
+        ):
+            raise SimulationError(f"controller produced invalid control for {name!r}")
+        if action != _action_id(control):
+            raise SimulationError(f"controller produced inconsistent action for {name!r}")
 
 
 def parameter_sweep(

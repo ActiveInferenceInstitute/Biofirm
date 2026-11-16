@@ -472,7 +472,6 @@ class ResearchService:
             max_tokens=max_tokens,
         )
         destination = Path(output_dir)
-        manifest_path = destination / "manifest.json"
         written: list[Path] = []
         for job in jobs:
             if job.resumable:
@@ -480,7 +479,6 @@ class ResearchService:
             response = self.execute(job.request)
             document = self.build_document(job, response)
             _atomic_json(job.target, document)
-            written.append(job.target)
             _atomic_text(job.target.with_suffix(".md"), self.render(document))
             manifest_entries[job.relative_json] = _artifact_entry(
                 destination,
@@ -488,18 +486,26 @@ class ResearchService:
                 job.source_hash,
                 cost_usd_estimate=response.cost_usd_estimate(),
             )
-        entries = [manifest_entries[key] for key in sorted(manifest_entries)]
-        _atomic_json(
-            manifest_path,
-            {
-                "schema_version": RESEARCH_MANIFEST_VERSION,
-                "provider": "perplexity",
-                "live": True,
-                "cost_usd_total": sum(_entry_cost(destination, entry) for entry in entries),
-                "entries": entries,
-            },
-        )
+            _write_manifest(destination, manifest_entries)
+            written.append(job.target)
+        if not written:
+            _write_manifest(destination, manifest_entries)
         return written
+
+
+def _write_manifest(destination: Path, manifest_entries: Mapping[str, Mapping[str, Any]]) -> None:
+    """Commit only complete artifact pairs before another provider job starts."""
+    entries = [manifest_entries[key] for key in sorted(manifest_entries)]
+    _atomic_json(
+        destination / "manifest.json",
+        {
+            "schema_version": RESEARCH_MANIFEST_VERSION,
+            "provider": "perplexity",
+            "live": True,
+            "cost_usd_total": sum(_entry_cost(destination, entry) for entry in entries),
+            "entries": entries,
+        },
+    )
 
 
 def build_prompt(region: Mapping[str, Any], persona: str) -> str:

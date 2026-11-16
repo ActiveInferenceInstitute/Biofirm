@@ -67,6 +67,11 @@ controller identity, and package version. Invalid configuration, unavailable
 optional dependencies, malformed provider responses, and failed controller
 calls produce errors; they do not create empty success artifacts.
 
+`parse-description` keeps signed decimal and leading-decimal ranges within their
+original sentences. Extracted values retain units and original evidence
+offsets; nearest-variable attribution and near-equidistant ambiguity reporting
+are unchanged. A range cannot borrow a variable alias from another sentence.
+
 `scenarios` runs the same seeds across multiple validated ecosystem
 configurations and reports per-scenario summaries plus a final-uncertainty
 estimate, so scenario variants can be compared without asserting calibrated
@@ -78,11 +83,15 @@ Live research writes a JSON/Markdown pair for each region/persona plus a
 manifest containing integrity hashes. Every artifact records the request
 hash, prompt version, source hash, a provider-cost estimate, a human review
 state, and a set of structured findings extracted verbatim from the provider
-response (with hedge-aware confidence). Resume is allowed only when both files,
-their hashes, the prompt version/hash, and the source hash agree. Structural
-validation establishes artifact integrity; it never certifies the factual
-quality of citations or research claims. Research execution is split into
-independently rerunnable acquire/prepare/execute/parse/render stages.
+response (with hedge-aware confidence). Each complete pair is hashed and
+checkpointed to the manifest before another provider job starts. A later
+provider or rendering failure leaves committed pairs resumable; an incomplete
+pair is not a completed manifest entry. Resume requires both files, their
+hashes, the prompt version/hash, and the source hash to agree. Manifest costs
+estimate committed artifact entries, not billed provider usage. Structural
+validation establishes artifact integrity, never factual quality of citations
+or research claims. Execution remains split into independently rerunnable
+acquire/prepare/execute/parse/render stages.
 
 ## Configuration
 

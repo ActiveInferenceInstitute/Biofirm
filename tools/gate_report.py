@@ -223,8 +223,8 @@ once per command.
   which the `gnn` arm owns.
 - GNN conformance (`gnn`): **{gnn.get("tests_passed", "unrecorded")} passed**.
   The full suite reports {full.get("tests_skipped", 0)} skips from
-  `tests/test_gnn.py`: its pinned-parser checks need the export the `gnn` arm
-  writes, so they skip there and run here.
+  `tests/test_gnn.py`. Its pinned-parser checks run when a prepared export is
+  available, otherwise they skip; the separate `gnn` arm requires that export.
 
 The preserved pre-gate baseline reported
 **{baseline_test.get("tests_passed", "unrecorded")} passed** at

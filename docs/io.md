@@ -49,6 +49,13 @@ checked against the configuration's variable set, `metrics` is exactly
 `posterior_entropy`, and every value must be finite. Read or write this format
 through `SimulationResult`/`validate_result_document` rather than by hand.
 
+Validation checks initial values and zero initial controls, bounds transition
+noise by three configured standard deviations, reconstructs clipped next-state
+values, and recomputes posterior entropy from recorded beliefs. Action IDs must
+match effective signed control using the `1e-12` hold threshold, including zero
+and near-zero strengths. Artifact keys and schema version remain unchanged.
+Retain rejected historical documents as evidence; do not rewrite them to pass.
+
 Use it as:
 
 ```bash
@@ -65,10 +72,14 @@ Each artifact records the request hash, prompt version, source hash, a
 provider-cost estimate, a human review state, and structured findings extracted
 verbatim from the provider response (with hedge-aware confidence).
 
-Resume is allowed only when both files, their hashes, the prompt version and
-hash, and the source hash agree. Structural validation establishes artifact
-integrity; it never certifies the factual quality of citations or research
-claims. Execution is split into independently rerunnable
+Each complete JSON/Markdown pair is hashed and checkpointed to the manifest
+before another provider job starts. A later provider or rendering failure
+therefore leaves already committed pairs resumable; an incomplete pair is not a
+completed manifest entry. Resume is allowed only when both files, their hashes,
+the prompt version and hash, and the source hash agree. Manifest costs estimate
+committed artifact entries, not billed provider usage. Structural validation
+establishes artifact integrity; it never certifies factual quality of citations
+or research claims. Execution remains split into independently rerunnable
 acquire/prepare/execute/parse/render stages.
 
 ## Where outputs belong

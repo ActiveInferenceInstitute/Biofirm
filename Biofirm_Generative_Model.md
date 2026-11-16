@@ -22,15 +22,23 @@ symmetric `observation_bins` count (an odd number >= 3); the default of 3
 preserves the below/at/above observation model, while larger odd counts (e.g. 5)
 discretize the state around the target more finely.
 
+Variable and relationship mappings are canonicalized by name at construction,
+including dependency accumulation and random-draw assignment. Hash-equivalent
+configurations replay in that order; preserve original artifacts and runtime
+provenance for earlier insertion-order-dependent runs.
+
 ## Active inference
 
 The active-inference controller discretizes each variable into observation
 states around the target using the variable's configured `observation_bins`. It
 constructs the PyMDP `A`, `B`, `C`, and `D` matrices with JAX-compatible arrays,
 uses an empirical prior, performs state inference followed by policy inference,
-and records the selected action. The action space is the three-step
-decrease/hold/increase contract. Deterministic action selection is the default.
-Stochastic selection requires a configured seed and uses a JAX PRNG key.
+and records the effective control action. The action space remains the three-step
+decrease/hold/increase contract. Action IDs are `0` for control below `-1e-12`,
+`1` within `[-1e-12, 1e-12]`, and `2` above `1e-12`. Custom and generated decisions
+must satisfy the same finite, bounded control/action rule before a transition.
+Deterministic action selection is the default. Stochastic selection requires a
+configured seed and uses a JAX PRNG key.
 
 The generative-model structure is specified in Generalized Notation Notation at
 [`models/biofirm_ecosystem_variable.gnn.md`](models/biofirm_ecosystem_variable.gnn.md);
@@ -66,3 +74,8 @@ configuration snapshot and SHA-256 hash, controller name, package version, seed,
 summary, and immutable transition records. Consumers must validate the complete
 document before analysis or visualization; missing, extra, non-finite, or
 tampered fields are errors.
+Validation also checks initial values and zero initial controls, bounds noise by
+three configured standard deviations, reconstructs clipped next-state values and
+recomputes posterior entropy from stored beliefs. Rejected historical documents
+remain evidence and must not be rewritten to pass these checks; keys and schema
+version remain unchanged.

@@ -1,5 +1,8 @@
 from __future__ import annotations
 
+import json
+from pathlib import Path
+
 import pytest
 
 from biofirm.config import (
@@ -178,3 +181,51 @@ def test_config_parsers_reject_unknown_and_malformed_fields() -> None:
     base["seed"] = True
     with pytest.raises(ConfigError, match="seed"):
         BiofirmConfig.from_dict(base)
+
+
+@pytest.mark.parametrize("controller_name", ["slide-rule", "random", "active-inference"])
+def test_hash_equivalent_mapping_orders_replay_identically(
+    tmp_path: Path, controller_name: str
+) -> None:
+    from biofirm.simulation import simulate, write_result
+
+    variables = {
+        name: VariableConfig(
+            name=name,
+            initial=0.5,
+            target=0.0,
+            minimum=0.0,
+            maximum=1.0,
+            noise=0.01 * (index + 1),
+            control_strength=0.1,
+        )
+        for index, name in enumerate(("delta", "gamma", "beta", "alpha"))
+    }
+    relationship = RelationshipConfig("delta", {"gamma": 1.0, "beta": -1e16, "alpha": 1e16})
+    config = BiofirmConfig(
+        "replay-order",
+        variables,
+        {"delta": relationship},
+        controller=ControllerConfig(
+            name=controller_name, stochastic=controller_name == "active-inference"
+        ),
+    )
+    reordered = BiofirmConfig(
+        config.name,
+        dict(reversed(list(config.variables.items()))),
+        {
+            "delta": RelationshipConfig(
+                "delta", dict(reversed(list(relationship.dependencies.items())))
+            )
+        },
+        controller=config.controller,
+    )
+    assert config.sha256 == reordered.sha256
+    first = simulate(config, steps=2, seed=17)
+    assert first.records[1].diagnostics["delta.relationship"] == 0.5
+    assert simulate(reordered, steps=2, seed=17).to_dict() == first.to_dict()
+
+    artifact = write_result(first, tmp_path / "replay.json")
+    stored = json.loads(artifact.read_text(encoding="utf-8"))
+    reloaded = BiofirmConfig.from_dict(stored["config"])
+    assert simulate(reloaded, steps=2, seed=17).to_dict() == stored

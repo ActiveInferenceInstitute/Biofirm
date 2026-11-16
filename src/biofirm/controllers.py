@@ -110,7 +110,7 @@ class RandomController:
         for name, variable in self.config.variables.items():
             action = int(self._rng.integers(0, 3))
             controls[name] = float((action - 1) * variable.control_strength)
-            action_ids[name] = action
+            action_ids[name] = _action_for_control(controls[name])
         return ControlDecision(
             controls=controls,
             action_ids=action_ids,
@@ -205,7 +205,7 @@ class ActiveInferenceController:
                 belief = np.asarray(qs[0]).reshape(-1)
                 vfe = float(np.asarray(info["vfe"]).reshape(-1)[0])
                 controls[name] = float((action - 1) * variable.control_strength)
-                action_ids[name] = action
+                action_ids[name] = _action_for_control(controls[name])
                 beliefs[name] = tuple(float(item) for item in belief)
                 vfes[name] = vfe
                 efes[name] = tuple(float(item) for item in np.asarray(expected).reshape(-1))

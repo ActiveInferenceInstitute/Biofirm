@@ -1,11 +1,20 @@
 from __future__ import annotations
 
 import copy
+import json
+import math
+from collections.abc import Mapping
+from pathlib import Path
 
 import pytest
 
-from biofirm.config import load_config
-from biofirm.controllers import ActiveInferenceController, RandomController, SlideRuleController
+from biofirm.config import BiofirmConfig, load_config
+from biofirm.controllers import (
+    ActiveInferenceController,
+    ControlDecision,
+    RandomController,
+    SlideRuleController,
+)
 from biofirm.simulation import (
     ResultSchemaError,
     SimulationError,
@@ -250,3 +259,138 @@ def test_simulation_result_constructor_and_controller_contracts_fail_closed() ->
 
     with pytest.raises(SimulationError, match="exactly"):
         simulate(config, steps=1, controller=BadController())  # type: ignore[arg-type]
+
+
+def _single_variable_config(**overrides: float) -> BiofirmConfig:
+    variable = {
+        "initial": 5.0,
+        "target": 5.0,
+        "minimum": 0.0,
+        "maximum": 10.0,
+        "trend": 0.5,
+        "noise": 0.0,
+        "control_strength": 0.5,
+    }
+    variable.update(overrides)
+    return BiofirmConfig.from_dict({"name": "artifact-validation", "variables": {"x": variable}})
+
+
+@pytest.mark.parametrize("noise", [0.0, 0.2])
+def test_result_validator_rejects_noise_outside_three_sigma(noise: float) -> None:
+    document = simulate(
+        _single_variable_config(noise=noise), steps=1, seed=3, controller_name="slide-rule"
+    ).to_dict()
+    document["records"][1]["diagnostics"]["x.noise"] = 1e-300 if noise == 0.0 else 3.0 * noise + 0.1
+    with pytest.raises(ResultSchemaError, match="out-of-bounds diagnostics"):
+        validate_result_document(document)
+
+
+def test_result_validator_rejects_unreconstructable_transition() -> None:
+    document = simulate(
+        _single_variable_config(), steps=1, seed=3, controller_name="slide-rule"
+    ).to_dict()
+    record = document["records"][1]
+    record["values"]["x"] = 6.0
+    record["observations"]["x"] = 2
+    record["metrics"]["homeostatic_error"] = 0.1
+    record["metrics"]["homeostatic_score"] = 0.9
+    document["summary"]["final_homeostatic_error"] = 0.1
+    with pytest.raises(ResultSchemaError, match="inconsistent transition"):
+        validate_result_document(document)
+
+
+@pytest.mark.parametrize("component", ["values", "controls"])
+def test_result_validator_rejects_inconsistent_initial_record(component: str) -> None:
+    document = simulate(_single_variable_config(), steps=0, controller_name="slide-rule").to_dict()
+    record = document["records"][0]
+    if component == "values":
+        record["values"]["x"] = 6.0
+        record["observations"]["x"] = 2
+        record["metrics"]["homeostatic_error"] = 0.1
+        record["metrics"]["homeostatic_score"] = 0.9
+        document["summary"]["final_homeostatic_error"] = 0.1
+    else:
+        record["controls"]["x"] = 0.25
+        record["action_ids"]["x"] = 2
+        record["metrics"]["control_effort"] = 0.25
+        document["summary"]["total_control_effort"] = 0.25
+    with pytest.raises(ResultSchemaError, match=f"inconsistent initial {component}"):
+        validate_result_document(document)
+
+
+@pytest.mark.parametrize("entropy", [-1.0, 0.0, math.log(2.0) + 0.25])
+def test_result_validator_recomputes_posterior_entropy(entropy: float) -> None:
+    document = simulate(
+        _single_variable_config(), steps=1, seed=3, controller_name="slide-rule"
+    ).to_dict()
+    record = document["records"][1]
+    record["beliefs"]["x"] = [0.5, 0.5, 0.0]
+    record["metrics"]["posterior_entropy"] = entropy
+    with pytest.raises(ResultSchemaError, match="inconsistent metrics"):
+        validate_result_document(document)
+
+
+@pytest.mark.parametrize(("initial", "trend", "expected"), [(9.0, 3.0, 10.0), (1.0, -3.0, 0.0)])
+def test_clipped_transition_artifacts_round_trip(
+    tmp_path: Path, initial: float, trend: float, expected: float
+) -> None:
+    result = simulate(
+        _single_variable_config(initial=initial, target=initial, trend=trend),
+        steps=1,
+        controller_name="slide-rule",
+    )
+    path = write_result(result, tmp_path / "clipped.json")
+    document = json.loads(path.read_text(encoding="utf-8"))
+    assert document["records"][1]["values"]["x"] == expected
+    assert document["records"][1]["diagnostics"]["x.trend"] == trend
+    assert document == result.to_dict()
+
+
+@pytest.mark.parametrize(
+    "controller_name", ["slide-rule", "random", "active-inference", "business"]
+)
+@pytest.mark.parametrize("control_strength", [0.0, 1e-13, 1e-12])
+def test_zero_strength_action_contract_round_trips(
+    tmp_path: Path, controller_name: str, control_strength: float
+) -> None:
+    raw = load_config().to_dict()
+    for variable in raw["variables"].values():
+        variable["control_strength"] = control_strength
+    config = BiofirmConfig.from_dict(raw)
+    result = simulate(config, steps=2, seed=2, controller_name=controller_name)
+    for record in result.records:
+        assert all(abs(control) <= control_strength for control in record.controls.values())
+        assert all(action == 1 for action in record.action_ids.values())
+    path = write_result(result, tmp_path / "zero-strength.json")
+    assert json.loads(path.read_text(encoding="utf-8")) == result.to_dict()
+
+
+@pytest.mark.parametrize(
+    ("control", "action", "message"),
+    [
+        (0.0, 0, "inconsistent action"),
+        (0.0, 2, "inconsistent action"),
+        (1e-13, 2, "inconsistent action"),
+        (-1e-13, 0, "inconsistent action"),
+        (0.25, 0, "inconsistent action"),
+        (-0.25, 2, "inconsistent action"),
+        (float("nan"), 1, "invalid control"),
+        (float("inf"), 2, "invalid control"),
+        (0.6, 2, "invalid control"),
+    ],
+)
+def test_simulate_rejects_inconsistent_decision_before_success(
+    control: float, action: int, message: str
+) -> None:
+    class FixedController:
+        def reset(self, seed: int) -> None:
+            del seed
+
+        def act(self, values: Mapping[str, float]) -> ControlDecision:
+            return ControlDecision(
+                controls={name: control for name in values},
+                action_ids={name: action for name in values},
+            )
+
+    with pytest.raises(SimulationError, match=message):
+        simulate(_single_variable_config(), steps=1, controller=FixedController())

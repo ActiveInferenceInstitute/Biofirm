@@ -9,6 +9,12 @@ When no `--config` is supplied, the packaged default is used
 non-finite numbers, invalid ranges, duplicate or alias-colliding variable
 names, dependency cycles, and incomplete action vectors.
 
+Variable, relationship-target and dependency mappings are frozen in canonical
+name order at construction. Hash-equivalent configurations therefore assign
+random draws and accumulate relationship effects in the same order. This changes
+replay semantics for earlier insertion-order-dependent runs: retain their original
+artifacts and package-version provenance rather than regenerating evidence.
+
 ## Top-level keys
 
 | Key | Type | Required | Default | Meaning |
@@ -69,6 +75,8 @@ acyclic.
 The active-inference controller builds the PyMDP `A`, `B`, `C`, and `D`
 matrices with JAX-compatible arrays using each variable's `observation_bins`.
 The action space is the fixed three-step decrease/hold/increase contract.
+Action IDs describe effective control: `0` below `-1e-12`, `1` within
+`[-1e-12, 1e-12]`, and `2` above `1e-12`, including zero control strength.
 
 ## Output definition
 
@@ -94,11 +102,7 @@ The action space is the fixed three-step decrease/hold/increase contract.
       "unit": "index"
     }
   },
-  "relationships": {
-    "biodiversity": {
-      "dependencies": { "water_quality": 0.1 }
-    }
-  },
+  "relationships": {},
   "controller": {
     "name": "active-inference",
     "stochastic": false

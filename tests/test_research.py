@@ -1,9 +1,12 @@
 from __future__ import annotations
 
+import hashlib
 import json
 import threading
 import time
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
+from pathlib import Path
+from typing import Any
 
 import pytest
 
@@ -12,6 +15,7 @@ from biofirm.research import (
     ResearchError,
     ResearchFinding,
     ResearchRequest,
+    ResearchResponse,
     ResearchService,
     _parse_response,
     build_prompt,
@@ -414,3 +418,71 @@ def test_manifest_records_cost_total_findings_and_review(tmp_path, server, monke
     }
     with pytest.raises(ResearchError, match="review status"):
         set_review_status(document, "unknown")
+
+
+@pytest.mark.parametrize("failure_stage", ["provider", "render"])
+def test_interrupted_research_preserves_committed_pairs_on_resume(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, failure_stage: str
+) -> None:
+    class InterruptingProvider:
+        def __init__(self) -> None:
+            self.calls: list[str] = []
+            self.resuming = False
+
+        def complete(self, request: ResearchRequest) -> ResearchResponse:
+            self.calls.append(request.region_id)
+            if failure_stage == "provider" and request.region_id == "r2" and not self.resuming:
+                raise ResearchError("interrupted second job")
+            return ResearchResponse(
+                content=f"Response {len(self.calls)} for {request.region_id}.",
+                citations=("https://example.test/source",),
+                model=request.model,
+                usage={"prompt_tokens": 100, "completion_tokens": 50, "total_tokens": 150},
+                provider_request_id=f"request-{len(self.calls)}",
+            )
+
+    provider = InterruptingProvider()
+    service = ResearchService(provider)
+    original_render = service.render
+
+    def render(document: dict[str, Any]) -> str:
+        if (
+            failure_stage == "render"
+            and document["request"]["region_id"] == "r2"
+            and not provider.resuming
+        ):
+            raise ResearchError("interrupted second job")
+        return original_render(document)
+
+    monkeypatch.setattr(service, "render", render)
+    regions = [{"_id": "r1", "name": "First"}, {"_id": "r2", "name": "Second"}]
+    with pytest.raises(ResearchError, match="interrupted second job"):
+        service.run(regions, ["ecologist"], output_dir=tmp_path, live=True)
+
+    first_json = tmp_path / "r1" / "ecologist.json"
+    first_markdown = first_json.with_suffix(".md")
+    completed_pair = (first_json.read_bytes(), first_markdown.read_bytes())
+    manifest_path = tmp_path / "manifest.json"
+    manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+    assert [entry["json"] for entry in manifest["entries"]] == ["r1/ecologist.json"]
+    first_entry = manifest["entries"][0]
+    assert first_entry["json_sha256"] == hashlib.sha256(completed_pair[0]).hexdigest()
+    assert first_entry["markdown_sha256"] == hashlib.sha256(completed_pair[1]).hexdigest()
+    one_job_cost = estimate_cost({"prompt_tokens": 100, "completion_tokens": 50})
+    assert manifest["cost_usd_total"] == pytest.approx(one_job_cost)
+    second_json = tmp_path / "r2" / "ecologist.json"
+    assert second_json.exists() == (failure_stage == "render")
+    assert not second_json.with_suffix(".md").exists()
+
+    provider.resuming = True
+    written = ResearchService(provider).run(regions, ["ecologist"], output_dir=tmp_path, live=True)
+    assert written == [second_json]
+    assert provider.calls == ["r1", "r2", "r2"]
+    assert (first_json.read_bytes(), first_markdown.read_bytes()) == completed_pair
+    resumed = json.loads(manifest_path.read_text(encoding="utf-8"))
+    assert [entry["json"] for entry in resumed["entries"]] == [
+        "r1/ecologist.json",
+        "r2/ecologist.json",
+    ]
+    assert resumed["entries"][0] == first_entry
+    assert resumed["cost_usd_total"] == pytest.approx(2.0 * one_job_cost)
