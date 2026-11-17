@@ -6,7 +6,7 @@ marked as such; do not treat it as an implementation contract.
 
 ## Development setup
 
-Biofirm supports Python 3.11 and 3.12. The committed `uv.lock` provides a
+Biofirm supports Python 3.12 and newer (CI tests 3.12, 3.13 and 3.14). The committed `uv.lock` provides a
 hash-locked environment:
 
 ```bash
@@ -28,9 +28,9 @@ python -m pip install -e ".[dev,analysis,visualization,documents]"
 The runtime dependencies in `pyproject.toml` are exact pins, and the committed
 `uv.lock` carries the hashes CI verifies with `uv lock --check`. The hashed
 requirements export is derived from the lock at run time and is not committed.
-Each runtime pin is the newest release
-that satisfies every Python version this project supports (3.11 and 3.12)
-together with `inferactively-pymdp`:
+The pins below were qualified while Python 3.11 was supported. The 3.12 floor
+now admits the newer `numpy` and `jax` releases; raising those pins is a
+separate change that must pass `./run.sh gate` on every CI interpreter:
 
 | Pin | Newest release | Why the pin stops there |
 | --- | --- | --- |
@@ -48,8 +48,8 @@ uv export --all-extras --format requirements.txt --locked --no-emit-project \
   --no-header --output-file /tmp/biofirm-requirements.lock
 ```
 
-A pin that needs Python 3.12 cannot be adopted while 3.11 stays in the support
-matrix, so `requires-python` moves before the runtime pins do.
+A pin that needs a newer Python than the `requires-python` floor cannot be
+adopted, so the floor moves before the runtime pins do.
 
 ## Checks
 

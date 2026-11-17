@@ -20,7 +20,7 @@ business decisions.
 
 ## Install
 
-Biofirm supports Python 3.11 and 3.12.
+Biofirm supports Python 3.12 and newer; CI tests 3.12, 3.13 and 3.14.
 
 ```bash
 python -m venv .venv
@@ -30,8 +30,8 @@ biofirm validate
 ```
 
 For a hash-locked development environment, install `uv` and run
-`uv sync --frozen --all-extras`; the committed `uv.lock` covers Python 3.11 and
-3.12 with platform markers, and CI derives the hashed requirements export from
+`uv sync --frozen --all-extras`; the committed `uv.lock` covers Python 3.12 and
+newer with platform markers, and CI derives the hashed requirements export from
 it at run time rather than reading a committed copy.
 
 All offline commands use the packaged configuration unless `--config` is

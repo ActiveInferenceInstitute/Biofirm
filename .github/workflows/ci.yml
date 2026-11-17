@@ -20,14 +20,14 @@ permissions:
 jobs:
   quality:
     timeout-minutes: 60
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     env:
       BIOFIRM_PYTHON: "3.12"
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           fetch-depth: 0
-      - uses: ActiveInferenceInstitute/.github/.github/actions/setup-python-uv@7159e67315330aac8e414aebae0ad1e999a41448 # pinned composite action
+      - uses: ActiveInferenceInstitute/.github/.github/actions/setup-python-uv@7159e67315330aac8e414aebae0ad1e999a41448 # untagged; .github main 2026-11-07 (PR #2)
         with:
           python-version: "3.12"
       - name: Lock the environment
@@ -55,16 +55,16 @@ jobs:
 
   tests:
     timeout-minutes: 60
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     strategy:
       fail-fast: false
       matrix:
-        python-version: ["3.11", "3.12"]
+        python-version: ["3.12", "3.13", "3.14"]
     env:
       BIOFIRM_PYTHON: ${{ matrix.python-version }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-      - uses: ActiveInferenceInstitute/.github/.github/actions/setup-python-uv@7159e67315330aac8e414aebae0ad1e999a41448 # pinned composite action
+      - uses: ActiveInferenceInstitute/.github/.github/actions/setup-python-uv@7159e67315330aac8e414aebae0ad1e999a41448 # untagged; .github main 2026-11-07 (PR #2)
         with:
           python-version: ${{ matrix.python-version }}
       - name: Lock the environment
@@ -83,12 +83,12 @@ jobs:
     # pin is checked here rather than assumed. The arm also writes the resolved
     # parser version to the job summary.
     name: gnn conformance (pinned)
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     env:
       BIOFIRM_PYTHON: "3.12"
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-      - uses: ActiveInferenceInstitute/.github/.github/actions/setup-python-uv@7159e67315330aac8e414aebae0ad1e999a41448 # pinned composite action
+      - uses: ActiveInferenceInstitute/.github/.github/actions/setup-python-uv@7159e67315330aac8e414aebae0ad1e999a41448 # untagged; .github main 2026-11-07 (PR #2)
         with:
           python-version: "3.12"
       - name: Lock the environment

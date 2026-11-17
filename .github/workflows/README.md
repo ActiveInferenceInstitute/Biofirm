@@ -27,7 +27,7 @@ credential at a path with an exact historical exception).
 
 ## `tests`
 
-Matrix Python 3.11 and 3.12. Each leg runs `sync` and `test`, the full suite
+Matrix Python 3.12, 3.13 and 3.14. Each leg runs `sync` and `test`, the full suite
 with the 90% coverage floor. This is the only work duplicated per version.
 
 ## `gnn conformance (pinned)`
