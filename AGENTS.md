@@ -33,7 +33,7 @@ without `tests/test_gnn.py`, which the `gnn` arm owns.
 CI has three jobs. `quality` runs every interpreter-independent arm once on
 Python 3.12, through the pinned composite action
 `ActiveInferenceInstitute/.github/.github/actions/setup-python-uv@7159e67315330aac8e414aebae0ad1e999a41448`.
-`tests` runs only `./run.sh test` on Python 3.11 and 3.12. The third job is
+`tests` runs only `./run.sh test` on Python 3.12, 3.13 and 3.14. The third job is
 keyed `gnn-conformance` with the exact display name
 `gnn conformance (pinned)`: keep both, and keep [.github/GNN.md](.github/GNN.md)
 as the pointer that records what it parses. It fetches the parser revision

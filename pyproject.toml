@@ -7,7 +7,7 @@ name = "biofirm"
 dynamic = ["version"]
 description = "Reproducible ecological control, bioregion research, and decision analysis."
 readme = "README.md"
-requires-python = ">=3.11,<3.13"
+requires-python = ">=3.12"
 license = { text = "MIT" }
 authors = [{ name = "Active Inference Institute" }]
 dependencies = [
@@ -59,7 +59,7 @@ packages = ["src/biofirm"]
 path = "src/biofirm/_version.py"
 
 [tool.ruff]
-target-version = "py311"
+target-version = "py312"
 line-length = 100
 src = ["src", "tests"]
 

@@ -210,11 +210,11 @@ before it is added.
   criteria exists; the experimental `graph` interface already enforces the
   `experimental` label and descriptive-only framing. Blocked on that dataset
   (external); no owner in this repository.
-- **BF-025 — Python 3.12-only floor.** `requires-python` is `>=3.11,<3.13`, so
-  the newest `numpy` 2.5.x and `jax` >= 0.11.0 stay excluded and BF-020's pins
-  are qualified rather than current. Adopting a 3.12-only floor would unlock
-  them and drop the 3.11 matrix leg. Blocked on a maintainer decision about
-  3.11 support; no external dependency.
+- **BF-025 — Python 3.12-only floor.** Floor adopted 2026-11-16:
+  `requires-python` is `>=3.12` (the `<3.13` cap is dropped), the 3.11 matrix
+  leg is gone and CI tests 3.12, 3.13 and 3.14. Remaining: raise BF-020's
+  `numpy` (2.5.x) and `jax` (>= 0.11.0) pins, which the new floor admits, in a
+  separate change gated on every CI interpreter.
 
 ## Documentation review (2026-08-02)
 
