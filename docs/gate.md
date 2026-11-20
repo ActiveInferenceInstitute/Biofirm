@@ -22,19 +22,19 @@ document.
 
 | Arm | Before | After | What it runs |
 | --- | --- | --- | --- |
-| `sync` | 0.0s | 0.0s | Lock the environment for the selected interpreter. |
-| `deps` | 0.0s | 0.0s | Verify uv.lock matches the manifests. |
-| `lint` | 1.0s | 0.1s | ruff check and ruff format --check on src tests tools. |
-| `types` | 18.0s | 0.5s | Strict mypy on src/biofirm. |
-| `test` | 74.0s | 22.7s | pytest with the 90% coverage floor (the full suite). |
-| `test-fast` | 27.0s | 24.1s | pytest without coverage and without tests/test_gnn.py. |
-| `links` | 3.0s | 0.5s | tools/verify_repository.py: relative links, source data, notebooks, credential patterns, required documents. |
-| `docs` | 1.0s | 0.2s | biofirm validate and biofirm validate-data. |
-| `bandit` | 2.0s | 0.7s | bandit on src and tools. |
-| `build` | 28.0s | 6.5s | Build sdist and wheel into dist/. |
-| `install` | 32.0s | 51.4s | Install dist/ into a clean venv and exercise the CLI outside the checkout, from the locked requirements. |
-| `secret` | 54.0s | 15.4s | gitleaks scan with a synthetic negative control. |
-| `gnn` | 5.0s | 7.7s | Pinned GNN conformance: the shared gnn.importers reader from the pinned revision, then tests/test_gnn.py. |
+| `sync` | 0.0s | 0.2s | Lock the environment for the selected interpreter. |
+| `deps` | 0.0s | 0.1s | Verify uv.lock matches the manifests. |
+| `lint` | 1.0s | 0.2s | ruff check and ruff format --check on src tests tools. |
+| `types` | 18.0s | 0.9s | Strict mypy on src/biofirm. |
+| `test` | 74.0s | 38.6s | pytest with the 90% coverage floor (the full suite). |
+| `test-fast` | 27.0s | 50.7s | pytest without coverage and without tests/test_gnn.py. |
+| `links` | 3.0s | 2.5s | tools/verify_repository.py: relative links, source data, notebooks, credential patterns, required documents. |
+| `docs` | 1.0s | 1.0s | biofirm validate and biofirm validate-data. |
+| `bandit` | 2.0s | 1.0s | bandit on src and tools. |
+| `build` | 28.0s | 51.9s | Build sdist and wheel into dist/. |
+| `install` | 32.0s | 170.9s | Install dist/ into a clean venv and exercise the CLI outside the checkout, from the locked requirements. |
+| `secret` | 54.0s | 24.9s | gitleaks scan with a synthetic negative control. |
+| `gnn` | 5.0s | 16.2s | Pinned GNN conformance: the shared gnn.importers reader from the pinned revision, then tests/test_gnn.py. |
 
 `gate` and `all` are meta arms and are not timed here: `gate` checks this
 document and `all` runs the other arms in order. `test-fast` had no CI arm
@@ -48,14 +48,14 @@ once per command.
 
 ## Measured facts
 
-- Full suite (`test`): **158 passed** with
+- Full suite (`test`): **160 passed** with
   **90.91% coverage** against the
   90% floor.
 - Fast arm (`test-fast`): **145 passed**.
   It runs the same suite without coverage and without `tests/test_gnn.py`,
   which the `gnn` arm owns.
 - GNN conformance (`gnn`): **15 passed**.
-  The full suite reports 2 skips from
+  The full suite reports 0 skips from
   `tests/test_gnn.py`. Its pinned-parser checks run when a prepared export is
   available, otherwise they skip; the separate `gnn` arm requires that export.
 
@@ -74,8 +74,8 @@ CI compares them.
 | Host | `Darwin/arm64` | `Darwin/arm64` |
 | Python | `3.12.16` | `3.12.16` |
 | uv | `0.13.7` | `0.13.7` |
-| `uv.lock` SHA-256 | not recorded | `0140008112bd2dba66d7eaa5d24b736deebc6147a0bb1101d096de0536047431` |
-| Recorded | `2026-11-12` | `2026-11-16T17:42:44-0800` |
+| `uv.lock` SHA-256 | not recorded | `32bd1cb71c2017846b0dc1e0bd5328a06daa84a38a93499a01117ca93a7ef6b0` |
+| Recorded | `2026-11-12` | `2026-11-20T14:14:42-0800` |
 
 ## Receipt
 
@@ -85,71 +85,70 @@ CI compares them.
   "arms": [
     {
       "arm": "sync",
-      "seconds": 0.0,
+      "seconds": 0.2,
       "status": "passed"
     },
     {
       "arm": "deps",
-      "seconds": 0.0,
-      "status": "passed"
-    },
-    {
-      "arm": "lint",
       "seconds": 0.1,
       "status": "passed"
     },
     {
+      "arm": "lint",
+      "seconds": 0.2,
+      "status": "passed"
+    },
+    {
       "arm": "types",
-      "seconds": 0.5,
+      "seconds": 0.9,
       "status": "passed"
     },
     {
       "arm": "test",
       "coverage_percent": 90.91,
-      "seconds": 22.7,
+      "seconds": 38.6,
       "status": "passed",
-      "tests_passed": 158,
-      "tests_skipped": 2
+      "tests_passed": 160
     },
     {
       "arm": "test-fast",
-      "seconds": 24.1,
+      "seconds": 50.7,
       "status": "passed",
       "tests_passed": 145
     },
     {
       "arm": "links",
-      "seconds": 0.5,
+      "seconds": 2.5,
       "status": "passed"
     },
     {
       "arm": "docs",
-      "seconds": 0.2,
+      "seconds": 1.0,
       "status": "passed"
     },
     {
       "arm": "bandit",
-      "seconds": 0.7,
+      "seconds": 1.0,
       "status": "passed"
     },
     {
       "arm": "build",
-      "seconds": 6.5,
+      "seconds": 51.9,
       "status": "passed"
     },
     {
       "arm": "install",
-      "seconds": 51.4,
+      "seconds": 170.9,
       "status": "passed"
     },
     {
       "arm": "secret",
-      "seconds": 15.4,
+      "seconds": 24.9,
       "status": "passed"
     },
     {
       "arm": "gnn",
-      "seconds": 7.7,
+      "seconds": 16.2,
       "status": "passed",
       "tests_passed": 15
     }
@@ -242,13 +241,13 @@ CI compares them.
   },
   "coverage_floor": 90,
   "environment": {
-    "lock_sha256": "0140008112bd2dba66d7eaa5d24b736deebc6147a0bb1101d096de0536047431",
+    "lock_sha256": "32bd1cb71c2017846b0dc1e0bd5328a06daa84a38a93499a01117ca93a7ef6b0",
     "machine": "arm64",
     "python": "3.12.16",
     "system": "Darwin",
     "uv": "0.13.7"
   },
-  "recorded": "2026-11-16T17:42:44-0800",
+  "recorded": "2026-11-20T14:14:42-0800",
   "schema": "biofirm-gate-receipt/v1"
 }
 ```
