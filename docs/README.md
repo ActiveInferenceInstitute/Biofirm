@@ -15,11 +15,11 @@ data, or historical design material.
 
 - [Project overview and quick start](../README.md) — install, commands, safety
   boundaries, and development checks.
-- [Configuration](configuration.md) — how a run is configured, the packaged
+- [Configuration](guides/configuration.md) — how a run is configured, the packaged
   default, environment prerequisites, and the `--config` flag.
-- [I/O and artifacts](io.md) — the simulation result document, the research
+- [I/O and artifacts](reference/io.md) — the simulation result document, the research
   JSON/Markdown pairs and manifest, atomic writes, and where outputs belong.
-- [GNN specification](gnn.md) — the generative-model specification, its loader
+- [GNN specification](reference/gnn.md) — the generative-model specification, its loader
   and drift guard, and the pinned upstream revision.
 - [Gate and measured arm times](gate.md) — the single check entry point
   (`run.sh`), its arms, and the measured wall times, test count and coverage.
@@ -66,3 +66,7 @@ automatically), and must be registered in
 - [Repository root README](../README.md)
 - [Agent guidance for this folder](AGENTS.md)
 - [Repository-wide documentation index](documentation-index.md)
+
+## Manuscript
+
+[Paper source and template render instructions](manuscript/README.md).

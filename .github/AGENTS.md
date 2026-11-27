@@ -8,7 +8,7 @@ Rules for editing CI and GitHub metadata.
   `./run.sh gate` fails when the arm list and the document disagree.
 - Do not rename the job key `gnn-conformance` or its display name
   `gnn conformance (pinned)`. [GNN.md](GNN.md), [../models/README.md](../models/README.md)
-  and [../docs/gnn.md](../docs/gnn.md) document that name.
+  and [../docs/gnn.md](../docs/reference/gnn.md) document that name.
 - Keep action pins as full commit SHAs with a version comment, including the
   composite action `ActiveInferenceInstitute/.github/.github/actions/setup-python-uv`.
   Dependabot updates them; review the SHA, not just the comment.
@@ -16,7 +16,7 @@ Rules for editing CI and GitHub metadata.
   `gnn` arm, not by `tests/test_gnn.py`. It carries schema
   `gnn-importer-pin/v1`; changing `revision`, `tag` or `version` requires a
   matching update in [../models/README.md](../models/README.md),
-  [../docs/gnn.md](../docs/gnn.md) and [GNN.md](GNN.md), and a passing
+  [../docs/gnn.md](../docs/reference/gnn.md) and [GNN.md](GNN.md), and a passing
   `./run.sh gnn`.
 - Do not re-add per-version lint, type, documentation, build or install steps to
   the `tests` matrix. Those arms are interpreter-independent and run once on

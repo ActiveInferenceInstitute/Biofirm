@@ -1,0 +1,30 @@
+paper:
+  title: "Reproducible bounded ecosystem control with Biofirm"
+  subtitle: "A software methods report on simulated dynamics and verifiable artifacts"
+
+authors:
+  - name: "Active Inference Institute"
+
+publication:
+  repository_url: "https://github.com/ActiveInferenceInstitute/Biofirm"
+  release_status: "unreleased"
+
+metadata:
+  language: "en"
+  license: "MIT"
+
+keywords:
+  - "ecological simulation"
+  - "active inference"
+  - "reproducibility"
+  - "artifact validation"
+
+manuscript_dir: "docs/manuscript"
+
+render:
+  formats:
+    pdf: true
+    html: true
+    slides: false
+    docx: false
+    epub: false
