@@ -7,7 +7,7 @@
   already owns: CI and the local gate would drift.
 - The `gnn conformance (pinned)` display name and the `gnn-conformance`
   job key are referenced by [../../models/README.md](../../models/README.md),
-  [../GNN.md](../GNN.md), [../../docs/gnn.md](../../docs/gnn.md) and the
+  [../GNN.md](../GNN.md), [../../docs/gnn.md](../../docs/reference/gnn.md) and the
   repository [AGENTS.md](../../AGENTS.md). Keep both unchanged.
 - Keep `quality` single-version. Its arms are interpreter-independent; adding
   them to the `tests` matrix duplicates work without checking anything new.

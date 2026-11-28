@@ -1,14 +1,14 @@
 # Configuration
 
 Biofirm runs are configured by a single JSON document. The full field-by-field
-reference is [`../CONFIGURATION.md`](../CONFIGURATION.md); this page covers how
+reference is [`../CONFIGURATION.md`](../../CONFIGURATION.md); this page covers how
 configuration flows through the CLI and what an operator must supply in the
 environment.
 
 ## Where configuration comes from
 
 - **Packaged default.** With no `--config`, every command loads
-  [`../src/biofirm/data/ecosystem.json`](../src/biofirm/data/ecosystem.json),
+  [`../src/biofirm/data/ecosystem.json`](../../src/biofirm/data/ecosystem.json),
   which is also the schema example.
 - **Explicit file.** Pass `--config path.json` to any command to use a
   validated file instead.
@@ -40,7 +40,7 @@ live-research path:
   trusted HTTPS-compatible providers. Credentials are never written into
   artifacts and never sent over insecure HTTP by the CLI.
 
-Copy [`../.env.example`](../.env.example) as a reminder of the variable name, but
+Copy [`../.env.example`](../../.env.example) as a reminder of the variable name, but
 never commit a key.
 
 ## Reproducibility and output
@@ -63,7 +63,7 @@ The `controller.name` selects one of `active-inference`, `slide-rule`, `random`,
 or `business`. The active-inference controller builds PyMDP `A`, `B`, `C`, and
 `D` matrices with JAX-compatible arrays using each variable's
 `observation_bins`; the action space is the fixed three-step
-decrease/hold/increase contract. See [`../CONFIGURATION.md`](../CONFIGURATION.md)
+decrease/hold/increase contract. See [`../CONFIGURATION.md`](../../CONFIGURATION.md)
 for the parameter table.
 Action IDs describe effective signed control, including zero and near-zero
 strengths, using the `1e-12` threshold in the reference. Custom decisions must
@@ -71,7 +71,7 @@ obey the same finite, bounded control/action contract before simulation succeeds
 
 ## Related
 
-- [Configuration reference](../CONFIGURATION.md) — every key, type, and default.
-- [Generative model](../Biofirm_Generative_Model.md) — what the controller and
+- [Configuration reference](../../CONFIGURATION.md) — every key, type, and default.
+- [Generative model](../../Biofirm_Generative_Model.md) — what the controller and
   transition equation compute.
-- [I/O and artifacts](io.md) — what a run writes and where.
+- [I/O and artifacts](../reference/io.md) — what a run writes and where.

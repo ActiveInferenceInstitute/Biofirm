@@ -13,7 +13,7 @@ SECRET_PATTERNS = (
     re.compile(r"(?i)(?:openai|perplexity|anthropic)[ _-]?api[ _-]?key\s*[:=]\s*['\"]?\w{20,}"),
 )
 MARKDOWN_LINK_PATTERN = re.compile(r"\[[^\]]+\]\(([^)]+)\)")
-SKIP_PARTS = {".git", ".venv", "artifacts", "Outputs", "Visualizations", "__pycache__"}
+SKIP_PARTS = {".git", ".venv", "artifacts", "output", "Outputs", "Visualizations", "__pycache__"}
 
 
 def main() -> int:

@@ -8,7 +8,7 @@ or another ignored runtime directory; authoritative source data under
 
 ## Atomic writes
 
-[`../src/biofirm/io.py`](../src/biofirm/io.py) provides the writers used
+[`../src/biofirm/io.py`](../../src/biofirm/io.py) provides the writers used
 throughout the package:
 
 - `atomic_write_text(path, value)` writes through a same-directory temporary
@@ -89,12 +89,12 @@ acquire/prepare/execute/parse/render stages.
   `Visualizations/` subdirectories, `dist/`, caches, and `.coverage`. Do not
   commit generated output.
 - The authoritative data contracts live in
-  [`../CONFIGURATION.md`](../CONFIGURATION.md) (configuration) and
-  [`../Biofirm_Generative_Model.md`](../Biofirm_Generative_Model.md)
+  [`../CONFIGURATION.md`](../../CONFIGURATION.md) (configuration) and
+  [`../Biofirm_Generative_Model.md`](../../Biofirm_Generative_Model.md)
   (transition/observation/controller semantics).
 
 ## Related
 
-- [Configuration](configuration.md) — how a run is configured.
-- [Generative model](../Biofirm_Generative_Model.md) — record semantics.
-- [`../src/biofirm/io.py`](../src/biofirm/io.py) — the atomic writers.
+- [Configuration](../guides/configuration.md) — how a run is configured.
+- [Generative model](../../Biofirm_Generative_Model.md) — record semantics.
+- [`../src/biofirm/io.py`](../../src/biofirm/io.py) — the atomic writers.

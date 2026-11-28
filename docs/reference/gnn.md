@@ -10,28 +10,28 @@ instantiation.
 
 ## Files
 
-- [`../models/biofirm_ecosystem_variable.gnn.md`](../models/biofirm_ecosystem_variable.gnn.md)
+- [`../models/biofirm_ecosystem_variable.gnn.md`](../../models/biofirm_ecosystem_variable.gnn.md)
   — the specification: one hidden factor (`s_bin`, three levels
   below/at/above target), one identity-likelihood modality (`o_level`, three),
   the three decrease/hold/increase controls, target-peaked preferences, and a
   uniform prior.
-- [`../src/biofirm/gnn.py`](../src/biofirm/gnn.py) — a loader that parses the
+- [`../src/biofirm/gnn.py`](../../src/biofirm/gnn.py) — a loader that parses the
   specification **without** the upstream `gnn` package (`load_spec`,
   `declared_matrix`, `conformance_issues`).
-- [`../src/biofirm/pymdp.py`](../src/biofirm/pymdp.py) — builds the PyMDP/JAX
+- [`../src/biofirm/pymdp.py`](../../src/biofirm/pymdp.py) — builds the PyMDP/JAX
   matrices the specification must match.
-- [`../tests/test_gnn.py`](../tests/test_gnn.py) — checks the declared `A`, `B`,
+- [`../tests/test_gnn.py`](../../tests/test_gnn.py) — checks the declared `A`, `B`,
   `C`, `D` matrices equal `build_active_inference_matrices(3)` for the default
   model and hold the invariants for odd `observation_bins` counts 3, 5, 7 and 9,
   and re-validates with the pinned upstream parser from the export the `gnn` arm
   writes. It does not read the pin; the shared reader does.
-- [`../models/AGENTS.md`](../models/AGENTS.md) — the editing contract.
-- [`../models/README.md`](../models/README.md) — the full model reference.
+- [`../models/AGENTS.md`](../../models/AGENTS.md) — the editing contract.
+- [`../models/README.md`](../../models/README.md) — the full model reference.
 
 ## Pin
 
 The canonical pin file is
-[`../.github/gnn-pin.json`](../.github/gnn-pin.json), schema
+[`../.github/gnn-pin.json`](../../.github/gnn-pin.json), schema
 `gnn-importer-pin/v1`:
 
 - Repository: `ActiveInferenceInstitute/Generalized_Notation_Notation`
@@ -59,7 +59,7 @@ python -m gnn.importers check --repo . --require-pointer \
 ```
 
 That validates the pin's shape and repository, the pointer
-[`../.github/GNN.md`](../.github/GNN.md) and the selected specification's
+[`../.github/GNN.md`](../../.github/GNN.md) and the selected specification's
 syntax, with the parser the pin names. `tests/test_gnn.py` then runs in the same
 export.
 
@@ -69,7 +69,7 @@ request. The pointer is the short record of what that job parses and what it
 does not cover.
 
 Measured arm times, the test count and the coverage total live in
-[gate.md](gate.md), which [`../tools/gate_report.py`](../tools/gate_report.py)
+[gate.md](../gate.md), which [`../tools/gate_report.py`](../../tools/gate_report.py)
 refreshes.
 
 ## GNN–FEP member cutover: adopted
@@ -104,8 +104,8 @@ This repository has no manuscript producer, so the contract's
 
 Editing the specification or the matrices without the other fails
 `tests/test_gnn.py`. A spec change requires the matching change in
-[`../src/biofirm/gnn.py`](../src/biofirm/gnn.py) invariants and the
-[`../src/biofirm/pymdp.py`](../src/biofirm/pymdp.py) matrices, and the pin must
+[`../src/biofirm/gnn.py`](../../src/biofirm/gnn.py) invariants and the
+[`../src/biofirm/pymdp.py`](../../src/biofirm/pymdp.py) matrices, and the pin must
 stay at the newest GNN release. Re-validate with the pinned parser:
 
 ```bash
@@ -126,6 +126,6 @@ and matrix agreement and never certifies calibrated ecological evidence.
 
 ## Related
 
-- [GNN model specifications](../models/README.md) — full reference.
-- [Generative model](../Biofirm_Generative_Model.md) — the computational
+- [GNN model specifications](../../models/README.md) — full reference.
+- [Generative model](../../Biofirm_Generative_Model.md) — the computational
   contract the specification describes.

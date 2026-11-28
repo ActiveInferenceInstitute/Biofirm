@@ -32,5 +32,5 @@ is the CI command:
 ./run.sh gnn
 ```
 
-See [`../docs/gnn.md`](../docs/gnn.md) for the loader and editing rules, and
+See [`../docs/gnn.md`](../docs/reference/gnn.md) for the loader and editing rules, and
 [`../docs/gate.md`](../docs/gate.md) for the measured arm times.

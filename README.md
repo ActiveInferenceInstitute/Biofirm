@@ -10,8 +10,8 @@ business decisions.
   [Generative model specification](#generative-model-specification) ·
   [Development checks](#development-checks)
 - [docs/README.md](docs/README.md) — the modular documentation hub
-  ([configuration](docs/configuration.md), [I/O and artifacts](docs/io.md),
-  [GNN specification](docs/gnn.md)).
+  ([configuration](docs/guides/configuration.md), [I/O and artifacts](docs/reference/io.md),
+  [GNN specification](docs/reference/gnn.md)).
 - [docs/documentation-index.md](docs/documentation-index.md) — the repository-wide index,
   including authoritative source data and historical material.
 - [CONFIGURATION.md](CONFIGURATION.md) — field-by-field configuration reference;
